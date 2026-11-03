@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { personalDemo, personalPose, personalRoute, personalRouteProgress, interruptPersonal, advancePersonal } from '../src/personalIdle.ts';
+import { personalDemo, personalPose, personalRoute, personalRouteProgress, interruptPersonal, advancePersonal, personalPlacement, personalDuration } from '../src/personalIdle.ts';
 import { advanceLiveOffice, reconcileLiveOffice, liveOfficePose } from '../src/liveOfficeMotion.ts';
 import type { LiveOfficeTarget } from '../src/liveOfficeMotion.ts';
 import { demoCharacters } from '../src/demoAssets.ts';
@@ -72,8 +72,11 @@ test('new exact alpha assets and every walking frame stay within world and priva
     const seat = fixedOfficeSeats().find(item => item.kind === (role === 'self' ? 'owner' : 'github'))!;
     const route = personalRoute(seat, character), width = officeActorWidth(seat);
     assert.equal(createHash('sha256').update(readFileSync(new URL(`../public/${character.extra!.src}`, import.meta.url))).digest('hex'), extras[role].sha256);
-    for (const [atlas, boxes, points] of [[character.locomotion, walks[role].frames, route], [character.extra!, extras[role].frames, role === 'self' ? [route.at(-1)!] : [seat]]] as const) {
-      for (const point of points) for (const box of boxes) for (const mirrored of [false, true]) {
+    const spinPlacement = personalPlacement(seat, character, { phase: 'scythe', elapsedMs: 0 });
+    // Walking can face either way. Self's held weapon uses the actual stand
+    // placement, which is explicitly locked by the exhaustive regression below.
+    for (const [atlas, boxes, points, facings] of [[character.locomotion, walks[role].frames, route, [false, true]], [character.extra!, extras[role].frames, role === 'self' ? [spinPlacement] : [seat], role === 'self' ? [spinPlacement.mirrored] : [false, true]]] as const) {
+      for (const point of points) for (const box of boxes) for (const mirrored of facings) {
         const [x0,y0,x1,y1] = box, a = mirrored ? 1-atlas.anchor.x : atlas.anchor.x;
         const left = point.x+((mirrored ? 512-x1 : x0)/512-a)*width;
         const right = point.x+((mirrored ? 512-x0 : x1)/512-a)*width;
@@ -101,6 +104,24 @@ test('registered pickup and parked prop alpha stays within private room at the e
       assert.ok(point.x + (x1 / 512 - atlas.anchor.x) * width <= 650);
       assert.ok(point.y + (y0 / 512 - atlas.anchor.y) * width >= 0);
       assert.ok(point.y + (y1 / 512 - atlas.anchor.y) * width <= OFFICE_WORLD.height);
+    }
+  }
+});
+
+test('pickup, spin and putdown always use the unmirrored stand placement, including recalled actions', () => {
+  const character = demoCharacters.find(item => item.id === 'self')!;
+  const seat = fixedOfficeSeats().find(item => item.kind === 'owner')!;
+  const stand = personalRoute(seat, character).at(-1)!;
+  for (const phase of ['pickup', 'scythe', 'putdown'] as const) {
+    for (let elapsedMs = 0; elapsedMs < personalDuration[phase]; elapsedMs++) {
+      const original = { phase, elapsedMs };
+      for (const action of [original, interruptPersonal(original)!]) {
+        const placement = personalPlacement(seat, character, action);
+        assert.equal(placement.mirrored, false, `${phase}/${elapsedMs}: held weapon must not mirror`);
+        assert.equal(placement.x, stand.x); assert.equal(placement.y, stand.y);
+        assert.equal(placement.contactX, character.extra!.anchor.x);
+        assert.equal(placement.contactY, character.extra!.anchor.y);
+      }
     }
   }
 });

@@ -60,28 +60,30 @@ test('actual RGBA atlas matches measured bounds, eight distinct directions, exac
   const { createHash } = await import('node:crypto');
   const { demoCharacters } = await import('../src/demoAssets.ts');
   // Decode the PNG pixels rather than trusting a hand-written dimensions claim.
-  const decode = (path: string) => {
-    const png = readFileSync(new URL(`../public/${path}`, import.meta.url));
+  const decode = (path: string | URL) => {
+    const png = readFileSync(path instanceof URL ? path : new URL(`../public/${path}`, import.meta.url));
     const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
-    assert.equal(png[24], 8); assert.equal(png[25], 6); assert.equal(png[28], 0);
+    assert.equal(png[24], 8); assert.ok(png[25] === 6 || png[25] === 0); assert.equal(png[28], 0);
+    const channels = png[25] === 6 ? 4 : 1;
     const chunks: Buffer[] = [];
     for (let offset = 8; offset < png.length;) {
       const size = png.readUInt32BE(offset);
       if (png.toString('ascii', offset + 4, offset + 8) === 'IDAT') chunks.push(png.subarray(offset + 8, offset + 8 + size));
       offset += size + 12;
     }
-    const raw = inflateSync(Buffer.concat(chunks)), stride = width * 4, pixels = Buffer.alloc(stride * height);
+    const raw = inflateSync(Buffer.concat(chunks)), stride = width * channels, pixels = Buffer.alloc(stride * height);
     for (let y = 0; y < height; y++) {
       const filter = raw[y * (stride + 1)];
       assert.ok(filter <= 4);
       for (let x = 0; x < stride; x++) {
-        const index = y * stride + x, a = x >= 4 ? pixels[index - 4] : 0, b = y > 0 ? pixels[index - stride] : 0, c = y > 0 && x >= 4 ? pixels[index - stride - 4] : 0;
+        const index = y * stride + x, a = x >= channels ? pixels[index - channels] : 0, b = y > 0 ? pixels[index - stride] : 0, c = y > 0 && x >= channels ? pixels[index - stride - channels] : 0;
         const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
         const predictor = filter === 0 ? 0 : filter === 1 ? a : filter === 2 ? b : filter === 3 ? Math.floor((a + b) / 2) : pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
         pixels[index] = raw[y * (stride + 1) + 1 + x] + predictor;
       }
     }
-    return { width, height, cell: (frame: number) => {
+    return { width, height, pixels, cell: (frame: number) => {
+      assert.equal(channels, 4, 'sprite cells must be RGBA');
       const out = Buffer.alloc(512 * 512 * 4), columns = width / 512;
       for (let y = 0; y < 512; y++) pixels.copy(out, y * 2048, (Math.floor(frame / columns) * 512 + y) * stride + frame % columns * 2048, (Math.floor(frame / columns) * 512 + y) * stride + frame % columns * 2048 + 2048);
       return out;
@@ -101,4 +103,28 @@ test('actual RGBA atlas matches measured bounds, eight distinct directions, exac
   }
   assert.equal(new Set(hashes.slice(0, 10)).size, 10, 'real distinct image frames, not duplicated swing frames');
   assert.deepEqual(atlas.cell(8), pickup.cell(3), 'handoff is byte-for-byte the final pickup grip');
+
+  // Artist-authored mask excludes every rotating weapon footprint. Lock its
+  // bytes/counts so shrinking the mask cannot silently weaken this regression.
+  // This proves fixed body registration, not absence of perceptual edge shimmer.
+  const maskPath = new URL('./fixtures/scythe-body-invariance-mask.png', import.meta.url);
+  assert.equal(createHash('sha256').update(readFileSync(maskPath)).digest('hex'), '0a3c56794c558adb2eac65417b9bb890156c802b0f506de2063d723a59db2fb8');
+  const mask = decode(maskPath);
+  assert.equal(mask.width, 512); assert.equal(mask.height, 512);
+  const reference = atlas.cell(0);
+  let invariantPixels = 0, visibleBodyPixels = 0;
+  for (let pixel = 0; pixel < mask.pixels.length; pixel++) {
+    assert.ok(mask.pixels[pixel] === 0 || mask.pixels[pixel] === 255);
+    if (mask.pixels[pixel] !== 255) continue;
+    invariantPixels++;
+    if (reference[pixel * 4 + 3]) visibleBodyPixels++;
+  }
+  assert.equal(invariantPixels, 186044);
+  assert.equal(visibleBodyPixels, 41088);
+  for (let frame = 1; frame < 8; frame++) {
+    const cell = atlas.cell(frame);
+    for (let pixel = 0; pixel < mask.pixels.length; pixel++) if (mask.pixels[pixel] === 255) {
+      assert.equal(cell.readUInt32BE(pixel * 4), reference.readUInt32BE(pixel * 4), `fixed body RGBA drift: frame ${frame}, pixel ${pixel}`);
+    }
+  }
 });

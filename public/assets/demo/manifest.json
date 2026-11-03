@@ -161,7 +161,7 @@
         300,
         470
       ],
-      "sha256": "30d71fb555f44ecd100c3ca51d540035a1441d8704a89b5921fbeb151911dd68",
+      "sha256": "33635cf0186c20336b3f373c682f4b624c9e4331bf9b6a700b2a5b2766a2d86a",
       "frameRoles": [
         "up",
         "upper-right",
@@ -219,7 +219,7 @@
           "durationMs": 200
         }
       ],
-      "provenance": "Eight authored weapon directions played twice, followed by wink/V pose. Frame 8 exactly matches pickup frame 3. Generated directions have minor grip, shaft-length and outfit drift; initial/return grip changes lift/lower the weapon rather than pixel-perfect tweening. Cells 10/11 are transparent and never played. Transparent-cell cleanup removed distant background specks outside silhouette bounding rectangles with 12px padding; retained pixels and the exact pickup grip were unchanged."
+      "provenance": "Eight rigid 45-degree weapon rotations about fixed cell pivot [211,298], assembled from one imagegen-extracted fixed body and one approved extracted scythe with nearest-neighbor sampling and a fixed grip overlay. No per-frame body redraw. Artist final atlas copied byte-for-byte. Frames 8/9/10/11 are unchanged: exact pickup frame 3, wink/V pose, and two transparent unused cells. Diagonal edges may still shimmer; charms rotate rigidly, and a one-time body shift may remain entering/exiting the spin. In-scene motion is reviewed separately."
     },
     {
       "path": "assets/demo/github/extra.png",
