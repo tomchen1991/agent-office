@@ -6,13 +6,13 @@ import {fixedOfficeSeats,fixedOfficeTables,OFFICE_WORLD,wholeOfficeSeats,officeR
 const close=(a:number,b:number)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 test('office privilege stays independent from explicitly configured team leader',()=>{
  for(const layout of ['independent-desks','leader-desks','peer-table'] as const){
-  const seats=wholeOfficeSeats(layout);assert.equal(seats.length,7);assert.equal(new Set(seats.map(s=>s.id)).size,7);
+  const seats=wholeOfficeSeats(layout);assert.equal(seats.length,6);assert.equal(new Set(seats.map(s=>s.id)).size,6);
   assert.deepEqual(seats.filter(s=>s.kind==='team').map(s=>s.persona).sort(),['chatgpt','deepseek','grok']);
-  assert.equal(seats.filter(s=>s.kind==='simulated-child').length,3);
+  assert.equal(seats.filter(s=>s.kind==='simulated-child').length,2);
   assert.equal(seats.find(s=>s.id==='self')!.kind,'owner');
   assert.equal(seats.filter(s=>s.role.includes('负责人')).length,layout==='leader-desks'?1:0);
  }
- assert.equal(wholeOfficeSeats('leader-desks',0).length,4);assert.equal(wholeOfficeSeats('leader-desks',99).length,7);
+ assert.equal(wholeOfficeSeats('leader-desks',0).length,4);assert.equal(wholeOfficeSeats('leader-desks',99).length,6);
  assert.deepEqual(wholeOfficeSeats('leader-desks').filter(s=>s.kind!=='team'),wholeOfficeSeats('peer-table').filter(s=>s.kind!=='team'));
 });
 test('private routes cross doorway before travelling inside and terminate at the calibrated chair approach',()=>{
@@ -67,10 +67,10 @@ test('staggered arrival ends in the exact planted pose used to start sitting',()
  }
 });
 
-test('fixed floor has 23 permanent empty seats, 4 shared tables, 11 individual desks, and compact usable aisles',()=>{
- const seats=fixedOfficeSeats(); assert.equal(seats.length,23); assert.equal(new Set(seats.map(s=>s.id)).size,23);
+test('fixed floor has 22 permanent empty seats, 3 shared tables, 13 individual desks, and compact usable aisles',()=>{
+ const seats=fixedOfficeSeats(); assert.equal(seats.length,22); assert.equal(new Set(seats.map(s=>s.id)).size,22);
  assert.ok(seats.every(s=>s.empty)); assert.equal(seats.filter(s=>s.kind==='team').length,19);
- assert.equal(seats.filter(s=>!s.sharedTable).length,11); assert.equal(fixedOfficeTables.length,4);
+ assert.equal(seats.filter(s=>!s.sharedTable).length,13); assert.equal(fixedOfficeTables.length,3);
  for(const table of fixedOfficeTables){assert.equal(seats.filter(s=>s.tableId===table.id).length,3);assert.ok(table.x+table.width<OFFICE_WORLD.width);}
  const desks=seats.filter(s=>s.id.startsWith('public-desk-'));
  assert.equal(desks.length,10);assert.equal(new Set(desks.map(s=>s.y)).size,2);
@@ -89,10 +89,10 @@ test('shared seats form an inward-facing arc and mirrored Grok approaches from o
  assert.equal(work.mirrored,true);close(work.contactX,1-c.seated.anchor.x);
  assert.ok(officeApproachPoint(right).x<right.x);
  assert.equal(officeActorPlacement(right,c,'exit',0,0).mirrored,false);
- assert.ok(fixedOfficeSeats().filter(s=>s.kind==='simulated-child').every(s=>s.sharedTable&&s.tableId==='private-table'));
+ assert.ok(fixedOfficeSeats().filter(s=>s.kind==='simulated-child').every(s=>!s.sharedTable&&!s.tableId&&!s.mirrored));
 });
 
-test('all 23 physical routes stay inside the world and cross the partition only through the open door',()=>{
+test('all 22 physical routes stay inside the world and cross the partition only through the open door',()=>{
  for(const seat of fixedOfficeSeats()){
   const route=officeRoute(seat);
   for(let index=1;index<route.length;index++){
@@ -108,7 +108,7 @@ test('all 23 physical routes stay inside the world and cross the partition only 
   close(arrival.x,sit.x);close(arrival.y,sit.y);assert.equal(arrival.mirrored,sit.mirrored);
  }
  const timings=fixedOfficeSeats().map(officeTravelTiming);
- assert.equal(new Set(timings.map(t=>t.arrivalDelayMs)).size,23);
+ assert.equal(new Set(timings.map(t=>t.arrivalDelayMs)).size,22);
  assert.ok(timings.every(t=>t.exitDelayMs+t.exitTravelMs<=4000));
 });
 
@@ -118,7 +118,7 @@ test('character ratio correction keeps world, camera fit, seat capacity and floo
  close(owner.scale/1.05,1.1/1.05);assert.ok(desks.every(s=>s.scale===.756));
  assert.equal(desks[5].y-desks[0].y,235);assert.equal(desks[1].x-desks[0].x,270);
  assert.equal(fixedOfficeTables[1].y,245);assert.equal(desks[0].y,580);
- assert.equal(fixedOfficeTables[0].scale,.65,'Private table preserves its constrained access aisle');
+ assert.ok(fixedOfficeTables.every(table=>!table.private),'Shared tables are public only');
  for(const table of fixedOfficeTables.filter(t=>!t.private)){
   close(table.scale/.7,1.03);close(table.width,635*table.scale*.9);close(table.height,268*table.scale);
  }
@@ -128,7 +128,7 @@ test('character ratio correction keeps world, camera fit, seat capacity and floo
  close(newFit,previousFit);
  close(.756*newFit/(.72*previousFit),1.05);
  assert.ok(OFFICE_WORLD.width*OFFICE_WORLD.height<2250*1100*.96);
- for(let i=2;i<4;i++) assert.ok(fixedOfficeTables[i].x-(fixedOfficeTables[i-1].x+fixedOfficeTables[i-1].width)>22);
+ for(let i=1;i<fixedOfficeTables.length;i++) assert.ok(fixedOfficeTables[i].x-(fixedOfficeTables[i-1].x+fixedOfficeTables[i-1].width)>23);
 });
 
 test('route centers avoid other tabletop and desk-front envelopes with positive gaps',()=>{
@@ -189,4 +189,22 @@ test('shared side seats inset the whole station so enlarged keyboards stay on th
    assert.ok(Math.max(...corners.map(p=>p.x))<=table.x+table.width-2,`${seat.id} keyboard extends beyond right edge`);
   }
  }
+});
+
+test('two private children have complete separate desks, visible gaps and the same public desk sizing',()=>{
+ const children=fixedOfficeSeats().filter(seat=>seat.kind==='simulated-child');
+ assert.deepEqual(children.map(seat=>seat.id),['self-child-1','self-child-2']);
+ for(const seat of children){
+  assert.equal(seat.sharedTable,undefined);assert.equal(seat.tableId,undefined);assert.equal(seat.mirrored,undefined);
+  assert.equal(seat.scale,.756);assert.equal(seat.x,250);
+  const left=officeLocalPoint(seat,OFFICE_DESK.frontX,376.2),right=left.x+OFFICE_DESK.frontWidth*seat.scale;
+  assert.ok(left.x>49&&right<486,'Child desks leave the right private aisle open');
+  for(const character of demoCharacters){
+   const work=officeActorPlacement(seat,character,'work',0,0);
+   const sit=officeActorPlacement(seat,character,'sit',2000,1);
+   close(work.y+(character.locomotion.anchor.y-work.contactY)*work.width,sit.y+(character.locomotion.anchor.y-sit.contactY)*sit.width);
+  }
+ }
+ assert.equal(children[1].y-children[0].y,235);
+ assert.ok(children[1].y-(children[0].y+131.1*children[0].scale)>130,'Separate desks have a clear floor gap');
 });

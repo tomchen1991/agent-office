@@ -37,22 +37,26 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   assert.equal(scene().getAttribute('data-office-stage'),'work');assert.equal(frames.size,0);
   assert.equal(scene().getAttribute('data-office-layout'),'fixed-office');
   assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length,10);
-  assert.equal(container.querySelectorAll('[data-office-shared-table]').length,4);
+  assert.equal(container.querySelectorAll('[data-office-shared-table]').length,3);
   for(const surface of container.querySelectorAll('.wo-shared-furniture'))assert.equal(surface.getAttribute('preserveAspectRatio'),'none','Horizontal table tightening must not rescale its calibrated height');
-  assert.equal(container.querySelectorAll('.wo-chair').length,23);
+  assert.equal(container.querySelectorAll('.wo-chair').length,22);
   assert.equal(container.querySelectorAll('.wo-team-links').length,0);
-  assert.equal(container.querySelectorAll('[data-office-actor]').length,7);
+  assert.equal(container.querySelectorAll('[data-office-desk]').length,13);
+  assert.equal(container.querySelector('[data-office-shared-table="private-table"]'),null);
+  assert.equal(container.querySelector('[data-office-seat="self-child-3"]'),null);
+  assert.match(container.querySelector('.wo-child-overflow')?.textContent??'',/\+3/);
+  assert.equal(container.querySelectorAll('[data-office-actor]').length,6);
   const actors=[...container.querySelectorAll('[data-office-actor]')];
   for(const id of ['self','deepseek','chatgpt','grok'])assert.ok(actors.some(actor=>actor.getAttribute('data-office-actor')===id),id);
   assert.match(container.textContent!,/独立办公室/);assert.match(container.textContent!,/模拟|演示/);
-  assert.equal(container.querySelectorAll('[data-office-actor][data-office-seat-kind="simulated-child"]').length,3);
-  assert.equal(container.querySelectorAll('[data-office-shared-project]').length,4);
-  assert.equal(container.querySelectorAll('.wo-screen-work').length,7);
+  assert.equal(container.querySelectorAll('[data-office-actor][data-office-seat-kind="simulated-child"]').length,2);
+  assert.equal(container.querySelectorAll('[data-office-shared-project]').length,3);
+  assert.equal(container.querySelectorAll('.wo-screen-work').length,6);
   assert.equal(container.querySelectorAll('.wo-layout-picker').length,0);
   const initialWorld=container.querySelector('.wo-world') as HTMLElement;
   assert.equal(initialWorld.style.width,'');assert.equal(button('适应全景').getAttribute('aria-pressed'),'true');
   assert.deepEqual(scrollCalls[0],[{left:0,top:0,behavior:'auto'}]);
-  assert.match(container.querySelector('.wo-viewport')!.getAttribute('aria-label')!,/23 席/);
+  assert.match(container.querySelector('.wo-viewport')!.getAttribute('aria-label')!,/22 席/);
   assert.match(container.textContent!,/紧凑全景/);
   const expectedRegion=(region:keyof typeof officeRegionCenters,scale=.65)=>{const center=officeRegionCenters[region];return [{left:Math.max(0,Math.min(OFFICE_WORLD.width*scale-portWidth,center.x*scale-portWidth/2)),top:Math.max(0,Math.min(OFFICE_WORLD.height*scale-portHeight,center.y*scale-portHeight/2)),behavior:'smooth'}];};
   const assertRegion=(region:keyof typeof officeRegionCenters,scale=.65)=>{const actual=scrollCalls.at(-1)![0] as ScrollToOptions;const expected=expectedRegion(region,scale)[0];assert.equal(actual.behavior,expected.behavior);assert.ok(Math.abs(actual.left!-expected.left)<1e-6);assert.ok(Math.abs(actual.top!-expected.top)<1e-6);};
@@ -75,7 +79,7 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   await click('适应全景');await click('舒适近景');
   assert.equal(initialWorld.style.width,`${OFFICE_WORLD.width*.65}px`);assert.deepEqual(scrollCalls.at(-1),[{left:0,top:Math.max(0,Math.min(100,OFFICE_WORLD.height*.65-portHeight)),behavior:'smooth'}]);
   assert.equal(container.querySelector('[data-office-actor="self"]'),retainedActor);
-  assert.equal(container.querySelectorAll('.wo-chair').length,23);
+  assert.equal(container.querySelectorAll('.wo-chair').length,22);
   await click('100%');assert.equal((container.querySelector('.wo-world') as HTMLElement).style.width,`${OFFICE_WORLD.width}px`);
   await click('缩小办公室');assert.equal((container.querySelector('.wo-world') as HTMLElement).style.width,`${OFFICE_WORLD.width*.8}px`);
   await click('放大办公室');assert.equal((container.querySelector('.wo-world') as HTMLElement).style.width,`${OFFICE_WORLD.width}px`);
@@ -93,8 +97,8 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   await click('适应全景');
 
   await click('跳转到Error');
-  assert.equal(container.querySelectorAll('.wo-screen-error').length,7);
-  assert.equal(container.querySelectorAll('[data-office-actor]').length,7);
+  assert.equal(container.querySelectorAll('.wo-screen-error').length,6);
+  assert.equal(container.querySelectorAll('[data-office-actor]').length,6);
   await click('重播办公室演示');const stages=new Set<string>();
   for(let i=0;i<263;i++){stages.add(scene().getAttribute('data-office-stage')!);await step();}
   assert.deepEqual([...stages],['arrival','sit','work','slack','error','stand','exit']);

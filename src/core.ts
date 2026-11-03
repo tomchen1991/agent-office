@@ -1,3 +1,5 @@
+/** Physical child capacity; configured identities beyond this remain inspectable overflow. */
+export const MAX_VISIBLE_CHILD_AGENTS = 2;
 /** Public display contract. Never include credentials or raw collector payloads here. */
 export type CharacterId = 'self' | 'deepseek' | 'chatgpt' | 'grok' | 'unknown';
 export type OfficeStatus = 'idle' | 'working' | 'waiting' | 'stopping' | 'offline' | 'unknown';
@@ -78,12 +80,12 @@ export interface OfficeSeatReport {
   childOverflowIds: readonly string[];
   teamOverflowIds: readonly string[];
 }
-/** Legacy layout is an allocation preference only; all 23 physical seats always exist. */
+/** Legacy layout is an allocation preference only; all 22 physical seats always exist. */
 export function liveOfficeSeatReport(topology: OfficeTopology): OfficeSeatReport {
   validateTopology(topology);
   const assignments: Record<string, string> = Object.create(null);
   assignments[topology.selfAgentId] = 'self';
-  topology.childAgentIds.slice(0, 3).forEach((id, index) => { assignments[id] = `self-child-${index + 1}`; });
+  topology.childAgentIds.slice(0, MAX_VISIBLE_CHILD_AGENTS).forEach((id, index) => { assignments[id] = `self-child-${index + 1}`; });
   const explicit = topology.team.seatAssignments ?? {};
   const used = new Set(Object.values(explicit));
   const preferred = topology.team.layout === 'peer-table'
@@ -96,5 +98,5 @@ export function liveOfficeSeatReport(topology: OfficeTopology): OfficeSeatReport
     if (position) assignments[id] = position;
     else teamOverflowIds.push(id);
   }
-  return { assignments, childOverflowIds: topology.childAgentIds.slice(3), teamOverflowIds };
+  return { assignments, childOverflowIds: topology.childAgentIds.slice(MAX_VISIBLE_CHILD_AGENTS), teamOverflowIds };
 }

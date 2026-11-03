@@ -1,3 +1,4 @@
+import { MAX_VISIBLE_CHILD_AGENTS } from './core.ts';
 import { demoCharacters } from './demoAssets.ts';
 import type { DemoCharacter } from './demoAssets.ts';
 import type { DemoStage } from './demoTimeline.ts';
@@ -9,7 +10,7 @@ export const officeActorWidth = (seat: OfficeSeat) => DEMO_SPRITE_WIDTH_PERCENT 
 export const OFFICE_DESK = { backX: 610, backWidth: 277, frontX: 600, frontWidth: 297 } as const;
 export const OFFICE_WORLD = { width: 2250, height: 1050 } as const;
 export const officeRegionCenters = { private: { x: 325, y: 520 }, public: { x: 1420, y: 320 }, desks: { x: 1420, y: 720 } } as const;
-export const MAX_SIMULATED_CHILD_SEATS = 3;
+export const MAX_SIMULATED_CHILD_SEATS = MAX_VISIBLE_CHILD_AGENTS;
 export const SIMULATED_CHILD_COUNT = 5;
 export type OfficeLayout = 'independent-desks' | 'leader-desks' | 'peer-table';
 export interface OfficePoint { x: number; y: number }
@@ -33,12 +34,15 @@ export interface OfficeTable extends OfficePoint {
 }
 /** Continuous three-seat surface: horizontal excess trimmed, original height retained. */
 export const fixedOfficeTables: readonly OfficeTable[] = [
-  { id: 'private-table', x: 110, y: 600, width: 371.475, height: 174.2, depth: 724.8, scale: .65, private: true },
   ...[0, 1, 2].map(index => ({ id: `public-table-${index + 1}`, x: 800 + index * 460, y: 245, width: 412.0515, height: 193.228, depth: 383.432, scale: .721, private: false })),
 ];
 /** All furniture exists even when no agent is connected. No template is an actor. */
 export function fixedOfficeSeats(): OfficeSeat[] {
   const seats: OfficeSeat[] = [{ id: 'self', geometryId: 'self', persona: 'self', label: '主工位', kind: 'owner', role: '独立办公室 · 大工位', x: 250, y: 340, scale: 1.1, empty: true }];
+  for (let index = 0; index < MAX_SIMULATED_CHILD_SEATS; index++) {
+    const id = `self-child-${index + 1}`;
+    seats.push({ id, geometryId: id, persona: 'self', label: `子工位 ${index + 1}`, kind: 'simulated-child', role: '子 Agent 独立工位', x: 250, y: 600 + index * 235, scale: .756, empty: true });
+  }
   for (const table of fixedOfficeTables) {
     const offsets = [{ x: 40, y: 89 }, { x: 240, y: 6 }, { x: 580, y: 89, mirrored: true }];
     offsets.forEach((offset, index) => {
@@ -86,8 +90,9 @@ export function officeRoute(seat: OfficeSeat, character?: DemoCharacter): Office
     const aisleY = table.y - 70;
     return [...entry, ...(table.private ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: perimeterX, y: aisleY }, { x: perimeterX, y: end.y }, end];
   }
-  const aisleY = seat.y - (seat.kind === 'owner' ? 60 : 100);
-  return [...entry, ...(seat.kind === 'owner' ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: seat.x - (seat.kind === 'owner' ? 30 : 80), y: aisleY }, { x: seat.x - (seat.kind === 'owner' ? 30 : 80), y: end.y }, end];
+  const privateSeat = seat.kind !== 'team';
+  const aisleY = seat.y - (privateSeat ? 60 : 100);
+  return [...entry, ...(privateSeat ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: seat.x - (privateSeat ? 30 : 80), y: aisleY }, { x: seat.x - (privateSeat ? 30 : 80), y: end.y }, end];
 }
 export function pointAlongOfficeRoute(route: readonly OfficePoint[], progress: number): OfficePoint & { movingLeft: boolean } {
   const lengths = route.slice(1).map((point, index) => Math.hypot(point.x - route[index].x, point.y - route[index].y));

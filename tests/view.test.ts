@@ -12,7 +12,7 @@ test('office SSR renders accessible topology, bounded seats and truthful missing
     const html = renderToStaticMarkup(createElement(App));
     assert.throws(() => renderToStaticMarkup(createElement(App, { topology: {...demoTopology, childAgentIds: ['self']} })), /unique/);
     assert.match(html, /独立办公室/);
-    assert.match(html, /另有 1 个子 Agent 未展示/);
+    assert.match(html, /另有 2 个子 Agent 未展示/);
     assert.match(html, /团队负责人/);
     assert.match(html, /未提供用户请求/);
     assert.match(html, /占位形象/);

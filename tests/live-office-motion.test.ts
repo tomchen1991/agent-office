@@ -60,10 +60,10 @@ test('explicit topology uses the approved geometry, isolates self privileges, ca
   const topology: OfficeTopology = { selfAgentId: 'owner', childAgentIds: ['c1', 'c2', 'c3', 'c4', 'c5'], team: { layout: 'leader-desks', memberIds: ['a', 'b', 'c'], leaderId: 'b' } };
   const agents: OfficeAgent[] = [{ id: 'a', name: 'host-chatgpt', character: 'unknown', status: 'working', source: 'host', observedAt: null, latestUserRequest: null }];
   const seats = liveOfficeSeats(topology, agents);
-  assert.equal(seats.filter(seat => seat.kind === 'simulated-child').length, 3);
+  assert.equal(seats.filter(seat => seat.kind === 'simulated-child').length, 2);
   assert.equal(seats.find(seat => seat.kind === 'owner')?.id, 'owner');
   assert.equal(seats.find(seat => seat.isLeader)?.id, 'b');
-  assert.equal(seats.length, 23);
+  assert.equal(seats.length, 22);
   assert.equal(seats.find(seat => seat.id === 'b')?.geometryId, 'public-desk-2');
   assert.equal(seats.find(seat => seat.id === 'a')?.persona, 'unknown');
   const peer = liveOfficeSeats({ ...topology, team: { layout: 'peer-table', memberIds: ['a', 'b', 'c'] } }, agents);

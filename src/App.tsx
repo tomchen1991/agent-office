@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeTopology } from './core';
-import { freshness, validateTopology, displayStatus } from './core';
+import { freshness, validateTopology, displayStatus, MAX_VISIBLE_CHILD_AGENTS } from './core';
 import { createMockAdapter, demoTopology } from './mock';
 import { useOfficeMotion } from './useOfficeMotion';
 import type { MotionActor, MotionTarget } from './motion';
@@ -86,8 +86,8 @@ export function App({ adapterFactory = createMockAdapter, topology = demoTopolog
       return {...effective, status: displayStatus(effective, elapsed, state.phase)};
     });
   const agent = agents.find(item => item.id === selected);
-  const childIds = topology.childAgentIds.slice(0, 3);
-  const overflow = Math.max(0, topology.childAgentIds.length - 3);
+  const childIds = topology.childAgentIds.slice(0, MAX_VISIBLE_CHILD_AGENTS);
+  const overflow = Math.max(0, topology.childAgentIds.length - MAX_VISIBLE_CHILD_AGENTS);
   const slots = [
     { id: topology.selfAgentId, seat: 'owner' },
     ...childIds.map((id, index) => ({ id, seat: `child-${index}` })),
@@ -131,7 +131,7 @@ export function App({ adapterFactory = createMockAdapter, topology = demoTopolog
     <div className="layout">
       <section className="office-scene" aria-label="Agent 办公室">
         <div className="scene-heading"><div><span className="eyebrow">OFFICE FLOOR</span><h2>一个办公室，两种协作方式</h2></div><span className="scene-note">点击工位查看用户请求</span></div>
-        <section className="private-office" aria-labelledby="private-title"><div className="room-heading"><h3 id="private-title">自研 Agent · 独立办公室</h3><span>身份专属，不随团队领导者变化</span></div><div className="private-seats"><div className="owner-desk">{seat(topology.selfAgentId, '自研 Agent')}</div><div className="child-area"><span className="area-caption">子 Agent 协作工位</span><div className="child-seats">{childIds.map((id, index) => seat(id, `子 Agent ${index + 1}`))}{overflow > 0 && <span className="overflow" aria-label={`另有 ${overflow} 个子 Agent 未展示`}>+{overflow}</span>}{childIds.length === 0 && <p className="empty-state">暂未配置子 Agent</p>}</div><small>最多展示 3 个子 Agent，其余合并计数</small></div></div></section>
+        <section className="private-office" aria-labelledby="private-title"><div className="room-heading"><h3 id="private-title">自研 Agent · 独立办公室</h3><span>身份专属，不随团队领导者变化</span></div><div className="private-seats"><div className="owner-desk">{seat(topology.selfAgentId, '自研 Agent')}</div><div className="child-area"><span className="area-caption">子 Agent 独立工位</span><div className="child-seats">{childIds.map((id, index) => seat(id, `子 Agent ${index + 1}`))}{overflow > 0 && <span className="overflow" aria-label={`另有 ${overflow} 个子 Agent 未展示`}>+{overflow}</span>}{childIds.length === 0 && <p className="empty-state">暂未配置子 Agent</p>}</div><small>最多展示 2 个子 Agent，其余合并计数</small></div></div></section>
         <section className={`team-office ${layout}`} aria-labelledby="team-title"><div className="room-heading"><h3 id="team-title">公共协作区</h3><fieldset className="layout-picker"><legend>展示拓扑配置</legend><label><input type="radio" name="layout" checked={layout === 'independent-desks'} onChange={() => setLayout('independent-desks')} />独立工位</label><label><input type="radio" name="layout" checked={layout === 'leader-desks'} onChange={() => setLayout('leader-desks')} />主从工位</label><label><input type="radio" name="layout" checked={layout === 'peer-table'} onChange={() => setLayout('peer-table')} />平等协作</label></fieldset></div><p className="topology-note">{layout === 'independent-desks' ? '普通 Agent 各自独立工位，不指定负责人。' : layout === 'leader-desks' ? '由显式配置指定团队负责人；不根据主机、模型或角色字段推断。' : '成员围坐共享协作桌；所有成员平等，不显示指挥席。'}</p><div className="team-seats">{topology.team.memberIds.map(id => <div key={id} className={layout === 'leader-desks' && id === topology.team.leaderId ? 'leader-seat' : ''}>{seat(id, layout === 'leader-desks' ? (id === topology.team.leaderId ? '团队负责人' : '协作成员') : '平等成员')}</div>)}</div>{layout === 'peer-table' && <div className="shared-table" aria-hidden="true">共享协作桌</div>}</section>
         <div className="exit-lane" aria-label="离场通道"><span>出口 ←</span>{actors.filter(actor => actor.phase === 'leaving' && !retainedAtSeat(actor)).map(actor => <span key={actor.id} className="exit-silhouette"><AgentSeat id={actor.id} actor={actor} presentation={presentationEntries.get(actor.id)} label="离场通道" playing={false} selected={selected === actor.id} onSelect={setSelected} /></span>)}</div>
         <p className="motion-disclaimer">入场 / 换位 / 离场使用静态形象平移原型，不是已完成的行走、落座或工作精灵。入口为工位边缘的简化起点。</p>

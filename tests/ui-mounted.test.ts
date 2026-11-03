@@ -29,8 +29,8 @@ test('mounted office interactions and hook cleanup', async t => {
     await act(async () => root.render(createElement(StrictMode, null, createElement(App))));
     await step();
     await t.test('mount settles, bounded child seats and detail selection work repeatedly', async () => {
-      assert.equal(container.querySelectorAll('.child-seats .agent-seat').length, 3);
-      assert.equal(container.querySelector('.overflow')?.textContent, '+1');
+      assert.equal(container.querySelectorAll('.child-seats .agent-seat').length, 2);
+      assert.equal(container.querySelector('.overflow')?.textContent, '+2');
       assert.match(container.querySelector('.request-body')?.textContent ?? '', /模拟请求/);
       const grok = container.querySelector('button[aria-label^="Grok，"]')!;
       await click(grok); await click(grok);
