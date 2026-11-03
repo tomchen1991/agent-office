@@ -7,7 +7,7 @@ import { DEMO_SPRITE_WIDTH_PERCENT, SEATED_CONTACT_Y, seatingPlacement, seatingP
 export const OFFICE_WORLD = { width: 1400, height: 850 } as const;
 export const MAX_SIMULATED_CHILD_SEATS = 3;
 export const SIMULATED_CHILD_COUNT = 5;
-export type OfficeLayout = 'leader-desks' | 'peer-table';
+export type OfficeLayout = 'independent-desks' | 'leader-desks' | 'peer-table';
 export interface OfficePoint { x: number; y: number }
 export interface OfficeSeat extends OfficePoint {
   id: string;
@@ -25,7 +25,11 @@ export function wholeOfficeSeats(layout: OfficeLayout, childCount = SIMULATED_CH
   for (let index = 0; index < Math.min(MAX_SIMULATED_CHILD_SEATS, Math.max(0, Math.floor(childCount))); index++) {
     seats.push({ id: `self-child-${index + 1}`, persona: 'self', label: `模拟子 Actor ${index + 1}`, kind: 'simulated-child', role: '自研外观派生 · 演示实例', x: 140 + index * 150, y: 580, scale: .42 });
   }
-  seats.push(...(layout === 'leader-desks' ? [
+  seats.push(...(layout === 'independent-desks' ? [
+    { id: 'deepseek', persona: 'deepseek', label: 'DeepSeek', kind: 'team', role: '独立工位 · 同级办公', x: 720, y: 430, scale: .65 },
+    { id: 'chatgpt', persona: 'chatgpt', label: 'ChatGPT', kind: 'team', role: '独立工位 · 同级办公', x: 970, y: 430, scale: .65 },
+    { id: 'grok', persona: 'grok', label: 'Grok', kind: 'team', role: '独立工位 · 同级办公', x: 1220, y: 430, scale: .65 },
+  ] : layout === 'leader-desks' ? [
     { id: 'chatgpt', persona: 'chatgpt', label: 'ChatGPT', kind: 'team', role: '任务负责人 · 演示指定', x: 995, y: 290, scale: .88 },
     { id: 'deepseek', persona: 'deepseek', label: 'DeepSeek', kind: 'team', role: '团队成员', x: 770, y: 535, scale: .85 },
     { id: 'grok', persona: 'grok', label: 'Grok', kind: 'team', role: '团队成员', x: 1100, y: 535, scale: .85 },

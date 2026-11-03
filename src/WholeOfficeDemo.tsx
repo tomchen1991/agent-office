@@ -32,7 +32,7 @@ const furniturePosition = (seat: OfficeSeat, x: number, y: number, width: number
 
 export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: readonly DemoCharacter[] } = {}) {
   const [state, dispatch] = useReducer(demoReducer, undefined, initialDemoState);
-  const [layout, setLayout] = useState<OfficeLayout>('leader-desks');
+  const [layout, setLayout] = useState<OfficeLayout>('independent-desks');
   const [reducedMotion, setReducedMotion] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [assets, setAssets] = useState<{ ready: boolean; failed: string[] }>({ ready: false, failed: [] });
@@ -117,7 +117,7 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
 
   return <section className="whole-office-demo" aria-labelledby="whole-office-title" data-office-stage={stage} data-office-complete={state.completed} data-office-layout={layout} data-office-assets-ready={canAnimate} data-office-reduced-motion={reducedMotion}>
     <div className="wo-heading"><div><span className="wo-kicker">AGENT OFFICE / THE WHOLE STUDIO</span><h1 id="whole-office-title">同一间办公室，一起上一天班。</h1><p>自研 Agent 有自己的房间。团队有自己的协作方式。每个席位，都有完整动作。</p></div><span className="wo-demo-tag"><i /> 26 秒完整演示 · 模拟数据</span></div>
-    <div className="wo-toolbar"><div className="wo-layout-picker" role="group" aria-label="团队办公布局"><button aria-pressed={layout === 'leader-desks'} onClick={() => setLayout('leader-desks')}>主从工位</button><button aria-pressed={layout === 'peer-table'} onClick={() => setLayout('peer-table')}>平等协作桌</button></div><p>{layout === 'leader-desks' ? '本演示由 ChatGPT 负责团队任务；自研办公室权限与任务负责人互相独立。' : '三位团队角色围绕同一张协作桌工作，无固定主座。自研办公室保持独立。'}</p></div>
+    <div className="wo-toolbar"><div className="wo-layout-picker" role="group" aria-label="团队办公布局"><button aria-pressed={layout === 'independent-desks'} onClick={() => setLayout('independent-desks')}>独立工位</button><button aria-pressed={layout === 'leader-desks'} onClick={() => setLayout('leader-desks')}>主从工位</button><button aria-pressed={layout === 'peer-table'} onClick={() => setLayout('peer-table')}>平等协作桌</button></div><p>{layout === 'independent-desks' ? '每位普通 Agent 有自己的完整桌椅，桌间留出走道；同级办公，不指定任务负责人。' : layout === 'leader-desks' ? '本演示由 ChatGPT 负责团队任务；自研办公室权限与任务负责人互相独立。' : '三位团队角色围绕同一张协作桌工作，无固定主座。自研办公室保持独立。'}</p></div>
     <div className="wo-scene-card">
       <div className="wo-pan-hint">窄屏可左右滑动查看完整办公室</div>
       <div className="wo-viewport" tabIndex={0} role="region" aria-label="办公室全景，窄屏可左右滚动">
@@ -130,15 +130,15 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
           <div className="wo-glass-wall" aria-hidden="true"><i /><i /><i /></div>
           <div className="wo-private-door" aria-label="独立办公室的敞开门口"><span>OPEN</span></div>
           <div className="wo-room-title wo-private-title"><span>01 / PRIVATE OFFICE</span><h2>自研 Agent 独立办公室</h2><small>专属空间，不等于团队任务负责人</small></div>
-          <div className="wo-room-title wo-team-title"><span>02 / TEAM STUDIO</span><h2>{layout === 'leader-desks' ? '团队主从工位' : '平等协作办公桌'}</h2><small>{layout === 'leader-desks' ? '本次演示负责人：ChatGPT' : '共享一张桌 · 三位同级协作'}</small></div>
+          <div className="wo-room-title wo-team-title"><span>02 / TEAM STUDIO</span><h2>{layout === 'independent-desks' ? '独立工位区' : layout === 'leader-desks' ? '团队主从工位' : '平等协作办公桌'}</h2><small>{layout === 'independent-desks' ? '一人一桌 · 独立桌椅 · 同级办公' : layout === 'leader-desks' ? '本次演示负责人：ChatGPT' : '共享一张桌 · 三位同级协作'}</small></div>
           <div className="wo-owner-rug" aria-hidden="true" />
           <svg className="wo-scythe-rack" viewBox="0 0 90 180" aria-label="工位旁停放的星月镰刀" role="img"><path d="M42 35 L52 167" stroke="#5a365f" strokeWidth="9"/><path d="M42 35 L52 167" stroke="#cca0e2" strokeWidth="4"/><path d="M12 39 Q42 -3 82 30 Q52 16 28 51Z" fill="#d8b5ed" stroke="#63417c" strokeWidth="3"/><path d="M44 24 L55 35 L46 47 L35 35Z" fill="#9c57cc" stroke="#f0d6ff" strokeWidth="2"/><path d="M27 47 L22 66 L34 60Z" fill="#aa78c8"/><path d="M35 164 H70 L75 174 H30Z" fill="#684575"/><circle cx="59" cy="53" r="5" fill="#ead7a0"/></svg>
           <div className="wo-child-label"><strong>子 Agent 工作区</strong><span>模拟子 Actor · 复用自研外观，不是新增角色</span></div>
           <div className="wo-child-overflow" aria-label={`还有 ${SIMULATED_CHILD_COUNT - MAX_SIMULATED_CHILD_SEATS} 个模拟子 Actor，最多展示 ${MAX_SIMULATED_CHILD_SEATS} 个席位`}><b>+{SIMULATED_CHILD_COUNT - MAX_SIMULATED_CHILD_SEATS}</b><span>另有模拟子 Actor<br/>最多展开 3 席</span></div>
-          {layout === 'leader-desks' ? <svg className="wo-team-links" viewBox="0 0 1400 850" aria-hidden="true"><path d="M1045 392 L1045 421 L810 421 L810 442 M1045 421 L1140 421 L1140 442" /></svg> : <>
+          {layout === 'leader-desks' ? <svg className="wo-team-links" viewBox="0 0 1400 850" aria-hidden="true"><path d="M1045 392 L1045 421 L810 421 L810 442 M1045 421 L1140 421 L1140 442" /></svg> : layout === 'peer-table' ? <>
             <div className="wo-collaboration-note"><b>同一张桌，同一个目标。</b><span>平等协作 · 三个真实动作席位</span></div>
             <div className="wo-shared-table" style={position(649, 394.69, 750, 101.745, 431)} data-office-shared-table="true" aria-label="三位团队角色共用的一张连续协作桌"><span className="wo-desk-top" /><span className="wo-shared-edge" /><span className="wo-shared-leg wo-left" /><span className="wo-shared-leg wo-right" /></div>
-          </>}
+          </> : null}
           {seats.map(renderSeat)}
           <div className="wo-plant wo-plant-one" aria-hidden="true"><span>✦</span><i /></div><div className="wo-plant wo-plant-two" aria-hidden="true"><span>✦</span><i /></div>
           <div className="wo-door-mat" aria-hidden="true">SHARED ENTRANCE<span>↑</span></div>

@@ -5,7 +5,7 @@ import {demoFrame} from '../src/demoTimeline.ts';
 import {wholeOfficeSeats,officeRoute,officeApproachPoint,pointAlongOfficeRoute,officeActorPlacement,officeTravelTiming} from '../src/wholeOfficeGeometry.ts';
 const close=(a:number,b:number)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 test('office privilege stays independent from explicitly configured team leader',()=>{
- for(const layout of ['leader-desks','peer-table'] as const){
+ for(const layout of ['independent-desks','leader-desks','peer-table'] as const){
   const seats=wholeOfficeSeats(layout);assert.equal(seats.length,7);assert.equal(new Set(seats.map(s=>s.id)).size,7);
   assert.deepEqual(seats.filter(s=>s.kind==='team').map(s=>s.persona).sort(),['chatgpt','deepseek','grok']);
   assert.equal(seats.filter(s=>s.kind==='simulated-child').length,3);
@@ -16,7 +16,7 @@ test('office privilege stays independent from explicitly configured team leader'
  assert.deepEqual(wholeOfficeSeats('leader-desks').filter(s=>s.kind!=='team'),wholeOfficeSeats('peer-table').filter(s=>s.kind!=='team'));
 });
 test('private routes cross doorway before travelling inside and terminate at the calibrated chair approach',()=>{
- for(const layout of ['leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
+ for(const layout of ['independent-desks','leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
   const route=officeRoute(seat),last=pointAlongOfficeRoute(route,1),first=pointAlongOfficeRoute(route,0);
   assert.equal(first.x,640);assert.equal(first.y,808);assert.equal(last.x,officeApproachPoint(seat).x);assert.equal(last.y,officeApproachPoint(seat).y);
   if(seat.kind!=='team'){assert.ok(route.some(p=>p.x===570&&p.y===685));assert.ok(route.some(p=>p.x===640&&p.y===685));}
@@ -24,7 +24,7 @@ test('private routes cross doorway before travelling inside and terminate at the
  }
 });
 test('all office seats retain four boundary contact positions and unchanged seated endpoints',()=>{
- for(const layout of ['leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
+ for(const layout of ['independent-desks','leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
   const character=demoCharacters.find(c=>c.id===seat.persona)!;
   const place=(stage:Parameters<typeof officeActorPlacement>[2],t:number,p:number)=>officeActorPlacement(seat,character,stage,t,p);
   const wrapper=(p:ReturnType<typeof place>)=>({x:p.x-p.contactX*p.width,y:p.y-p.contactY*p.width});
@@ -57,7 +57,7 @@ test('whole-office sit and stand feet stay at the physical seated floor contact,
 });
 
 test('staggered arrival ends in the exact planted pose used to start sitting',()=>{
- for(const layout of ['leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
+ for(const layout of ['independent-desks','leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
   const c=demoCharacters.find(c=>c.id===seat.persona)!;
   for(const t of [3880,3900,3999]){
    const p=officeActorPlacement(seat,c,'arrival',t,t/4000);
@@ -65,4 +65,15 @@ test('staggered arrival ends in the exact planted pose used to start sitting',()
    assert.deepEqual(demoFrame({stage:'arrival',stageElapsedMs:p.motionElapsedMs,progress:t/4000}),demoFrame({stage:'sit',stageElapsedMs:0,progress:0}));
   }
  }
+});
+
+test('independent desks have three equal complete furniture footprints with clear gaps and no leader',()=>{
+ const all=wholeOfficeSeats('independent-desks'),team=all.filter(s=>s.kind==='team').sort((a,b)=>a.x-b.x);
+ assert.equal(team.length,3);assert.equal(new Set(team.map(s=>s.y)).size,1);assert.equal(new Set(team.map(s=>s.scale)).size,1);
+ for(let i=0;i<team.length;i++){
+  const s=team[i],left=s.x-90*s.scale,right=left+330*s.scale;
+  assert.ok(left>600&&right<1400);assert.match(s.role,/独立工位/);assert.ok(!s.role.includes('负责人'));
+  if(i>0){const prev=team[i-1];assert.ok(left-(prev.x+240*prev.scale)>=30);}
+ }
+ assert.deepEqual(all.filter(s=>s.kind!=='team'),wholeOfficeSeats('leader-desks').filter(s=>s.kind!=='team'));
 });

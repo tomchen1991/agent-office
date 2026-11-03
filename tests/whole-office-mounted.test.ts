@@ -27,6 +27,7 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   await act(async()=>root.render(createElement(StrictMode,null,createElement(WholeOfficeDemo))));
   await click('跳转到工作中');await act(async()=>pending.splice(0).forEach(fn=>fn()));
   assert.equal(scene().getAttribute('data-office-stage'),'work');assert.equal(frames.size,0);
+  assert.equal(scene().getAttribute('data-office-layout'),'independent-desks');assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length,3);assert.equal(container.querySelectorAll('[data-office-shared-table],.wo-team-links').length,0);
   const actors=[...container.querySelectorAll('[data-office-actor]')];
   for(const id of ['self','deepseek','chatgpt','grok'])assert.ok(actors.some(actor=>actor.getAttribute('data-office-actor')===id),id);
   assert.match(container.textContent!,/独立办公室/);assert.match(container.textContent!,/模拟|演示/);
@@ -37,6 +38,7 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length,0);
   await click('主从工位');assert.equal(scene().getAttribute('data-office-layout'),'leader-desks');assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length,3);assert.equal(frames.size,0);
 
+  await click('独立工位');assert.equal(frames.size,0);assert.equal(scene().getAttribute('data-office-layout'),'independent-desks');
   await click('重播办公室演示');const stages=new Set<string>();
   for(let i=0;i<263;i++){stages.add(scene().getAttribute('data-office-stage')!);await step();}
   assert.deepEqual([...stages],['arrival','sit','work','slack','error','stand','exit']);
