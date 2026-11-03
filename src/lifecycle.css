@@ -3,3 +3,5 @@
 .lc-keyboard{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:2px;height:14%}.lc-keyboard i{display:block;background:#aa96bc;border-bottom:1px solid #d6c7df;min-width:0}.lc-keyboard i.key-pressed{background:#e6c8fc;border-bottom-color:#654a7d;transform:translateY(1px)}.lc-screen-progress{position:absolute;left:0;bottom:0;height:3px;background:#a5e3ba;display:block}@media(max-width:750px){.lc-keyboard{gap:1px;padding:1px}.lc-screen-progress{height:2px}}
 
 .lc-scythe-rack{position:absolute;left:49%;top:52%;width:8%;height:30%;z-index:3;filter:drop-shadow(2px 4px 0 #241c31)}
+
+.lifecycle-heading{margin-bottom:12px}.lc-demo-badge{display:inline-flex}.lc-stage-summary h2{margin:0}

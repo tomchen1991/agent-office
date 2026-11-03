@@ -57,7 +57,8 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   assert.equal(initialWorld.style.width,'');assert.equal(button('适应全景').getAttribute('aria-pressed'),'true');
   assert.deepEqual(scrollCalls[0],[{left:0,top:0,behavior:'auto'}]);
   assert.match(container.querySelector('.wo-viewport')!.getAttribute('aria-label')!,/20 席/);
-  assert.match(container.textContent!,/紧凑全景/);
+  assert.doesNotMatch(container.textContent!,/人物更醒目|桌面收紧|固定办公室：/);
+  assert.equal(container.querySelector('.wo-demo-tag')?.textContent,'模拟演示');
   const expectedRegion=(region:keyof typeof officeRegionCenters,scale=.65)=>{const center=officeRegionCenters[region];return [{left:Math.max(0,Math.min(OFFICE_WORLD.width*scale-portWidth,center.x*scale-portWidth/2)),top:Math.max(0,Math.min(OFFICE_WORLD.height*scale-portHeight,center.y*scale-portHeight/2)),behavior:'smooth'}];};
   const assertRegion=(region:keyof typeof officeRegionCenters,scale=.65)=>{const actual=scrollCalls.at(-1)![0] as ScrollToOptions;const expected=expectedRegion(region,scale)[0];assert.equal(actual.behavior,expected.behavior);assert.ok(Math.abs(actual.left!-expected.left)<1e-6);assert.ok(Math.abs(actual.top!-expected.top)<1e-6);};
   const retainedActor=container.querySelector('[data-office-actor="self"]');

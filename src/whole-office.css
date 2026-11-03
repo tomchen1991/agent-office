@@ -7,3 +7,5 @@
 
 /* Navigation changes the camera only; the full floor stays in the scrollport. */
 .wo-scene-card{min-width:0;max-width:100%}.wo-viewport{width:100%;min-width:0}.wo-view-controls>span small{display:block;margin-top:5px;color:#ad97be}.wo-region-controls{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:9px 16px;background:#30263b;border-bottom:1px solid #654e75;color:#cbb4dc;font-size:11px}.wo-region-controls button{border:1px solid #715783;background:#443251;color:#f1e4fa;border-radius:5px;padding:6px 10px;cursor:pointer;font-size:11px}.wo-region-controls small{color:#ad97be}.wo-view-controls button:focus-visible,.wo-region-controls button:focus-visible{outline:2px solid #e7c4ff;outline-offset:2px}
+
+.wo-heading{margin-bottom:12px}.wo-demo-tag{display:inline-flex}.wo-stage-summary h2{margin:0}
