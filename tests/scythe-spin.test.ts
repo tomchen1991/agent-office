@@ -91,6 +91,22 @@ test('actual RGBA atlas matches measured bounds, eight distinct directions, exac
   };
   const character = demoCharacters[0], atlas = decode(character.extra!.src), pickup = decode(character.pickup!.src);
   assert.equal(atlas.width, character.extra!.columns * 512); assert.equal(atlas.height, character.extra!.rows * 512);
+  // A single pinned source palette covers pickup, spin, pose and parked weapon.
+  // This prevents RGB drift, but cannot prove identical shadow shapes/coverage.
+  const paletteBytes = readFileSync(new URL('./fixtures/scythe-palette.json', import.meta.url));
+  assert.equal(createHash('sha256').update(paletteBytes).digest('hex'), '0a674b1495d43cce6205eac5e2d97020ae74e123a70a6bae97df6310cbd47358');
+  const palette = JSON.parse(paletteBytes.toString());
+  const canonical = new Set<number>(palette.canonicalPaletteRGB.map(([r, g, b]: number[]) => (r << 16) | (g << 8) | b));
+  for (const [name, sheet] of [['extra.png', atlas], ['pickup.png', pickup], ['scythe-parked.png', decode(character.parkedScythe!.src)]] as const) {
+    const alpha = Buffer.alloc(sheet.width * sheet.height);
+    for (let pixel = 0; pixel < alpha.length; pixel++) alpha[pixel] = sheet.pixels[pixel * 4 + 3];
+    assert.equal(createHash('sha256').update(alpha).digest('hex'), palette.originalAlphaSHA256[name], `${name} must preserve every pre-correction alpha byte`);
+    for (let pixel = 0; pixel < sheet.pixels.length; pixel += 4) {
+      if (!sheet.pixels[pixel + 3]) continue;
+      const rgb = (sheet.pixels[pixel] << 16) | (sheet.pixels[pixel + 1] << 8) | sheet.pixels[pixel + 2];
+      assert.ok(canonical.has(rgb), `${name} has an off-palette RGB at pixel ${pixel / 4}`);
+    }
+  }
   const fixture = JSON.parse(readFileSync(new URL('./fixtures/personal-alpha-bounds.json', import.meta.url), 'utf8')).self;
   const hashes = [];
   for (let i = 0; i < 12; i++) {

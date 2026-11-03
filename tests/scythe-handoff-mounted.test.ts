@@ -16,8 +16,8 @@ test('verified handoff alpha bounds stay inside the owner room and parked prop s
   const seat = fixedOfficeSeats().find(item => item.kind === 'owner')!;
   // RGBA alpha>0 boxes independently measured with Pillow, hashes bind those measurements.
   const assets = [
-    { src: character.pickup!.src, sha: '9e81e12b7384064303344e57aa6418a95fe5ec75fb7b6192a2e51e2f73023b7f', boxes: [[65, 10, 448, 498], [65, 17, 448, 487], [65, 7, 448, 497], [77, 8, 472, 505]] },
-    { src: character.parkedScythe!.src, sha: '9457a481ec86678204f2d736ae70169b478c6ff0ec7b1359704bb2838463a4be', boxes: [[68, 20, 423, 511]] },
+    { src: character.pickup!.src, sha: '600a1baf3194f2fd30f289e6bf399c6302e28b86d9fc73a31a57cb4098fec26c', boxes: [[65, 10, 448, 498], [65, 17, 448, 487], [65, 7, 448, 497], [77, 8, 472, 505]] },
+    { src: character.parkedScythe!.src, sha: '610d6efa06dd96d0ee731fef8ada36530fb28b2f0f8a19b7180ae9ef57581e6f', boxes: [[68, 20, 423, 511]] },
   ];
   const placement = personalPlacement(seat, character, { phase: 'pickup', elapsedMs: 0 });
   for (const asset of assets) {
