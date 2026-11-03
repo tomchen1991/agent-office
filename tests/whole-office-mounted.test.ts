@@ -11,8 +11,9 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
  const dom=new JSDOM('<div id="root"></div>',{url:'http://localhost/',pretendToBeVisual:true});
  const names=['window','document','HTMLElement','Image','IS_REACT_ACT_ENVIRONMENT'];
  const original=Object.fromEntries(names.map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
- const pending:(()=>void)[]=[];
- class LoadedImage {onload:(()=>void)|null=null;onerror:(()=>void)|null=null;set src(_value:string){pending.push(()=>this.onload?.());}}
+ const pending:(()=>void)[]=[], deferredExtras:(()=>void)[]=[];
+ let deferExtras=false;
+ class LoadedImage {onload:(()=>void)|null=null;onerror:(()=>void)|null=null;set src(value:string){(deferExtras && value.includes('extra.png') ? deferredExtras : pending).push(()=>this.onload?.());}}
  for(const [key,value] of Object.entries({window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,Image:LoadedImage,IS_REACT_ACT_ENVIRONMENT:true}))Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});
  let reduced=false,clock=0,handle=0;
  const listeners=new Set<()=>void>(),frames=new Map<number,FrameRequestCallback>();
@@ -101,7 +102,7 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   assert.equal(container.querySelectorAll('.wo-screen-error').length,7);
   assert.equal(container.querySelectorAll('[data-office-actor]').length,7);
   await click('重播办公室演示');const stages=new Set<string>();
-  for(let i=0;i<263;i++){stages.add(scene().getAttribute('data-office-stage')!);await step();}
+  for(let i=0;i<308;i++){stages.add(scene().getAttribute('data-office-stage')!);await step();}
   assert.deepEqual([...stages],['arrival','sit','work','slack','error','stand','exit']);
   assert.equal(scene().getAttribute('data-office-complete'),'true');assert.equal(frames.size,0);
   await click('重播办公室演示');await step(4);await click('暂停办公室演示');
@@ -113,6 +114,28 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   await click('独立工位');assert.equal((scrollCalls.at(-1)![0] as ScrollToOptions).behavior,'auto');
   await click('向下平移');assert.deepEqual(scrollCalls.at(-1),[{top:260,behavior:'auto'}]);
   await click('跳转到Error');assert.equal(scene().getAttribute('data-office-stage'),'error');assert.equal(frames.size,0);
+  // A newly mounted run has only base sheets; optional extras finish during paused slack.
+  reduced=false; deferExtras=true;
+  await act(async()=>listeners.forEach(fn=>fn()));
+  await act(async()=>root.render(createElement(StrictMode,null,createElement(WholeOfficeDemo,{key:'deferred-extra-run'}))));
+  await act(async()=>pending.splice(0).forEach(fn=>fn()));
+  await click('跳转到摸鱼中'); await click('播放办公室演示'); await step(51); await click('暂停办公室演示');
+  const owner=()=>container.querySelector('[data-office-actor="self"]')!;
+  const github=()=>container.querySelector('[data-office-actor="github-demo"]')!;
+  const beforeLate=[owner().getAttribute('style'),github().getAttribute('style')];
+  assert.equal(owner().getAttribute('data-office-personal-phase'),null);
+  await act(async()=>deferredExtras.splice(0).forEach(fn=>fn()));
+  assert.deepEqual([owner().getAttribute('style'),github().getAttribute('style')],beforeLate);
+  assert.equal(owner().getAttribute('data-office-personal-phase'),null);
+  assert.equal(github().getAttribute('data-office-personal-phase'),null);
+  await click('重播办公室演示'); await click('跳转到摸鱼中');
+  assert.equal(owner().getAttribute('data-office-personal-phase'),'rise');
+  assert.equal(github().getAttribute('data-office-personal-phase'),'game');
+  await click('播放办公室演示'); await step(51); await click('暂停办公室演示');
+  await act(async()=>{reduced=true;listeners.forEach(fn=>fn());});
+  await act(async()=>{reduced=false;listeners.forEach(fn=>fn());});
+  assert.equal(owner().getAttribute('data-office-personal-phase'),null);
+  assert.equal(github().getAttribute('data-office-personal-phase'),null);
   await act(async()=>root.unmount());await act(async()=>pending.splice(0).forEach(fn=>fn()));assert.equal(frames.size,0);assert.equal(listeners.size,0);
  }finally{
   await act(async()=>{try{root.unmount();}catch{}});dom.window.close();await vite.close();

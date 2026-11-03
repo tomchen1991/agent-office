@@ -7,6 +7,7 @@ import { startMotionClock } from './motionClock';
 import { SIMULATED_CHILD_COUNT, wholeOfficeSeats } from './wholeOfficeGeometry';
 import { WholeOfficeScene } from './WholeOfficeScene';
 import './whole-office.css';
+import { personalDemo, personalPose } from './personalIdle';
 
 const assetUrl = (src: string) => `${import.meta.env.BASE_URL}${src}`;
 export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: readonly DemoCharacter[] } = {}) {
@@ -14,7 +15,7 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
   const layout = 'independent-desks' as const;
   const [reducedMotion, setReducedMotion] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [assets, setAssets] = useState<{ ready: boolean; failed: string[] }>({ ready: false, failed: [] });
+  const [assets, setAssets] = useState<{ key: unknown; ready: boolean; failed: string[]; loaded: string[] }>({ key: characters, ready: false, failed: [], loaded: [] });
   const seats = useMemo(() => wholeOfficeSeats(layout, SIMULATED_CHILD_COUNT, characters.some(character => character.id === 'github' && character.ready)), [layout, characters]);
   const available = ['self', 'deepseek', 'chatgpt', 'grok', 'github'].every(id => characters.some(character => character.id === id && character.ready));
 
@@ -29,10 +30,11 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
     let alive = true;
     const loaded = new Set<string>();
     const failed = new Set<string>();
-    setAssets({ ready: false, failed: [] });
-    // Children explicitly reuse self's two sheets. Load all ten approved atlases before the shared clock runs.
-    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
-    const publish = () => { if (alive) setAssets({ ready: loaded.size === sources.length && failed.size === 0, failed: [...failed] }); };
+    setAssets({ key: characters, ready: false, failed: [], loaded: [] });
+    // Base atlases gate the shared clock. Optional leisure art can arrive later without hiding the office.
+    const required = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
+    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...(character.extra ? [character.extra.src] : [])]))];
+    const publish = () => { if (alive) setAssets({ key: characters, ready: required.every(src => loaded.has(src)), failed: [...failed], loaded: [...loaded] }); };
     const images = sources.map(src => {
       const image = new Image();
       image.onload = () => { loaded.add(src); failed.delete(src); publish(); };
@@ -43,7 +45,7 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
     return () => { alive = false; for (const image of images) { image.onload = null; image.onerror = null; } };
   }, [characters, loadAttempt]);
 
-  const canAnimate = available && assets.ready;
+  const canAnimate = available && assets.key === characters && assets.ready;
   useEffect(() => {
     if (!state.running || !canAnimate || reducedMotion) return;
     return startMotionClock({ request: callback => window.requestAnimationFrame(callback), cancel: handle => window.cancelAnimationFrame(handle) }, deltaMs => dispatch({ type: 'tick', deltaMs }));
@@ -51,6 +53,16 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
 
   const current = demoPosition(state);
   const { stage } = current;
+  // Optional sheets may finish mid-cycle. Admit each role only at slack entry,
+  // so a late load (even while paused) cannot teleport a seated actor outside.
+  const [storedSlack, setStoredSlack] = useState<{ stage: DemoStage | null; characters: readonly DemoCharacter[]; reduced: boolean; roles: string[] }>({ stage: null, characters, reduced: reducedMotion, roles: [] });
+  let slackSession = storedSlack;
+  if (storedSlack.stage !== stage || storedSlack.characters !== characters || storedSlack.reduced !== reducedMotion) {
+    const entering = stage === 'slack' && storedSlack.stage !== 'slack';
+    slackSession = { stage, characters, reduced: reducedMotion, roles: entering && canAnimate && !reducedMotion
+      ? characters.filter(item => item.extra && assets.loaded.includes(item.extra.src)).map(item => item.id) : [] };
+    setStoredSlack(slackSession);
+  }
   const activeStage = DEMO_STAGES.find(item => item.id === stage)!;
   const working = stage === 'work';
   const error = stage === 'error';
@@ -61,7 +73,12 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
 
   return <section className="whole-office-demo" aria-labelledby="whole-office-title" data-office-stage={stage} data-office-complete={state.completed} data-office-layout="fixed-office" data-office-assets-ready={canAnimate} data-office-reduced-motion={reducedMotion}>
     <div className="wo-heading"><h1 id="whole-office-title" className="sr-only">办公室</h1><span className="wo-demo-tag"><i />模拟演示</span></div>
-    <WholeOfficeScene layout={layout} seats={seats} characters={characters} canAnimate={canAnimate} reducedMotion={reducedMotion} childCount={SIMULATED_CHILD_COUNT} worldStage={stage} floorLabel={activeStage.label} floorStatus={status} working={working} error={error} poseForSeat={seat => seat.empty ? null : ({ ...current, label: activeStage.label })} loading={!canAnimate && <div className="wo-loading" role="status"><strong>{assets.failed.length ? '部分角色动作加载失败' : !available ? '角色动作素材尚未齐备' : '正在载入角色动作…'}</strong>{assets.failed.length > 0 && <button onClick={() => setLoadAttempt(value => value + 1)}>重新加载素材</button>}</div>}>
+    <WholeOfficeScene layout={layout} seats={seats} characters={characters} canAnimate={canAnimate} reducedMotion={reducedMotion} childCount={SIMULATED_CHILD_COUNT} worldStage={stage} floorLabel={activeStage.label} floorStatus={status} working={working} error={error} poseForSeat={seat => {
+      if (seat.empty) return null;
+      const role = seat.kind === 'owner' && seat.persona === 'self' ? 'self' : seat.kind === 'github' && seat.persona === 'github' ? 'github' : null;
+      const action = role && stage === 'slack' && !reducedMotion && slackSession.roles.includes(role) ? personalDemo(role, current.stageElapsedMs) : undefined;
+      return { ...current, ...(action ? personalPose(action) : {}), label: activeStage.label };
+    }} loading={!canAnimate && <div className="wo-loading" role="status"><strong>{assets.failed.length ? '部分角色动作加载失败' : !available ? '角色动作素材尚未齐备' : '正在载入角色动作…'}</strong>{assets.failed.length > 0 && <button onClick={() => setLoadAttempt(value => value + 1)}>重新加载素材</button>}</div>}>
       <div className="wo-stage-summary"><div><span className="wo-step">0{DEMO_STAGES.findIndex(item => item.id === stage) + 1}</span><div><h2>{activeStage.label}</h2></div></div><time>{(state.elapsedMs / 1000).toFixed(1)} / {TOTAL_DEMO_MS / 1000} s</time></div>
       <div className="wo-progress" role="progressbar" aria-label="办公室完整演示进度" aria-valuemin={0} aria-valuemax={TOTAL_DEMO_MS} aria-valuenow={state.elapsedMs}><span style={{ width: `${state.elapsedMs / TOTAL_DEMO_MS * 100}%` }} /></div>
     </WholeOfficeScene>

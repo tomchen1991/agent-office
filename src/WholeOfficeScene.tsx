@@ -8,11 +8,13 @@ import type { DemoStage } from './demoTimeline';
 import { fixedOfficeSeats, fixedOfficeTables, officeRegionCenters, MAX_SIMULATED_CHILD_SEATS, OFFICE_WORLD, OFFICE_ACTOR_RATIO, OFFICE_DESK, officeActorDepth, officeActorPlacement, officeLocalPoint } from './wholeOfficeGeometry';
 import type { OfficeLayout, OfficeSeat } from './wholeOfficeGeometry';
 import './whole-office.css';
+import { personalPlacement } from './personalIdle';
+import type { PersonalIdle } from './personalIdle';
 
 export interface OfficeSceneSeat extends Omit<OfficeSeat, 'persona'> { persona: CharacterId; isLeader?: boolean; geometryId?: string }
 export interface OfficeScenePose {
   stage: DemoStage; stageElapsedMs: number; progress: number; label: string;
-  sheet?: 'locomotion' | 'seated'; frame?: number;
+  sheet?: 'locomotion' | 'seated' | 'extra'; frame?: number; personal?: PersonalIdle;
   status?: OfficeStatus; phase?: string;
 }
 export interface WholeOfficeSceneProps {
@@ -88,11 +90,12 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
     const working = current?.status ? current.status === 'working' && (!live || current.phase === 'seated') : stage === 'work' && current !== null;
     const error = !seat.empty && current !== null && !live && stage === 'error';
     const workBeat = reducedMotion ? 0 : Math.floor(stageElapsedMs / 260);
-    const placement = officeActorPlacement({ ...seat, id: seat.geometryId ?? seat.id, persona: calibration.id }, calibration, stage, stageElapsedMs, progress, reducedMotion);
+    const personal = current?.personal;
+    const placement = personal && ['out', 'scythe', 'back'].includes(personal.phase) ? personalPlacement({ ...seat, persona: calibration.id }, calibration, personal) : officeActorPlacement({ ...seat, id: seat.geometryId ?? seat.id, persona: calibration.id }, calibration, stage, stageElapsedMs, progress, reducedMotion);
     const defaultFrame = demoFrame({ stage, stageElapsedMs: placement.motionElapsedMs, progress }, reducedMotion);
     const sheet = current?.sheet ?? defaultFrame.sheet;
     const frame = current?.frame ?? defaultFrame.frame;
-    const atlas = calibration[sheet];
+    const atlas = calibration[sheet] ?? calibration.seated;
     const shared = Boolean(seat.sharedTable);
     const surfaceDepth = shared ? fixedOfficeTables.find(table => table.id === seat.tableId)!.depth : seat.y + (calibration.locomotion.anchor.y - calibration.seated.anchor.y) * placement.width + 4;
     const facingClass = seat.mirrored ? 'wo-seat-mirrored' : '';
@@ -104,14 +107,14 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
     const frameStyle: CSSProperties = {
       backgroundImage: `url("${assetUrl(atlas.src)}")`,
       backgroundSize: `${atlas.columns * 100}% ${atlas.rows * 100}%`,
-      backgroundPosition: `${frame % atlas.columns / (atlas.columns - 1) * 100}% ${Math.floor(frame / atlas.columns) / (atlas.rows - 1) * 100}%`,
+      backgroundPosition: `${frame % atlas.columns / (atlas.columns - 1) * 100}% ${(atlas.rows === 1 ? 0 : Math.floor(frame / atlas.columns) / (atlas.rows - 1) * 100)}%`,
       transform: placement.mirrored ? 'scaleX(-1)' : undefined,
     };
     return <Fragment key={seat.id}>
       <div data-office-seat={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} className={`wo-chair wo-${seat.kind} ${facingClass}`} style={furniturePosition({ ...seat, scale: seat.scale * OFFICE_ACTOR_RATIO, persona: calibration.id }, 625, 262.2, 110, 142.5, seat.y - 5)} aria-hidden="true"><span className="wo-chair-back" /><span className="wo-chair-seat" /><span className="wo-chair-leg" /></div>
       {!shared && <div className={`wo-desk-back wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.backX, 376.2, OFFICE_DESK.backWidth, 57, seat.y - 10)} aria-hidden="true" />}
       <div className={`wo-monitor ${facingClass} ${working ? 'wo-screen-work' : ''} ${error ? 'wo-screen-error' : ''}`} style={furniturePosition({ ...seat, persona: calibration.id }, 770, 267.9, shared ? 105 : 120, shared ? 110 : 119.7, shared ? surfaceDepth + 1 : surfaceDepth - 1)} aria-hidden="true"><div className="wo-screen"><strong>{seat.empty ? '○' : error ? '!' : working ? '>_' : !live && stage === 'slack' ? '☕' : indication?.status === 'stopping' ? 'Ⅱ' : indication?.status === 'unknown' ? '?' : '···'}</strong>{[0, 1, 2].map(index => <i key={index} style={{ width: `${working ? 28 + (workBeat * 13 + index * 19) % 60 : 50 - index * 10}%` }} />)}{working && !live && <b style={{ width: `${progress * 100}%` }} />}</div><span className="wo-monitor-neck" /></div>
-      {!seat.empty && canAnimate && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role="img" aria-label={`${seat.label}，${seat.role}，${current.label}`}>{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona"><b>?</b><span>身份未映射</span></div>}</div>}
+      {!seat.empty && canAnimate && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-personal-phase={current.personal?.phase} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role="img" aria-label={`${seat.label}，${seat.role}，${current.label}`}>{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona"><b>?</b><span>身份未映射</span></div>}</div>}
       {!shared && <div className={`wo-desk-front wo-${seat.kind} wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.frontX, 376.2, OFFICE_DESK.frontWidth, 119.7, surfaceDepth)} data-office-leader={seat.isLeader || undefined} data-office-desk={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} data-office-seat-kind={seat.kind}>
         <span className="wo-desk-top" /><span className="wo-desk-leg wo-left" /><span className="wo-desk-leg wo-right" />
         <span className="wo-nameplate"><strong>{seat.label}</strong><small>{seat.role}</small></span>

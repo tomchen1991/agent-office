@@ -5,7 +5,7 @@ export const DEMO_STAGES: readonly {id: DemoStage; label: string; durationMs: nu
   {id:'arrival',label:'进场',durationMs:4000},
   {id:'sit',label:'坐下',durationMs:2000},
   {id:'work',label:'工作中',durationMs:6000},
-  {id:'slack',label:'摸鱼中',durationMs:4500},
+  {id:'slack',label:'摸鱼中',durationMs:9000},
   {id:'error',label:'Error',durationMs:3500},
   {id:'stand',label:'起身',durationMs:2000},
   {id:'exit',label:'退场',durationMs:4000},

@@ -12,7 +12,7 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
   const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost/', pretendToBeVisual: true });
   const original = Object.fromEntries(['window', 'document', 'HTMLElement', 'Image', 'IS_REACT_ACT_ENVIRONMENT'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const pending: (() => void)[] = [];
-  class LoadedImage { onload: (() => void) | null = null; onerror: (() => void) | null = null; set src(_value: string) { pending.push(() => this.onload?.()); } }
+  class LoadedImage { onload: (() => void) | null = null; onerror: (() => void) | null = null; set src(value: string) { pending.push(() => value.includes('missing-extra') ? this.onerror?.() : this.onload?.()); } }
   for (const [key, value] of Object.entries({ window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, Image: LoadedImage, IS_REACT_ACT_ENVIRONMENT: true })) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
   let now = 0, handle = 0, reduced = false, disposed = 0;
   const frames = new Map<number, FrameRequestCallback>(), timers = new Map<number, () => void>(), media = new Set<() => void>();
@@ -75,6 +75,47 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       }
       assert.match(container.querySelector('.live-request')?.textContent ?? '', /未提供用户请求摘要/);
       assert.doesNotMatch(container.querySelector('.live-request')?.textContent ?? '', /Only actual USER summary/);
+    });
+    await t.test('both personal idle actors animate only fresh idle, cancel during pause, and return before work', async () => {
+      await emit([agent('self', 'idle'), agent('repair', 'idle', { character: 'github' })]);
+      await render({ topology: { ...topology, githubAgentId: 'repair' } });
+      await step(62); // GitHub arrival; owner has already started its idle cycle.
+      await emit([agent('self', 'working'), agent('repair', 'working', { character: 'github' })]);
+      await step(35);
+      await emit([agent('self', 'idle'), agent('repair', 'idle', { character: 'github' })]);
+      await step(51);
+      assert.equal(self()?.getAttribute('data-office-phase'), 'personal');
+      assert.equal(container.querySelector('[data-office-actor="repair"] .wo-sprite')?.getAttribute('data-office-sheet'), 'extra');
+      await step(34);
+      assert.equal(sprite()?.getAttribute('data-office-sheet'), 'extra');
+      assert.ok(!sprite()?.getAttribute('style')?.includes('NaN'));
+      const before = self()?.getAttribute('style');
+      await click('暂停状态动画'); await step(10); assert.equal(self()?.getAttribute('style'), before);
+      await emit([agent('self', 'idle', { sourceFreshness: 'stale' }), agent('repair', 'idle', { character: 'github', sourceFreshness: 'stale' })]);
+      assert.equal(self()?.getAttribute('data-office-status'), 'unknown');
+      assert.equal(sprite()?.getAttribute('data-office-sheet'), 'seated');
+      await click('继续状态动画');
+      await emit([agent('self', 'idle'), agent('repair', 'idle', { character: 'github' })]); await step(85);
+      await emit([agent('self', 'working'), agent('repair', 'working', { character: 'github' })]);
+      assert.equal(self()?.getAttribute('data-office-phase'), 'personal');
+      assert.equal(sprite()?.getAttribute('data-office-sheet'), 'locomotion');
+      assert.equal(container.querySelectorAll('.wo-screen-work').length, 0);
+      await step(35); assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
+      await emit([agent('self', 'idle')]); await step(75);
+      await act(async () => { reduced = true; media.forEach(listener => listener()); });
+      assert.equal(self()?.getAttribute('data-office-phase'), 'seated'); assert.equal(sprite()?.getAttribute('data-office-sheet'), 'seated');
+      await act(async () => { reduced = false; media.forEach(listener => listener()); });
+      await emit([agent('self')]); await render();
+    });
+    await t.test('optional extra failure keeps base office visible and idle neutral, later successful asset enables actions', async () => {
+      const { demoCharacters } = await vite.ssrLoadModule('/src/demoAssets.ts');
+      const broken = demoCharacters.map((item: { extra?: { src: string } }) => ({ ...item, ...(item.extra ? { extra: { ...item.extra, src: 'missing-extra.png' } } : {}) }));
+      await emit([agent('self', 'idle')]); await render({ characters: broken });
+      assert.equal(container.querySelector('[data-office-assets-ready]')?.getAttribute('data-office-assets-ready'), 'true');
+      await step(140); assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
+      assert.equal(sprite()?.getAttribute('data-office-sheet'), 'seated');
+      await render(); await step(52); assert.equal(self()?.getAttribute('data-office-phase'), 'personal');
+      await emit([agent('self', 'working')]); await step(35);
     });
     await t.test('partial absence preserves uncertain seat without departure or old request; stale/disconnect stop work', async () => {
       await emit(snapshot.agents.filter(item => item.id !== 'self'), { identityCoverage: 'partial' });

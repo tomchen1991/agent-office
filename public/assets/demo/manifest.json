@@ -145,6 +145,40 @@
       "rows": 2,
       "sha256": "4b1e0940bb2df2acd2899141d8123953c976fc748c2b08e384e12a88a6eeb596",
       "provenance": "Approved silver-gray twin-braid GitHub repair/review concept; separately generated action atlas, copied byte-for-byte."
+    },
+    {
+      "path": "assets/demo/self/extra.png",
+      "character": "self",
+      "sheet": "extra",
+      "action": "standing-scythe",
+      "width": 2048,
+      "height": 512,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 1,
+      "anchor": [
+        300,
+        470
+      ],
+      "sha256": "912dae7e82f6a24759031c5243234f0f167763b545c754c3aa73a8dd356b11ba"
+    },
+    {
+      "path": "assets/demo/github/extra.png",
+      "character": "github",
+      "sheet": "extra",
+      "action": "seated-gamepad",
+      "width": 2048,
+      "height": 512,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 1,
+      "anchor": [
+        250,
+        355
+      ],
+      "sha256": "783e73061e2fd2b98fb91d037bdd0e9a0ca89885e99d0440eae591a39a2917c7"
     }
   ]
 }

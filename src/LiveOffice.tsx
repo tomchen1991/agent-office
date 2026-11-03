@@ -39,7 +39,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const [reducedMotion, setReducedMotion] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [assets, setAssets] = useState<{ key: unknown; ready: boolean; failed: string[] }>({ key: characters, ready: false, failed: [] });
+  const [assets, setAssets] = useState<{ key: unknown; ready: boolean; failed: string[]; loaded: string[] }>({ key: characters, ready: false, failed: [], loaded: [] });
 
   useEffect(() => {
     if (!enabled) {
@@ -82,11 +82,12 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   useEffect(() => {
     let alive = true;
     const loaded = new Set<string>(), failed = new Set<string>();
-    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
-    setAssets({ key: characters, ready: sources.length === 0, failed: [] });
+    const required = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
+    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...(character.extra ? [character.extra.src] : [])]))];
+    setAssets({ key: characters, ready: sources.length === 0, failed: [], loaded: [] });
     const images = sources.map(src => {
       const image = new Image();
-      const publish = () => { if (alive) setAssets({ key: characters, ready: loaded.size === sources.length && !failed.size, failed: [...failed] }); };
+      const publish = () => { if (alive) setAssets({ key: characters, ready: required.every(src => loaded.has(src)), failed: [...failed], loaded: [...loaded] }); };
       image.onload = () => { loaded.add(src); failed.delete(src); publish(); };
       image.onerror = () => { failed.add(src); publish(); };
       image.src = `${import.meta.env.BASE_URL}${src}`;
@@ -121,7 +122,8 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const allocation = liveOfficeSeatReport(topology);
   const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
-    return { id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
+    const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : undefined;
+    return { personalRole: !state.error && personalRole && assets.loaded.includes(characters.find(item => item.id === personalRole)?.extra?.src ?? '') ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
   });
   const assetsReady = assets.key === characters && assets.ready;
   const actors = useLiveOfficeMotion(targets, { sourceKey, reducedMotion, paused, assetsReady });
