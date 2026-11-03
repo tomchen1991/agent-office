@@ -77,3 +77,17 @@ test('independent desks have three equal complete furniture footprints with clea
  }
  assert.deepEqual(all.filter(s=>s.kind!=='team'),wholeOfficeSeats('leader-desks').filter(s=>s.kind!=='team'));
 });
+
+test('shared seats form an inward-facing arc and mirrored Grok approaches from outside',()=>{
+ const team=wholeOfficeSeats('peer-table').filter(s=>s.kind==='team');
+ const left=team.find(s=>s.id==='deepseek')!,middle=team.find(s=>s.id==='chatgpt')!,right=team.find(s=>s.id==='grok')!;
+ assert.ok(middle.y<left.y-50&&middle.y<right.y-50);assert.equal(left.mirrored,undefined);assert.equal(right.mirrored,true);
+ assert.ok(team.every(s=>s.sharedTable));
+ const c=demoCharacters.find(c=>c.id==='grok')!,route=officeRoute(right);
+ assert.ok(route.at(-2)!.x>route.at(-1)!.x);
+ const work=officeActorPlacement(right,c,'work',0,0);
+ assert.equal(work.mirrored,true);close(work.contactX,1-c.seated.anchor.x);
+ assert.ok(officeApproachPoint(right).x<right.x);
+ assert.equal(officeActorPlacement(right,c,'exit',0,0).mirrored,false);
+ for(const layout of ['independent-desks','leader-desks'] as const)assert.ok(wholeOfficeSeats(layout).every(s=>!s.mirrored&&!s.sharedTable));
+});

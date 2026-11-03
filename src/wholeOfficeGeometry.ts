@@ -16,6 +16,9 @@ export interface OfficeSeat extends OfficePoint {
   kind: 'owner' | 'team' | 'simulated-child';
   role: string;
   scale: number;
+  /** Only shared-table seats may face inward or use its perimeter aisle. */
+  mirrored?: boolean;
+  sharedTable?: boolean;
 }
 const SOURCE_SEAT = { x: 680, y: SEATED_CONTACT_Y * 5.7 };
 export function wholeOfficeSeats(layout: OfficeLayout, childCount = SIMULATED_CHILD_COUNT): OfficeSeat[] {
@@ -34,21 +37,21 @@ export function wholeOfficeSeats(layout: OfficeLayout, childCount = SIMULATED_CH
     { id: 'deepseek', persona: 'deepseek', label: 'DeepSeek', kind: 'team', role: '团队成员', x: 770, y: 535, scale: .85 },
     { id: 'grok', persona: 'grok', label: 'Grok', kind: 'team', role: '团队成员', x: 1100, y: 535, scale: .85 },
   ] : [
-    { id: 'deepseek', persona: 'deepseek', label: 'DeepSeek', kind: 'team', role: '同级协作', x: 735, y: 385, scale: .85 },
-    { id: 'chatgpt', persona: 'chatgpt', label: 'ChatGPT', kind: 'team', role: '同级协作', x: 965, y: 385, scale: .85 },
-    { id: 'grok', persona: 'grok', label: 'Grok', kind: 'team', role: '同级协作', x: 1195, y: 385, scale: .85 },
+    { id: 'deepseek', persona: 'deepseek', label: 'DeepSeek', kind: 'team', role: '同级协作', x: 735, y: 421, scale: .85, sharedTable: true },
+    { id: 'chatgpt', persona: 'chatgpt', label: 'ChatGPT', kind: 'team', role: '同级协作', x: 935, y: 338, scale: .85, sharedTable: true },
+    { id: 'grok', persona: 'grok', label: 'Grok', kind: 'team', role: '同级协作', x: 1275, y: 421, scale: .85, sharedTable: true, mirrored: true },
   ]) as OfficeSeat[]);
   return seats;
 }
 /** Transform calibrated source pixels, not differently registered body landmarks. */
 export function officeLocalPoint(seat: OfficeSeat, sourceX: number, sourceY: number): OfficePoint {
-  return { x: seat.x + (sourceX - SOURCE_SEAT.x) * seat.scale, y: seat.y + (sourceY - SOURCE_SEAT.y) * seat.scale };
+  return { x: seat.x + (seat.mirrored ? -1 : 1) * (sourceX - SOURCE_SEAT.x) * seat.scale, y: seat.y + (sourceY - SOURCE_SEAT.y) * seat.scale };
 }
 export function officeApproachPoint(seat: OfficeSeat, character = demoCharacters.find(item => item.id === seat.persona)!): OfficePoint {
   const width = DEMO_SPRITE_WIDTH_PERCENT * 10 * seat.scale;
   // In the whole office, upright feet stay on the same floor as seated feet.
   // The isolated character lab retains its own earlier short approach choreography.
-  return { x: seat.x + (character.locomotion.anchor.x - character.seated.anchor.x) * width, y: seat.y + (character.locomotion.anchor.y - character.seated.anchor.y) * width };
+  return { x: seat.x + (seat.mirrored ? -1 : 1) * (character.locomotion.anchor.x - character.seated.anchor.x) * width, y: seat.y + (character.locomotion.anchor.y - character.seated.anchor.y) * width };
 }
 /** Explicit releases avoid a seven-character pile-up at the shared doorway. */
 export function officeTravelTiming(seat: OfficeSeat) {
@@ -64,6 +67,12 @@ export function officeRoute(seat: OfficeSeat, character?: DemoCharacter): Office
     const aisleY = seat.kind === 'owner' ? 185 : 470;
     const approachX = seat.x - (seat.kind === 'owner' ? 80 : 55);
     return [{ x: 640, y: 808 }, { x: 640, y: 685 }, { x: 570, y: 685 }, { x: 570, y: aisleY }, { x: approachX, y: aisleY }, { x: approachX, y: end.y }, end];
+  }
+  if (seat.sharedTable) {
+    // Go behind the shared tabletop, then approach each end from its outside.
+    // The right seat must arrive facing left and reverse that turn when leaving.
+    const approachX = seat.mirrored ? 1338 : seat.x - 85;
+    return [{ x: 640, y: 808 }, { x: 650, y: 685 }, { x: 650, y: 230 }, { x: approachX, y: 230 }, { x: approachX, y: end.y }, end];
   }
   const aisleY = seat.y < 320 ? 170 : seat.y < 450 ? 250 : 425;
   return [{ x: 640, y: 808 }, { x: 650, y: 685 }, { x: 650, y: aisleY }, { x: seat.x - 85, y: aisleY }, { x: seat.x - 85, y: end.y }, end];
@@ -86,11 +95,12 @@ export function officeActorPlacement(seat: OfficeSeat, character: DemoCharacter,
   if (stage === 'sit' || stage === 'stand') {
     const pose = seatingPose(stage, stageElapsedMs, reducedMotion);
     const placement = seatingPlacement(pose, character.locomotion.anchor, character.seated.anchor);
-    // Reuse the approved poses and anchor reflection, but plant the whole-office feet.
-    return { ...officeApproachPoint(seat, character), width, contactX: placement.contactX, contactY: placement.contactY, mirrored: pose.mirrored, opacity: 1, motionElapsedMs: stageElapsedMs };
+    // Reflect pose and registered anchor together; never flip the visual alone.
+    const mirrored = Boolean(seat.mirrored) !== pose.mirrored;
+    return { ...officeApproachPoint(seat, character), width, contactX: mirrored ? 1 - character.locomotion.anchor.x : character.locomotion.anchor.x, contactY: placement.contactY, mirrored, opacity: 1, motionElapsedMs: stageElapsedMs };
   }
   if (stage !== 'arrival' && stage !== 'exit') {
-    return { x: seat.x, y: seat.y, width, contactX: character.seated.anchor.x, contactY: character.seated.anchor.y, mirrored: false, opacity: 1, motionElapsedMs: stageElapsedMs };
+    return { x: seat.x, y: seat.y, width, contactX: seat.mirrored ? 1 - character.seated.anchor.x : character.seated.anchor.x, contactY: character.seated.anchor.y, mirrored: Boolean(seat.mirrored), opacity: 1, motionElapsedMs: stageElapsedMs };
   }
   const timing = officeTravelTiming(seat);
   const delay = stage === 'arrival' ? timing.arrivalDelayMs : timing.exitDelayMs;

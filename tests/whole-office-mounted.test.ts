@@ -36,6 +36,8 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   await click('平等协作桌');assert.equal(scene().getAttribute('data-office-layout'),'peer-table');assert.equal(container.querySelectorAll('[data-office-shared-table]').length,1);assert.equal(frames.size,0);
   assert.equal(container.querySelector<HTMLElement>('[data-office-actor="self"]')!.style.cssText,selfBefore);
   assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length,0);
+  assert.equal(container.querySelectorAll('[data-office-shared-project]').length,1);assert.equal(container.querySelector('[data-office-actor="grok"]')!.getAttribute('data-office-facing'),'left');assert.equal(container.querySelectorAll('.wo-team-links').length,0);
+  assert.equal(container.querySelectorAll('.wo-keyboard.wo-seat-mirrored').length,1);assert.equal(container.querySelectorAll('.wo-monitor.wo-seat-mirrored').length,1);
   await click('主从工位');assert.equal(scene().getAttribute('data-office-layout'),'leader-desks');assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length,3);assert.equal(frames.size,0);
 
   await click('独立工位');assert.equal(frames.size,0);assert.equal(scene().getAttribute('data-office-layout'),'independent-desks');

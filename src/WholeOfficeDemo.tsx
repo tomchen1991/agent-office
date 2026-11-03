@@ -26,7 +26,7 @@ const position = (x: number, y: number, width?: number, height?: number, depth?:
   ...(depth === undefined ? {} : { zIndex: Math.round(depth) }),
 });
 const furniturePosition = (seat: OfficeSeat, x: number, y: number, width: number, height: number, depth: number): CSSProperties => {
-  const point = officeLocalPoint(seat, x, y);
+  const point = officeLocalPoint(seat, seat.mirrored ? x + width : x, y);
   return { ...position(point.x, point.y, width * seat.scale, height * seat.scale, depth), '--seat-scale': seat.scale } as CSSProperties;
 };
 
@@ -87,8 +87,9 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
     const placement = officeActorPlacement(seat, character, stage, stageElapsedMs, progress, reducedMotion);
     const atlas = character[sheet];
     const { frame } = demoFrame({ ...current, stageElapsedMs: placement.motionElapsedMs }, reducedMotion);
-    const surfaceDepth = seat.y + (character.locomotion.anchor.y - character.seated.anchor.y) * placement.width + 4;
     const shared = seat.kind === 'team' && layout === 'peer-table';
+    const surfaceDepth = shared ? 524 : seat.y + (character.locomotion.anchor.y - character.seated.anchor.y) * placement.width + 4;
+    const facingClass = seat.mirrored ? 'wo-seat-mirrored' : '';
     const spriteStyle = {
       ...position(placement.x, placement.y, placement.width, undefined, officeActorDepth(placement, character)),
       '--contact-x': `${placement.contactX * 100}%`, '--contact-y': `${placement.contactY * 100}%`,
@@ -101,16 +102,16 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
       transform: placement.mirrored ? 'scaleX(-1)' : undefined,
     };
     return <Fragment key={seat.id}>
-      <div className={`wo-chair wo-${seat.kind}`} style={furniturePosition(seat, 625, 262.2, 110, 142.5, seat.y - 5)} aria-hidden="true"><span className="wo-chair-back" /><span className="wo-chair-seat" /><span className="wo-chair-leg" /></div>
+      <div className={`wo-chair wo-${seat.kind} ${facingClass}`} style={furniturePosition(seat, 625, 262.2, 110, 142.5, seat.y - 5)} aria-hidden="true"><span className="wo-chair-back" /><span className="wo-chair-seat" /><span className="wo-chair-leg" /></div>
       {!shared && <div className={`wo-desk-back wo-${seat.persona}`} style={furniturePosition(seat, 600, 376.2, 310, 57, seat.y - 10)} aria-hidden="true" />}
-      <div className={`wo-monitor ${working ? 'wo-screen-work' : ''} ${error ? 'wo-screen-error' : ''}`} style={furniturePosition(seat, 770, 267.9, 120, 119.7, surfaceDepth - 1)} aria-hidden="true"><div className="wo-screen"><strong>{error ? '!' : working ? '>_' : stage === 'slack' ? '☕' : '···'}</strong>{[0, 1, 2].map(index => <i key={index} style={{ width: `${working ? 28 + (workBeat * 13 + index * 19) % 60 : 50 - index * 10}%` }} />)}{working && <b style={{ width: `${progress * 100}%` }} />}</div><span className="wo-monitor-neck" /></div>
-      {canAnimate && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-seat-kind={seat.kind} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role="img" aria-label={`${seat.label}，${seat.role}，${activeStage.label}`}><div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /></div>}
+      <div className={`wo-monitor ${facingClass} ${working ? 'wo-screen-work' : ''} ${error ? 'wo-screen-error' : ''}`} style={furniturePosition(seat, 770, 267.9, shared ? 105 : 120, shared ? 110 : 119.7, shared ? surfaceDepth + 1 : surfaceDepth - 1)} aria-hidden="true"><div className="wo-screen"><strong>{error ? '!' : working ? '>_' : stage === 'slack' ? '☕' : '···'}</strong>{[0, 1, 2].map(index => <i key={index} style={{ width: `${working ? 28 + (workBeat * 13 + index * 19) % 60 : 50 - index * 10}%` }} />)}{working && <b style={{ width: `${progress * 100}%` }} />}</div><span className="wo-monitor-neck" /></div>
+      {canAnimate && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role="img" aria-label={`${seat.label}，${seat.role}，${activeStage.label}`}><div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /></div>}
       {!shared && <div className={`wo-desk-front wo-${seat.kind} wo-${seat.persona}`} style={furniturePosition(seat, 590, 376.2, 330, 119.7, surfaceDepth)} data-office-desk={seat.id} data-office-seat-kind={seat.kind}>
         <span className="wo-desk-top" /><span className="wo-desk-leg wo-left" /><span className="wo-desk-leg wo-right" />
         <span className="wo-nameplate"><strong>{seat.label}</strong><small>{seat.role}</small></span>
       </div>}
-      <div className="wo-keyboard" style={furniturePosition(seat, 630, 358, 110, 15, surfaceDepth + 1)} data-office-workbeat={working ? workBeat : undefined} aria-hidden="true">{Array.from({ length: 8 }, (_, key) => <i key={key} className={working && !reducedMotion && key === workBeat % 8 ? 'wo-key-pressed' : ''} />)}</div>
-      {shared && <div className={`wo-shared-name wo-${seat.persona}`} style={position(seat.x - 28, 435, 160, 42, surfaceDepth + 2)}><strong>{seat.label}</strong><small>同级协作</small></div>}
+      <div className={`wo-keyboard ${facingClass}`} style={furniturePosition(seat, 630, 358, 110, 15, surfaceDepth + 1)} data-office-workbeat={working ? workBeat : undefined} aria-hidden="true">{Array.from({ length: 8 }, (_, key) => <i key={key} className={working && !reducedMotion && key === workBeat % 8 ? 'wo-key-pressed' : ''} />)}</div>
+      {shared && <div className={`wo-shared-name wo-${seat.persona}`} style={position(seat.x - 37, seat.y + 27, 120, 42, surfaceDepth + 3)}><strong>{seat.label}</strong><small>同级协作</small></div>}
       {error && seat.kind !== 'simulated-child' && <div className="wo-error-bubble" style={position(seat.x - 62, seat.y - 158, 150, undefined, 900)}>! 演示任务异常</div>}
     </Fragment>;
   };
@@ -137,7 +138,18 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
           <div className="wo-child-overflow" aria-label={`还有 ${SIMULATED_CHILD_COUNT - MAX_SIMULATED_CHILD_SEATS} 个模拟子 Actor，最多展示 ${MAX_SIMULATED_CHILD_SEATS} 个席位`}><b>+{SIMULATED_CHILD_COUNT - MAX_SIMULATED_CHILD_SEATS}</b><span>另有模拟子 Actor<br/>最多展开 3 席</span></div>
           {layout === 'leader-desks' ? <svg className="wo-team-links" viewBox="0 0 1400 850" aria-hidden="true"><path d="M1045 392 L1045 421 L810 421 L810 442 M1045 421 L1140 421 L1140 442" /></svg> : layout === 'peer-table' ? <>
             <div className="wo-collaboration-note"><b>同一张桌，同一个目标。</b><span>平等协作 · 三个真实动作席位</span></div>
-            <div className="wo-shared-table" style={position(649, 394.69, 750, 101.745, 431)} data-office-shared-table="true" aria-label="三位团队角色共用的一张连续协作桌"><span className="wo-desk-top" /><span className="wo-shared-edge" /><span className="wo-shared-leg wo-left" /><span className="wo-shared-leg wo-right" /></div>
+            <div className="wo-shared-table" style={position(695, 332, 635, 268, 524)} data-office-shared-table="true" aria-label="三位团队角色围坐的一张连续协作桌">
+              <svg className="wo-shared-furniture" viewBox="0 0 635 268" aria-hidden="true">
+                <ellipse className="wo-shared-shadow" cx="317.5" cy="236" rx="292" ry="24" />
+                <path className="wo-shared-support" d="M111 178 H139 V250 H100 V239 H111 Z M496 178 H524 V239 H535 V250 H496 Z" />
+                <path className="wo-shared-brace" d="M136 220 H499 V233 H136 Z" />
+                <path className="wo-shared-apron" d="M0 111 H635 V166 Q635 208 595 208 H40 Q0 208 0 166 Z" />
+                <path className="wo-shared-top" d="M0 100 Q0 84 18 84 H92 Q104 84 116 70 L166 17 Q182 0 200 0 H405 Q423 0 439 17 L489 70 Q501 84 513 84 H617 Q635 84 635 100 V150 Q635 192 595 192 H40 Q0 192 0 150 Z" />
+                <path className="wo-shared-front-rim" d="M1 150 Q1 192 40 192 H595 Q634 192 634 150" />
+              </svg>
+              <div className={`wo-shared-project ${error ? 'wo-project-error' : ''}`} data-office-shared-project="true"><span>共同项目</span><div><i /><i /><i /></div><b>{error ? '!' : working ? '↗' : '✓'}</b></div>
+              <span className="wo-shared-notes" aria-hidden="true"><i /><i /><i /></span>
+            </div>
           </> : null}
           {seats.map(renderSeat)}
           <div className="wo-plant wo-plant-one" aria-hidden="true"><span>✦</span><i /></div><div className="wo-plant wo-plant-two" aria-hidden="true"><span>✦</span><i /></div>
