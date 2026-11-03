@@ -20,7 +20,7 @@ export interface OfficeSnapshot { agents: readonly OfficeAgent[]; receivedAt: st
 export interface OfficeTopology {
   selfAgentId: string;
   childAgentIds: readonly string[];
-  team: { layout: 'leader-desks' | 'peer-table'; memberIds: readonly string[]; leaderId?: string };
+  team: { layout: 'independent-desks' | 'leader-desks' | 'peer-table'; memberIds: readonly string[]; leaderId?: string };
 }
 export interface AdapterState {
   phase: 'connecting' | 'connected' | 'disconnected';
@@ -45,6 +45,7 @@ export function displayStatus(agent: OfficeAgent, elapsedSinceReceiptMs: number,
   return freshness(agent, elapsedSinceReceiptMs) === 'fresh' ? agent.status : 'unknown';
 }
 export function validateTopology(topology: OfficeTopology): void {
+  if (!['independent-desks', 'leader-desks', 'peer-table'].includes(topology.team.layout)) throw new Error('Unknown office layout');
   const ids = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds];
   if (ids.some(id => !id.trim()) || new Set(ids).size !== ids.length) throw new Error('Office IDs must be nonempty and unique');
   if (topology.team.layout === 'leader-desks' && (!topology.team.leaderId || !topology.team.memberIds.includes(topology.team.leaderId))) throw new Error('Leader must be explicitly configured as a team member');

@@ -7,7 +7,7 @@
 - `server/collect.ts`：Node/Electron main 侧消费状态接口；**不得由 renderer 引入**。
 - `App` / 办公室场景：只读归一化 DTO，人物与团队布局来自显式配置，不由进程 role/host 推断。
 
-`OfficeAdapter.subscribe` 立即发送当前状态，返回独立取消订阅函数；`connect` 幂等，`dispose` 取消工作，之后允许重新连接，兼容 React Strict Mode。宿主应在退出时同时取消订阅和 dispose。渲染层通过固定、窄 IPC 通道接收 `AdapterState`；禁止暴露任意 URL 请求、文件访问、token 或原始采集事件。此仓库**尚未安装 Electron 或实现宿主 IPC**。
+`OfficeAdapter.subscribe` 立即发送当前状态，返回独立取消订阅函数；`connect` 幂等，`dispose` 取消工作，之后允许重新连接，兼容 React Strict Mode。宿主应在退出时同时取消订阅和 dispose。渲染层通过固定、窄 IPC 通道接收 `AdapterState`；禁止暴露任意 URL 请求、文件访问、token 或原始采集事件。此仓库提供可注入 Electron 接口的安全 main/preload IPC 层与 renderer adapter；**未安装 Electron，也未在实际宿主中运行**。详见 [Electron 集成](electron-integration.md)。
 
 ## collect-service 消费接口
 
@@ -17,17 +17,17 @@
 
 实例使用 sourceId / instanceId / collectorEpoch 组合识别；重启实例不复用旧状态。只在 connected + fresh 时把状态视为当前；保留的旧 reportedStatus 不代表正在工作。实例缺席不代表从未出现或已经退出。
 
-当前取第一页（最多 32 条）并标注覆盖范围；分页不是原子快照，未来需要分页时须额外处理去重和时间一致性。断连保留历史有上限，不宣称完整历史。页面新鲜度与传输连接状态分开呈现；断连不能继续将缓存当作实时。
+现在按每页最多 32 条顺序读取全部合法分页（最多 41 页），整轮去重、校验进程与服务时间一致性；分页不是原子快照，多页始终标为 partial，不据此证明唯一 epoch。详见 [状态分页](collect-pagination.md)。断连保留历史有上限，不宣称完整历史。页面新鲜度与传输连接状态分开呈现；断连不能继续将缓存当作实时。
 
-## 宿主后续工作（尚未实现）
+## 实际宿主接线与尚未验收事项
 
 1. 在 Node/main 构造 adapter，注入部署地址、token supplier 和显式角色映射。
 2. 为配置的逻辑座位建立实例身份映射；不要从第三方模型名字猜测关系。
-3. 通过白名单 IPC 传递 DTO，renderer 仅订阅状态，无 Node integration、无凭据。
+3. 使用提供的 registerOfficeIpc / exposeOfficePreload / createBridgeAdapter，通过白名单 IPC 传递 DTO；renderer 仅订阅状态，无 Node integration、无凭据。需由实际宿主配置精确文档 URL、origin、窗口及安全选项。
 4. 用真实部署进行经授权的契约联调；本次只有合成 fixture 单元测试，无实际连接。
 5. 需要历史时另建事件通道：cursor 是 opaque；409 需要显式重置历史，truncated 代表保留窗口缺失，不是 hasMore。
 
-渲染宿主可使用 `<App adapterFactory={createBridgeAdapter} topology={configuredTopology} modeLabel="本地采集" />`。工厂函数引用应保持稳定（模块级函数或 useCallback），避免每次父组件渲染重连。`createBridgeAdapter` 是未来宿主自行提供的 IPC 客户端，不要把 `createCollectAdapter` 传入 renderer。
+渲染宿主应先拿到 preload 暴露的 API，再创建稳定工厂，例如 `const adapterFactory = () => createBridgeAdapter(window.agentOffice!)`，传给 `<LiveOffice adapterFactory={adapterFactory} officeConfig={publicConfig} modeLabel="主进程桥接" />`。使用前须检查 API 存在；完整可编译接线见 `examples/electron-renderer.tsx`。工厂函数引用应保持稳定（模块级函数或 useCallback），避免每次父组件渲染重连。`createBridgeAdapter` 是仓库已提供的 renderer-safe IPC 客户端，不要把 `createCollectAdapter` 传入 renderer。
 
 ### 座位与实例重绑定
 
@@ -55,7 +55,7 @@ const jsonForUserExport = exportOfficeConfig(config);
 每个选择器必须指定 **sourceId + instanceId**，不能从模型、host、role 或显示名字猜身份：
 
 - `epoch.policy: exact`：只匹配指定 `value`。重启后保持未绑定，需要用户明确修改配置。
-- `epoch.policy: follow-unique`：宿主明确允许同 source + instance 的新 epoch 接替，但只有一个候选且 `snapshot.identityCoverage === "complete"` 才绑定。采集适配器仅在第一页覆盖全部实例、无遗漏且存储就绪时标记 complete；分页 / 遗漏 / 未声明完整性均禁止自动跟随，断线也撤销完整性。服务同时保留旧离线实例和新实例时仍是歧义，不自动挑“最新”或“在线”者。用户可选择 exact 解除歧义。
+- `epoch.policy: follow-unique`：宿主明确允许同 source + instance 的新 epoch 接替，但只有一个候选且 `snapshot.identityCoverage === "complete"` 才绑定。采集适配器仅在单页覆盖全部实例、无遗漏且存储就绪时标记 complete；任何多页非原子读取 / 遗漏 / 未声明完整性均禁止自动跟随，断线也撤销完整性。服务同时保留旧离线实例和新实例时仍是歧义，不自动挑“最新”或“在线”者。用户可选择 exact 解除歧义。
 - 零候选 / 多候选均保留空位并返回警告；配置冲突和重复实例 ID 拒绝处理。未配置实例不自动进入办公室。绑定结果若过滤了任意实例，会降级身份覆盖为 partial，不能再用该子集证明全局唯一性；重绑定应使用原始完整快照。
 - `bindOffice` 无历史缓存；每次从本次快照重新绑定。它不会把旧 epoch 的状态、请求或角色自动复制到新实例。
 
@@ -66,3 +66,11 @@ const jsonForUserExport = exportOfficeConfig(config);
 `OfficeEnrichment.userRequests` 是未来可信宿主主动提供的、按**完整当前实例 ID**索引的用户请求摘要与来源。此接口不意味着 collect 状态协议支持摘要。未知或旧 epoch 的增强记录不会应用，而是返回 `unmatchedAgentIds`。同一实例更早 receivedAt 的增强不会覆盖已有最新摘要，而是返回 `ignoredOlderAgentIds`；相同时间允许可信宿主修正文案。输入还必须区分用户请求与模型生成内容；本模块不能替宿主判断语义或权限。没有增强时保持原有 `null`，绝不生成替代摘要。
 
 拓扑增强通过显式配置构建新的 `bound.topology`，与请求增强独立；两者不要求修改上游服务。
+
+## 真实状态驱动整体场景
+
+React 宿主可从 `src/react.ts` 引入 `LiveOffice`，注入稳定的 `adapterFactory` 与显式 `officeConfig`，配置绑定随每次快照重新计算；也可传已绑定 `topology`。纯配置 / DTO / bridge API 仍从 `src/index.ts` 引入，不强迫 Node 配置消费者加载 TSX 或 CSS。
+
+LiveOffice 与固定 26 秒剧情分离：fresh working 使用工作帧，idle 使用待机帧，stopping 保持停止中，缺失 / stale / 断连明确未知；不会把 idle 推断为喝饮料摸鱼，或把连接错误演成 Agent 任务 Error。显式 offline 才触发离场。详情只显示真实 DTO 中的用户请求，缺失不编造。
+
+页面中提供的状态驱动控制台使用合成契约快照，方便检查实际状态切换逻辑，**不是已连接真实 collect-service 的证明**。当前完成的是库级接入路径与合成跨层测试；真实部署地址、凭据、目标 Electron 宿主及设备运行验收仍由实际接入环境提供。

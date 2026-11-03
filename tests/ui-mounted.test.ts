@@ -58,7 +58,8 @@ test('mounted office interactions and hook cleanup', async t => {
     });
     await t.test('rapid leave/return and topology switches end at newest target', async () => {
       for (let i = 0; i < 3; i++) { await click(button('离场演示')); await click(button('重新入场')); }
-      const radios = [...container.querySelectorAll<HTMLInputElement>('input[name="layout"]')];
+      const choices = [...container.querySelectorAll<HTMLInputElement>('input[name="layout"]')];
+      const radios = ['主从工位', '平等协作'].map(label => choices.find(input => input.closest('label')?.textContent === label)!);
       for (let i = 0; i < 3; i++) { await click(radios[1]); await click(radios[0]); }
       await step();
       assert.equal(container.querySelectorAll('.phase-leaving').length, 0);

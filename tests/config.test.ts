@@ -67,3 +67,9 @@ test('array extensions, sparse lists and non-string character impostors rejected
   assert.throws(()=>parseOfficeConfig({...data,seats:new Array(3)}),/list/);
   assert.throws(()=>parseOfficeConfig({...data,seats:[{...data.seats[0],character:{toString:()=> 'self'}},...data.seats.slice(1)]}),/character/);
 });
+
+test('independent workstation configuration preserves no-leader semantics',()=>{
+ const input=config();input.office.team={layout:'independent-desks',memberSeatIds:['lead']};
+ assert.deepEqual(importOfficeConfig(exportOfficeConfig(input)).office.team,input.office.team);
+ assert.throws(()=>parseOfficeConfig({...input,office:{...input.office,team:{...input.office.team,leaderSeatId:'lead'}}}));
+});

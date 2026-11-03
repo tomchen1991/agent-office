@@ -9,12 +9,13 @@
 - 已确认的自研 Agent 站姿、华丽镰刀 V2、待机 GIF 和透明四帧图集已保存。
 - DOM / CSS 办公室：自研 Agent 独立办公室、普通 Agent 独立工位、团队主从工位与平等协作桌三模式可切换。
 - 支持播放 / 暂停待机预览、点击角色查看用户请求、状态来源与新鲜度、下载素材。
-- 解耦展示 DTO 与订阅接口；默认 mock，Node-only collect 状态轮询适配器单独提供。
+- 解耦展示 DTO 与订阅接口；默认 mock，Node-only collect 状态轮询适配器单独提供，支持完整顺序分页与非原子覆盖标注。
 - 版本化 JSON 配置导入 / 导出 API、显式席位与实例绑定、可信宿主请求增强接口；歧义保持空位，不自动猜角色。
 - 自研 Agent、DeepSeek、ChatGPT、Grok 各自拥有独立动作图集，按约 26 秒演示进场 → 坐下 → 工作 → 摸鱼 → Error → 起身 → 退场；支持暂停、重播和阶段选择。
 - 整体演示在独立办公室、普通工位 / 共享桌实际播放四角色动作；接入层数据标签仍保留简化的状态位移原型，不把演示剧情当作真实状态。
 - 示例子 Agent 最多显示三个座位，超出以 `+N` 展示。
-- 未执行真实采集联调、无模型调用、无运行中的后台服务，没有安装 Electron 或 PixiJS。
+- 安全 main/preload IPC 集成层及真实归一化状态驱动场景已提供；状态控制台是明确合成数据演示。
+- 未执行真实采集部署 / Electron 宿主联调，无模型调用、无运行中的后台服务，没有安装 Electron 或 PixiJS。
 - 四角色动作图集已生成并接入，仍需精修帧间一致性，不宣称逐像素锁定的生产级精灵。
 
 ## 本地运行
@@ -51,6 +52,9 @@ tests/                  展示规则测试
 docs/requirements.md    已确认需求和未定事项
 docs/assets.md          素材来源、状态与限制
 docs/integration.md     接入契约与宿主边界
+docs/electron-integration.md main/preload 安全接线与待验证范围
+docs/collect-pagination.md 完整分页、时序及覆盖限制
+docs/live-office.md     实际状态驱动场景与模拟验证边界
 docs/motion.md          多 Agent 标签的简化动作插槽
 docs/lifecycle-demo.md  独立完整动作演示与图集说明
 docs/whole-office-demo.md 整体办公室空间、动作与模拟边界

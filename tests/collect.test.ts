@@ -4,7 +4,7 @@ import { createCollectAdapter, normalizeStatus } from '../server/collect.ts';
 import type { AdapterState } from '../src/core.ts';
 const at = '2026-11-03T00:00:00.000Z';
 const instance = { sourceId: 'source', instanceId: 'agent', collectorEpoch: 'epoch', wireVersion: 2, connection: 'connected', freshness: 'fresh', status: 'active', snapshotReceivedAt: at, staleAfterMs: 15000 };
-const payload = (instances: unknown[] = [instance]) => ({ version: 1, scope: 'pi-v1', persistence: 'memory', storageReady: true, processId: 'process', observedAt: at, coverage: { omitted: false }, total: instances.length, instances, nextOffset: null });
+const payload = (instances: unknown[] = [instance]) => ({ version: 1, scope: 'pi-v1', persistence: 'memory', storageReady: true, processId: 'process', startedAt: at, observedAt: at, coverage: { omitted: false }, total: instances.length, instances, nextOffset: null });
 const flush = async () => { for (let n = 0; n < 20; n++) await Promise.resolve(); };
 function harness(fetcher: typeof fetch) {
   let id = 0;
@@ -24,13 +24,13 @@ test('status normalization does not invent model, task or topology; collision-sa
   assert.equal(snapshot.agents[0].character, 'unknown');
   assert.equal(snapshot.agents[0].latestUserRequest, null);
   assert.equal(snapshot.agents[0].status, 'working');
-  assert.match(snapshot.coverage!, /第一页/); assert.equal(snapshot.identityCoverage, 'complete');
+  assert.match(snapshot.coverage!, /已读取 1 页/); assert.equal(snapshot.identityCoverage, 'complete');
 });
 test('stale and disconnected observations never retain current active work', () => {
   assert.equal(normalizeStatus(payload([{ ...instance, freshness: 'stale' }]), {}, 0).agents[0].status, 'unknown');
   const offline = normalizeStatus(payload([{ ...instance, connection: 'disconnected' }]), {}, 0).agents[0];
   assert.equal(offline.status, 'offline'); assert.equal(offline.observedAt, null);
-  assert.equal(normalizeStatus(payload([{ ...instance, status: 'stopping' }]), {}, 0).agents[0].status, 'unknown');
+  assert.equal(normalizeStatus(payload([{ ...instance, status: 'stopping' }]), {}, 0).agents[0].status, 'stopping');
 });
 test('explicit identity mapping, dedupe, page coverage and validation', () => {
   const result = normalizeStatus({ ...payload([instance, instance]), total: 40, nextOffset: 32, coverage: { omitted: true } }, { identity: () => ({ name: 'Configured', character: 'self' }) }, 0);

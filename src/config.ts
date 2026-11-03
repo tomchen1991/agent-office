@@ -13,7 +13,7 @@ export interface OfficeConfig {
   office: {
     selfSeatId: string;
     childSeatIds: readonly string[];
-    team: { layout: 'leader-desks' | 'peer-table'; memberSeatIds: readonly string[]; leaderSeatId?: string };
+    team: { layout: 'independent-desks' | 'leader-desks' | 'peer-table'; memberSeatIds: readonly string[]; leaderSeatId?: string };
   };
 }
 const MAX_JSON_BYTES = 128 * 1024;
@@ -62,7 +62,7 @@ export function parseOfficeConfig(input: unknown): OfficeConfig {
   }
   const office = object(data.office, ['selfSeatId', 'childSeatIds', 'team']);
   const team = object(office.team, ['layout', 'memberSeatIds', 'leaderSeatId']);
-  if (team.layout !== 'leader-desks' && team.layout !== 'peer-table') throw new Error('Invalid team layout');
+  if (team.layout !== 'independent-desks' && team.layout !== 'leader-desks' && team.layout !== 'peer-table') throw new Error('Invalid team layout');
   const selfSeatId = string(office.selfSeatId);
   const childSeatIds = array(office.childSeatIds).map(value => string(value));
   const memberSeatIds = array(team.memberSeatIds).map(value => string(value));
@@ -75,8 +75,8 @@ export function parseOfficeConfig(input: unknown): OfficeConfig {
     if (!memberSeatIds.includes(leaderSeatId)) throw new Error('Leader must be an explicitly assigned team member');
     normalizedTeam = { layout: 'leader-desks', memberSeatIds, leaderSeatId };
   } else {
-    if (Object.hasOwn(team, 'leaderSeatId')) throw new Error('Peer table must not configure a leader');
-    normalizedTeam = { layout: 'peer-table', memberSeatIds };
+    if (Object.hasOwn(team, 'leaderSeatId')) throw new Error('Equal office layouts must not configure a leader');
+    normalizedTeam = { layout: team.layout, memberSeatIds };
   }
   return { version: 1, seats, office: { selfSeatId, childSeatIds, team: normalizedTeam } };
 }

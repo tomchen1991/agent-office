@@ -24,6 +24,7 @@
     "tests",
     "scripts",
     "vite.config.ts",
-    "server"
+    "server",
+    "examples"
   ]
 }

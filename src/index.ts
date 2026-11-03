@@ -8,3 +8,5 @@ export type { BoundOffice, BindingWarning } from './binding.ts';
 export { enrichOfficeSnapshot } from './enrichment.ts';
 export type { OfficeEnrichment, UserRequestEnrichment, EnrichmentResult } from './enrichment.ts';
 export { createMockAdapter, demoTopology } from './mock.ts';
+export { createBridgeAdapter } from './bridge.ts';
+export type { OfficeBridgeApi } from './bridgeProtocol.ts';

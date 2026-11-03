@@ -52,3 +52,8 @@ test('disconnected or elapsed stale cache never displays working badge', () => {
   assert.equal(displayStatus(agent, 0, 'disconnected'), 'unknown');
   assert.equal(displayStatus(agent, 30_000, 'connected'), 'unknown');
 });
+
+test('pure public entry remains loadable without React TSX or Node credentials',async()=>{
+ const api=await import('../src/index.ts');
+ assert.equal(typeof api.bindOffice,'function');assert.equal(typeof api.createBridgeAdapter,'function');
+});
