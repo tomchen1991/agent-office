@@ -90,3 +90,7 @@ Allowed destinations are `public-desk-1` through `public-desk-10`, and `public-t
 Optional version-1 `office.githubSeatId` references one explicitly configured logical seat. Direct topology uses optional `githubAgentId`. These identities must be distinct from owner, children, and common-team members; the dedicated desk is not a team-leader designation. Existing four-role configs remain valid and leave it empty. Selectors and freshness rules remain unchanged. The `github` character has its own approved atlases, not a borrowed persona.
 
 The removed `public-table-3-seat-1` through `public-table-3-seat-3` IDs are rejected with a migration error. Explicitly choose a remaining public table or desk for affected members. They are never automatically moved to `github-desk`.
+
+### Personal prop continuity
+
+A fresh working/waiting/stopping/offline report interrupts self's leisure by reversing pickup or putting the weapon back before the return walk. Unknown/stale/disconnected and reduced-motion transitions freeze the exact personal pose; they never move the scythe back to its stand. A collector/source/topology replacement retains one unknown visual in the owner slot. Authoritative recovery allows that visual to return the prop before admitting the new instance. It cannot show working during this cleanup. Missing rows do not imply departure. Source and RAF generations still reject disposed callbacks. All personal art must load before a new action is admitted.

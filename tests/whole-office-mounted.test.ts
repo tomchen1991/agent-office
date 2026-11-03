@@ -102,7 +102,7 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   assert.equal(container.querySelectorAll('.wo-screen-error').length,7);
   assert.equal(container.querySelectorAll('[data-office-actor]').length,7);
   await click('重播办公室演示');const stages=new Set<string>();
-  for(let i=0;i<308;i++){stages.add(scene().getAttribute('data-office-stage')!);await step();}
+  for(let i=0;i<328;i++){stages.add(scene().getAttribute('data-office-stage')!);await step();}
   assert.deepEqual([...stages],['arrival','sit','work','slack','error','stand','exit']);
   assert.equal(scene().getAttribute('data-office-complete'),'true');assert.equal(frames.size,0);
   await click('重播办公室演示');await step(4);await click('暂停办公室演示');
@@ -132,10 +132,12 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   assert.equal(owner().getAttribute('data-office-personal-phase'),'rise');
   assert.equal(github().getAttribute('data-office-personal-phase'),'game');
   await click('播放办公室演示'); await step(51); await click('暂停办公室演示');
+  const frozenPhase=owner().getAttribute('data-office-personal-phase');
+  const frozenStyle=owner().getAttribute('style');
   await act(async()=>{reduced=true;listeners.forEach(fn=>fn());});
+  assert.equal(owner().getAttribute('style'),frozenStyle);
   await act(async()=>{reduced=false;listeners.forEach(fn=>fn());});
-  assert.equal(owner().getAttribute('data-office-personal-phase'),null);
-  assert.equal(github().getAttribute('data-office-personal-phase'),null);
+  assert.equal(owner().getAttribute('data-office-personal-phase'),frozenPhase);
   await act(async()=>root.unmount());await act(async()=>pending.splice(0).forEach(fn=>fn()));assert.equal(frames.size,0);assert.equal(listeners.size,0);
  }finally{
   await act(async()=>{try{root.unmount();}catch{}});dom.window.close();await vite.close();

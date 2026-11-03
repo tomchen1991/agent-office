@@ -8,13 +8,13 @@ import type { DemoStage } from './demoTimeline';
 import { fixedOfficeSeats, fixedOfficeTables, officeRegionCenters, MAX_SIMULATED_CHILD_SEATS, OFFICE_WORLD, OFFICE_ACTOR_RATIO, OFFICE_DESK, officeActorDepth, officeActorPlacement, officeLocalPoint } from './wholeOfficeGeometry';
 import type { OfficeLayout, OfficeSeat } from './wholeOfficeGeometry';
 import './whole-office.css';
-import { personalPlacement } from './personalIdle';
+import { personalPlacement, actorHasScythe, scytheOwnership } from './personalIdle';
 import type { PersonalIdle } from './personalIdle';
 
 export interface OfficeSceneSeat extends Omit<OfficeSeat, 'persona'> { persona: CharacterId; isLeader?: boolean; geometryId?: string }
 export interface OfficeScenePose {
   stage: DemoStage; stageElapsedMs: number; progress: number; label: string;
-  sheet?: 'locomotion' | 'seated' | 'extra'; frame?: number; personal?: PersonalIdle;
+  sheet?: 'locomotion' | 'seated' | 'extra' | 'pickup'; frame?: number; personal?: PersonalIdle;
   status?: OfficeStatus; phase?: string;
 }
 export interface WholeOfficeSceneProps {
@@ -91,7 +91,7 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
     const error = !seat.empty && current !== null && !live && stage === 'error';
     const workBeat = reducedMotion ? 0 : Math.floor(stageElapsedMs / 260);
     const personal = current?.personal;
-    const placement = personal && ['out', 'scythe', 'back'].includes(personal.phase) ? personalPlacement({ ...seat, persona: calibration.id }, calibration, personal) : officeActorPlacement({ ...seat, id: seat.geometryId ?? seat.id, persona: calibration.id }, calibration, stage, stageElapsedMs, progress, reducedMotion);
+    const placement = personal && ['out', 'pickup', 'scythe', 'putdown', 'back'].includes(personal.phase) ? personalPlacement({ ...seat, persona: calibration.id }, calibration, personal) : officeActorPlacement({ ...seat, id: seat.geometryId ?? seat.id, persona: calibration.id }, calibration, stage, stageElapsedMs, progress, personal ? false : reducedMotion);
     const defaultFrame = demoFrame({ stage, stageElapsedMs: placement.motionElapsedMs, progress }, reducedMotion);
     const sheet = current?.sheet ?? defaultFrame.sheet;
     const frame = current?.frame ?? defaultFrame.frame;
@@ -107,14 +107,14 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
     const frameStyle: CSSProperties = {
       backgroundImage: `url("${assetUrl(atlas.src)}")`,
       backgroundSize: `${atlas.columns * 100}% ${atlas.rows * 100}%`,
-      backgroundPosition: `${frame % atlas.columns / (atlas.columns - 1) * 100}% ${(atlas.rows === 1 ? 0 : Math.floor(frame / atlas.columns) / (atlas.rows - 1) * 100)}%`,
+      backgroundPosition: `${(atlas.columns === 1 ? 0 : frame % atlas.columns / (atlas.columns - 1) * 100)}% ${(atlas.rows === 1 ? 0 : Math.floor(frame / atlas.columns) / (atlas.rows - 1) * 100)}%`,
       transform: placement.mirrored ? 'scaleX(-1)' : undefined,
     };
     return <Fragment key={seat.id}>
       <div data-office-seat={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} className={`wo-chair wo-${seat.kind} ${facingClass}`} style={furniturePosition({ ...seat, scale: seat.scale * OFFICE_ACTOR_RATIO, persona: calibration.id }, 625, 262.2, 110, 142.5, seat.y - 5)} aria-hidden="true"><span className="wo-chair-back" /><span className="wo-chair-seat" /><span className="wo-chair-leg" /></div>
       {!shared && <div className={`wo-desk-back wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.backX, 376.2, OFFICE_DESK.backWidth, 57, seat.y - 10)} aria-hidden="true" />}
       <div className={`wo-monitor ${facingClass} ${working ? 'wo-screen-work' : ''} ${error ? 'wo-screen-error' : ''}`} style={furniturePosition({ ...seat, persona: calibration.id }, 770, 267.9, shared ? 105 : 120, shared ? 110 : 119.7, shared ? surfaceDepth + 1 : surfaceDepth - 1)} aria-hidden="true"><div className="wo-screen"><strong>{seat.empty ? '○' : error ? '!' : working ? '>_' : !live && stage === 'slack' ? '☕' : indication?.status === 'stopping' ? 'Ⅱ' : indication?.status === 'unknown' ? '?' : '···'}</strong>{[0, 1, 2].map(index => <i key={index} style={{ width: `${working ? 28 + (workBeat * 13 + index * 19) % 60 : 50 - index * 10}%` }} />)}{working && !live && <b style={{ width: `${progress * 100}%` }} />}</div><span className="wo-monitor-neck" /></div>
-      {!seat.empty && canAnimate && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-personal-phase={current.personal?.phase} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role="img" aria-label={`${seat.label}，${seat.role}，${current.label}`}>{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona"><b>?</b><span>身份未映射</span></div>}</div>}
+      {!seat.empty && (canAnimate || (seat.kind === 'owner' && personal)) && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-personal-phase={current.personal?.phase} data-scythe-owner={seat.kind === 'owner' && seat.persona === 'self' && actorHasScythe(personal) ? 'actor' : undefined} data-scythe-state={seat.kind === 'owner' ? scytheOwnership(personal) : undefined} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role="img" aria-label={`${seat.label}，${seat.role}，${current.label}`}>{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona"><b>?</b><span>身份未映射</span></div>}</div>}
       {!shared && <div className={`wo-desk-front wo-${seat.kind} wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.frontX, 376.2, OFFICE_DESK.frontWidth, 119.7, surfaceDepth)} data-office-leader={seat.isLeader || undefined} data-office-desk={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} data-office-seat-kind={seat.kind}>
         <span className="wo-desk-top" /><span className="wo-desk-leg wo-left" /><span className="wo-desk-leg wo-right" />
         <span className="wo-nameplate"><strong>{seat.label}</strong><small>{seat.role}</small></span>
@@ -141,7 +141,21 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
           <div className="wo-room-title wo-private-title"><h2>自研 Agent 独立办公室</h2></div>
           <div className="wo-room-title wo-team-title"><h2>公共办公区</h2></div>
           <div className="wo-owner-rug" aria-hidden="true" />
-          <svg className="wo-scythe-rack" viewBox="0 0 90 180" aria-label="工位旁停放的星月镰刀" role="img"><path d="M42 35 L52 167" stroke="#5a365f" strokeWidth="9"/><path d="M42 35 L52 167" stroke="#cca0e2" strokeWidth="4"/><path d="M12 39 Q42 -3 82 30 Q52 16 28 51Z" fill="#d8b5ed" stroke="#63417c" strokeWidth="3"/><path d="M44 24 L55 35 L46 47 L35 35Z" fill="#9c57cc" stroke="#f0d6ff" strokeWidth="2"/><path d="M27 47 L22 66 L34 60Z" fill="#aa78c8"/><path d="M35 164 H70 L75 174 H30Z" fill="#684575"/><circle cx="59" cy="53" r="5" fill="#ead7a0"/></svg>
+          {(() => {
+            const owner = furnitureSeats.find(seat => seat.kind === 'owner')!;
+            const self = characters.find(character => character.id === 'self');
+            if (!self?.parkedScythe) return null;
+            const action = !owner.empty && owner.persona === 'self' ? poseForSeat(owner)?.personal : undefined;
+            const placement = personalPlacement({ ...owner, persona: 'self' }, self, { phase: 'pickup', elapsedMs: 0 });
+            const standX = placement.x + (211 / 512 - placement.contactX) * placement.width;
+            return <Fragment><span className="wo-scythe-stand" data-testid="scythe-stand" aria-label="星月镰刀固定底座"
+              style={position(standX - 14, placement.y - 2, 28, 8, placement.y - 1)} />
+              {!actorHasScythe(action) && <img className="wo-parked-scythe" src={assetUrl(self.parkedScythe.src)}
+              onError={event => { event.currentTarget.style.visibility = 'hidden'; }} onLoad={event => { event.currentTarget.style.visibility = 'visible'; }}
+              data-testid="parked-scythe" data-scythe-owner="stand" data-scythe-state={scytheOwnership(action)}
+              alt="停放在取放点的星月镰刀" style={{ ...position(placement.x, placement.y, placement.width, undefined, placement.y + 1),
+                transform: `translate(-${placement.contactX * 100}%, -${placement.contactY * 100}%)` }} />}</Fragment>;
+          })()}
           <div className="wo-child-label"><strong>子 Agent 工位</strong></div>
           {childCount > MAX_SIMULATED_CHILD_SEATS && <div className="wo-child-overflow" aria-label={`还有 ${childCount - MAX_SIMULATED_CHILD_SEATS} 个${live ? '子 Agent' : '模拟子 Actor'}，最多展示 ${MAX_SIMULATED_CHILD_SEATS} 个席位`}><b>+{childCount - MAX_SIMULATED_CHILD_SEATS}</b><span>{live ? '子 Agent' : '模拟子 Actor'}</span></div>}
 

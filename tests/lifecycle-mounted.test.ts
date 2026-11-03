@@ -41,7 +41,7 @@ test('mounted full demonstration: four independent selections, action frames, pa
   for(const character of characters){
    const choice=container.querySelector(`.character-${character.id}`)!;await click(choice);
    const stages=new Set<string>();
-   for(let i=0;i<308;i++){stages.add(scene().getAttribute('data-demo-stage')!);await step();}
+   for(let i=0;i<328;i++){stages.add(scene().getAttribute('data-demo-stage')!);await step();}
    assert.deepEqual([...stages],['arrival','sit','work','slack','error','stand','exit']);
    assert.equal(scene().getAttribute('data-demo-character'),character.id);assert.equal(scene().getAttribute('data-demo-complete'),'true');assert.equal(frames.size,0);
    assert.equal(container.querySelector<HTMLElement>('.lc-character')?.style.getPropertyValue('--contact-x'),`${(1-character.locomotion.anchor.x)*100}%`);

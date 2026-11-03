@@ -47,7 +47,7 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       assert.equal(container.querySelector('#live-details-title')?.textContent, 'child-3');
       assert.equal(container.querySelector('[data-office-actor="child-3"]'), null);
       await click('self');
-      assert.ok(container.querySelector('.wo-private-door')); assert.ok(container.querySelector('.wo-scythe-rack'));
+      assert.ok(container.querySelector('.wo-private-door')); assert.ok(container.querySelector('.wo-parked-scythe'));
       assert.ok(container.querySelector('[data-office-actor="mystery"] .wo-unknown-persona'));
       assert.equal(container.querySelector('[data-office-actor="mystery"] .wo-sprite'), null);
       assert.match(container.querySelector('.live-request')?.textContent ?? '', /Only actual USER summary/);
@@ -86,26 +86,28 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       await step(51);
       assert.equal(self()?.getAttribute('data-office-phase'), 'personal');
       assert.equal(container.querySelector('[data-office-actor="repair"] .wo-sprite')?.getAttribute('data-office-sheet'), 'extra');
-      await step(34);
+      await step(44);
       assert.equal(sprite()?.getAttribute('data-office-sheet'), 'extra');
       assert.ok(!sprite()?.getAttribute('style')?.includes('NaN'));
       const before = self()?.getAttribute('style');
       await click('暂停状态动画'); await step(10); assert.equal(self()?.getAttribute('style'), before);
       await emit([agent('self', 'idle', { sourceFreshness: 'stale' }), agent('repair', 'idle', { character: 'github', sourceFreshness: 'stale' })]);
       assert.equal(self()?.getAttribute('data-office-status'), 'unknown');
-      assert.equal(sprite()?.getAttribute('data-office-sheet'), 'seated');
+      assert.equal(sprite()?.getAttribute('data-office-sheet'), 'extra');
+      assert.equal(self()?.getAttribute('style'), before);
       await click('继续状态动画');
-      await emit([agent('self', 'idle'), agent('repair', 'idle', { character: 'github' })]); await step(85);
+      await emit([agent('self', 'idle'), agent('repair', 'idle', { character: 'github' })]); await step(30);
       await emit([agent('self', 'working'), agent('repair', 'working', { character: 'github' })]);
       assert.equal(self()?.getAttribute('data-office-phase'), 'personal');
-      assert.equal(sprite()?.getAttribute('data-office-sheet'), 'locomotion');
-      assert.equal(container.querySelectorAll('.wo-screen-work').length, 0);
-      await step(35); assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
+      assert.ok(['pickup', 'locomotion'].includes(sprite()?.getAttribute('data-office-sheet') ?? ''));
+      assert.notEqual(sprite()?.getAttribute('data-office-sheet'), 'seated');
+      await step(45); assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
       await emit([agent('self', 'idle')]); await step(75);
+      const frozenStyle = self()?.getAttribute('style');
       await act(async () => { reduced = true; media.forEach(listener => listener()); });
-      assert.equal(self()?.getAttribute('data-office-phase'), 'seated'); assert.equal(sprite()?.getAttribute('data-office-sheet'), 'seated');
+      assert.equal(self()?.getAttribute('data-office-phase'), 'personal'); assert.equal(self()?.getAttribute('style'), frozenStyle);
       await act(async () => { reduced = false; media.forEach(listener => listener()); });
-      await emit([agent('self')]); await render();
+      await emit([agent('self')]); await step(45); await render();
     });
     await t.test('optional extra failure keeps base office visible and idle neutral, later successful asset enables actions', async () => {
       const { demoCharacters } = await vite.ssrLoadModule('/src/demoAssets.ts');
@@ -115,7 +117,7 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       await step(140); assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
       assert.equal(sprite()?.getAttribute('data-office-sheet'), 'seated');
       await render(); await step(52); assert.equal(self()?.getAttribute('data-office-phase'), 'personal');
-      await emit([agent('self', 'working')]); await step(35);
+      await emit([agent('self', 'working')]); await step(45);
     });
     await t.test('partial absence preserves uncertain seat without departure or old request; stale/disconnect stop work', async () => {
       await emit(snapshot.agents.filter(item => item.id !== 'self'), { identityCoverage: 'partial' });

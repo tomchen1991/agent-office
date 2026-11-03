@@ -18,6 +18,10 @@ export interface LiveOfficeActor extends LiveOfficeTarget {
   phase: LiveOfficePhase;
   elapsedMs: number;
   personal?: PersonalIdle;
+  frozen?: boolean;
+  /** A retained visual finishing a prop return, never the new instance's work. */
+  visualOnly?: boolean;
+  pendingTarget?: LiveOfficeTarget;
 }
 export type LiveOfficeMotionState = readonly LiveOfficeActor[];
 const durations = { arrival: 4000, sit: 2000, stand: 2000, exit: 4000 } as const;
@@ -25,22 +29,40 @@ const active = (status: OfficeStatus) => status !== 'offline' && status !== 'unk
 
 /** Missing rows are uncertainty, never evidence of departure. Only explicit offline leaves. */
 export function reconcileLiveOffice(previous: LiveOfficeMotionState, targets: readonly LiveOfficeTarget[], reducedMotion = false): LiveOfficeMotionState {
-  return targets.flatMap(target => {
-    let actor = previous.find(item => item.id === target.id);
+  const reserved = previous.find(item => item.personalRole === 'self' && item.phase === 'personal');
+  const consumed = new Set<LiveOfficeActor>();
+  return targets.flatMap<LiveOfficeActor>(target => {
+    // Reserve a weapon bearer for its physical owner slot. A topology remap may
+    // reuse the old id elsewhere; it must not clone the same visual into two seats.
+    let actor = reserved?.seatKey === target.seatKey && !consumed.has(reserved) ? reserved
+      : previous.find(item => item !== reserved && item.id === target.id && !consumed.has(item));
+    if (actor) consumed.add(actor);
+    // Weapon ownership outlives a collector epoch. Finish the old visual safely
+    // before admitting a replacement; never claim that visual is working.
+    if (actor?.phase === 'personal' && actor.personalRole === 'self' && actor.personal &&
+        (actor.visualOnly || actor.personalRole !== target.personalRole || (target.identityKey && actor.identityKey !== target.identityKey) || actor.seatKey !== target.seatKey)) {
+      const frozen = reducedMotion || target.status === 'unknown' || !target.identityKey;
+      return [{ ...actor, id: target.id, status: 'unknown' as const, visualOnly: true, pendingTarget: target,
+        frozen, personal: frozen ? actor.personal : interruptPersonal(actor.personal) }];
+    }
     if (actor && target.identityKey && actor.identityKey !== target.identityKey) actor = undefined;
     if (!actor) {
       return target.identityKey && active(target.status)
         ? [{ ...target, identityKey: target.identityKey, phase: reducedMotion ? 'seated' as const : 'arrival' as const, elapsedMs: 0 }]
         : [];
     }
-    const next: LiveOfficeActor = { ...actor, ...target, identityKey: target.identityKey ?? actor.identityKey };
+    const next: LiveOfficeActor = { ...actor, ...target, personalRole: target.personalRole, identityKey: target.identityKey ?? actor.identityKey };
+    if (actor.phase === 'personal' && actor.personalRole === 'self' && actor.personal && (target.status === 'unknown' || reducedMotion)) {
+      return [{ ...next, personalRole: 'self' as const, frozen: true }];
+    }
+    next.frozen = false;
     if (target.status === 'unknown') {
       // Cancel unfinished travel rather than showing activity or a fictitious departure.
       return [{ ...next, phase: 'seated', elapsedMs: 0, personal: undefined }];
     }
-    if (actor.phase === 'personal' && !reducedMotion && actor.seatKey === target.seatKey && actor.personalRole === target.personalRole) {
+    if (actor.phase === 'personal' && !reducedMotion && actor.seatKey === target.seatKey && (actor.personalRole === target.personalRole || actor.personalRole === 'self')) {
       const personal = target.status === 'idle' ? actor.personal : actor.personal && interruptPersonal(actor.personal);
-      if (personal) return [{ ...next, personal }];
+      if (personal) return [{ ...next, personalRole: actor.personalRole, personal }];
       actor = { ...actor, phase: 'seated', personal: undefined, elapsedMs: 0 };
       next.phase = 'seated'; next.personal = undefined; next.elapsedMs = 0;
     }
@@ -54,16 +76,21 @@ export function reconcileLiveOffice(previous: LiveOfficeMotionState, targets: re
     }
     if (next.phase === 'seated' && actor.status !== target.status) next.elapsedMs = 0;
     return [next];
-  });
+  }).concat(previous.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal' &&
+    !consumed.has(actor))
+    .map(actor => ({ ...actor, id: targets.some(target => target.id === actor.id) ? `scythe-return:${actor.identityKey}` : actor.id, status: 'unknown' as const, frozen: true, visualOnly: true })));
 }
 
 export function advanceLiveOffice(previous: LiveOfficeMotionState, deltaMs: number): LiveOfficeMotionState {
   if (!Number.isFinite(deltaMs) || deltaMs <= 0) return previous;
   return previous.flatMap(actor => {
-    if (actor.status === 'unknown') return [actor];
+    if (actor.frozen || (actor.status === 'unknown' && !actor.visualOnly)) return [actor];
     if (actor.phase === 'personal') {
       const personal = actor.personal && actor.personalRole && advancePersonal(actor.personal, actor.personalRole, deltaMs);
       if (personal) return [{ ...actor, personal }];
+      if (actor.visualOnly) {
+        return actor.pendingTarget ? reconcileLiveOffice([], [actor.pendingTarget]) : [];
+      }
       return actor.status === 'offline' ? [{ ...actor, personal: undefined, phase: 'stand', elapsedMs: 0 }] : [{ ...actor, personal: undefined, phase: 'seated', elapsedMs: 0 }];
     }
     let elapsedMs = actor.elapsedMs + deltaMs;
@@ -84,7 +111,7 @@ export function advanceLiveOffice(previous: LiveOfficeMotionState, deltaMs: numb
 }
 
 export function liveOfficeNeedsClock(actors: LiveOfficeMotionState): boolean {
-  return actors.some(actor => actor.status !== 'unknown' && (actor.phase !== 'seated' || actor.status === 'working' || actor.status === 'idle' || actor.status === 'waiting'));
+  return actors.some(actor => !actor.frozen && (actor.status !== 'unknown' || actor.visualOnly) && (actor.phase !== 'seated' || actor.status === 'working' || actor.status === 'idle' || actor.status === 'waiting'));
 }
 
 export const liveStatusLabels: Record<OfficeStatus, string> = {
@@ -92,7 +119,7 @@ export const liveStatusLabels: Record<OfficeStatus, string> = {
 };
 export function liveOfficePose(actor: LiveOfficeActor, reducedMotion = false): {
   stage: DemoStage; stageElapsedMs: number; progress: number; label: string; status: OfficeStatus;
-  phase: LiveOfficePhase; sheet: 'locomotion' | 'seated' | 'extra'; frame?: number; personal?: PersonalIdle;
+  phase: LiveOfficePhase; sheet: 'locomotion' | 'seated' | 'extra' | 'pickup'; frame?: number; personal?: PersonalIdle;
 } {
   const common = { label: liveStatusLabels[actor.status], status: actor.status, phase: actor.phase, stageElapsedMs: actor.elapsedMs };
   if (actor.phase === 'personal' && actor.personal) return { ...common, ...personalPose(actor.personal) };

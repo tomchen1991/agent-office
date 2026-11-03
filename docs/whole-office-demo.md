@@ -20,11 +20,11 @@
 
 ## 动作与数据边界
 
-同一条 30.5 秒演示时间轴编排进场、坐下、工作、摸鱼、Error、起身和退场，实际动作发生在各自工位。复用已认可素材与固定脚点坐起修正，提供暂停、重播和阶段选择，遵循减少动态效果偏好。进退场在同一个四秒阶段内按席位错峰释放，避免实例同时挤在入口；整体场景使用座椅对应的物理地面脚点，单角色检查页暂保留原动作，阶段时长共用 30.5 秒时间轴。
+同一条 32.5 秒演示时间轴编排进场、坐下、工作、摸鱼、Error、起身和退场，实际动作发生在各自工位。复用已认可素材与固定脚点坐起修正，提供暂停、重播和阶段选择，遵循减少动态效果偏好。进退场在同一个四秒阶段内按席位错峰释放，避免实例同时挤在入口；整体场景使用座椅对应的物理地面脚点，单角色检查页暂保留原动作，阶段时长共用 32.5 秒时间轴。
 
-摸鱼阶段统一延长为 9 秒，其他阶段时长不变。主 Agent 起身、沿工位右侧地面短逛、站姿把玩镰刀、原路回座；GitHub Agent 先坐着玩掌机，再起身短逛并回座。其他角色沿用原摸鱼帧，所有角色同步进入 Error、起身及退场。额外动作使用独立图集，不替换其他三位角色素材。演示在摸鱼阶段入口锁定可用图集；中途完成加载或关闭减少动态效果都不会把角色突然移到路线中段，需等下次阶段或重播。
+摸鱼阶段统一延长为 11 秒，其他阶段时长不变。主 Agent 起身、沿工位右侧地面走到放置点、取起镰刀把玩、放回后原路回座；GitHub Agent 先坐着玩掌机，再起身短逛并回座。其他角色沿用原摸鱼帧，所有角色同步进入 Error、起身及退场。额外动作使用独立图集，不替换其他三位角色素材。演示在摸鱼阶段入口锁定可用图集；中途完成加载或关闭减少动态效果都不会把角色突然移到路线中段，需等下次阶段或重播。
 
-真实状态办公室只在 connected、fresh、明确 idle 且连续空闲 5 秒后启用这些空闲表现。它们不写入活动记录、不推断任务内容；工作到来时先返回坐好再显示工作，等待或停止取消闲暇并回座，unknown、过期或断连立即取消并回到中性展示。新身份、数据源或布局不会继承旧动作。额外图集加载失败不阻塞基本角色，暂停和减少动态效果继续有效。
+真实状态办公室只在 connected、fresh、明确 idle 且连续空闲 5 秒后启用这些空闲表现。它们不写入活动记录、不推断任务内容；工作、等待或停止到来时先放回镰刀并回座；unknown、过期或断连立即冻结主 Agent 当前姿势与道具归属，不继续玩耍，也不瞬移回座。身份、数据源或布局变化时只保留必要的中性视觉收尾，不将旧动作当作新实例的真实状态。额外图集加载失败不阻塞基本角色，暂停和减少动态效果继续有效。
 
 本视图始终是合成演示，不连接真实服务、不把真实 idle 当作摸鱼，也不声称采集接口提供了错误剧情、任务关系或最新用户请求。真实接入、显式绑定与请求增强仍在独立数据视图中；连接到实际宿主需要明确接线。
 
@@ -35,3 +35,7 @@
 ## GitHub 专属大桌
 
 原第三张公共协作桌已撤除，专属桌使用独立物理 ID `github-desk`，座椅 (1840, 300)、尺寸系数 1.1。演示角色 ID `github-demo` 明确标记模拟，真实显示仍要求显式身份绑定。该桌不占用普通团队 16 席，也不自动成为团队负责人。银灰短双辫角色采用独立生成、批准的两张 4×2 图集；原四人格像素未修改。包含第五角色的实际透明边界测试覆盖全部 20 个实体席位及往返路线。
+
+### Scythe pickup and return
+
+Self now rises, walks to the visible registered scythe, pauses to take it (1 second), plays, replaces it (1 second), and walks back to sit. Shared slack is 11 seconds; GitHub's existing 9-second sequence is unchanged and rests for the remaining time. The stand remains visible throughout and exactly one weapon owner is exposed as `data-scythe-owner="stand"` or `"actor"`. Reduced-motion changes and pause preserve an admitted personal pose and ownership. Explicit seek/replay rebuilds the requested point in the demonstration timeline.

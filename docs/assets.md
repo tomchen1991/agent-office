@@ -19,3 +19,7 @@
 ## 四角色动作图集
 
 `public/assets/demo/` 新增 self / deepseek / chatgpt / grok 各两张透明动作 atlas，总计八张、64 个格位。按当前角色设计与用户完整生命周期要求生成，没有复制其他项目角色源码。尺寸、帧序和字节哈希见该目录 manifest；它们不替换上面的原始已确认素材。帧间仍有生成细节差异，属于可运行演示素材而非最终逐像素生产规格。
+
+### Scythe continuity art
+
+`demo/self/pickup.png` is a four-cell 2048×512 registered atlas; `demo/self/scythe-parked.png` is a full 512×512 transparent prop. Both retain self's [300,470] feet anchor. The shaft is at local x211, bottom y470. A fixed base is projected from that exact local point beside the existing personal play route, without moving desks or chairs. Pickup frames 0/1 contain no weapon and display the parked prop; frames 2/3 contain the only weapon and suppress the prop. Putdown reverses these frames. Frame 3 is the original leisure frame 0 copied pixel-for-pixel. Minor generated silhouette drift remains between contact and held poses. Asset hashes and alpha-bound fixtures are checked in.

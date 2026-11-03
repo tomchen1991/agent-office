@@ -179,6 +179,42 @@
         355
       ],
       "sha256": "783e73061e2fd2b98fb91d037bdd0e9a0ca89885e99d0440eae591a39a2917c7"
+    },
+    {
+      "path": "assets/demo/self/pickup.png",
+      "character": "self",
+      "sheet": "pickup",
+      "action": "scythe-pickup",
+      "width": 2048,
+      "height": 512,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 1,
+      "anchor": [
+        300,
+        470
+      ],
+      "sha256": "9e81e12b7384064303344e57aa6418a95fe5ec75fb7b6192a2e51e2f73023b7f",
+      "provenance": "Authored against approved self leisure frame 0; common 512px registration. Pickup frames 0/1 omit the weapon; 2/3 contain it. Final frame equals leisure frame 0. Parked prop uses identical origin and shaft contact."
+    },
+    {
+      "path": "assets/demo/self/scythe-parked.png",
+      "character": "self",
+      "sheet": "parkedScythe",
+      "action": "scythe-parked",
+      "width": 512,
+      "height": 512,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 1,
+      "rows": 1,
+      "anchor": [
+        300,
+        470
+      ],
+      "sha256": "9457a481ec86678204f2d736ae70169b478c6ff0ec7b1359704bb2838463a4be",
+      "provenance": "Authored against approved self leisure frame 0; common 512px registration. Pickup frames 0/1 omit the weapon; 2/3 contain it. Final frame equals leisure frame 0. Parked prop uses identical origin and shaft contact."
     }
   ]
 }

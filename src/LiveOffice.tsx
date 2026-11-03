@@ -1,3 +1,4 @@
+import { personalAssets, personalAssetsReady } from './personalIdle';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeSnapshot, OfficeTopology } from './core';
 import { displayStatus, freshness, validateTopology, liveOfficeSeatReport } from './core';
@@ -83,7 +84,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     let alive = true;
     const loaded = new Set<string>(), failed = new Set<string>();
     const required = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
-    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...(character.extra ? [character.extra.src] : [])]))];
+    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...personalAssets(character)]))];
     setAssets({ key: characters, ready: sources.length === 0, failed: [], loaded: [] });
     const images = sources.map(src => {
       const image = new Image();
@@ -123,10 +124,19 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
     const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : undefined;
-    return { personalRole: !state.error && personalRole && assets.loaded.includes(characters.find(item => item.id === personalRole)?.extra?.src ?? '') ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
+    return { personalRole: !state.error && personalRole && characters.some(item => item.id === personalRole && personalAssetsReady(item, assets.loaded)) ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
   });
   const assetsReady = assets.key === characters && assets.ready;
   const actors = useLiveOfficeMotion(targets, { sourceKey, reducedMotion, paused, assetsReady });
+  // An admitted pickup owns its loaded artwork as well as the physical prop.
+  // Replacing/failing optional atlases cannot turn a held scythe into another pose.
+  const retainedSelfArt = useRef<DemoCharacter | undefined>(characters.find(item => item.id === 'self'));
+  const selfPersonal = actors.some(actor => actor.personalRole === 'self' && actor.phase === 'personal');
+  if (!selfPersonal) retainedSelfArt.current = characters.find(item => item.id === 'self');
+  const visualCharacters = selfPersonal && retainedSelfArt.current
+    ? [...characters.filter(item => item.id !== 'self'), retainedSelfArt.current] : characters;
+  const retainedOwner = actors.find(actor => actor.visualOnly && actor.personalRole === 'self');
+  const visualSeats = retainedOwner ? seats.map(seat => seat.kind === 'owner' ? { ...seat, id: retainedOwner.id, persona: 'self' as const, empty: false } : seat) : seats;
   const selectedId = selected && ids.includes(selected) ? selected : topology.selfAgentId;
   const currentAgent = observedAgents.find(agent => agent.id === selectedId);
   const effectiveStatus = currentAgent ? displayStatus(currentAgent, elapsed, state.phase) : 'unknown';
@@ -141,7 +151,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     {state.phase !== 'connected' && <p className="live-warning" role="status">数据源{phaseLabels[state.phase]}。未知状态不表示离线，也不会继续显示工作动作。</p>}
     {snapshot?.coverage && <p className="live-warning">覆盖范围：{snapshot.coverage}</p>}
     {bound && bound.warnings.length > 0 && <details className="live-binding-warnings"><summary>{bound.warnings.length} 个席位未能安全绑定</summary><ul>{bound.warnings.map(warning => <li key={warning.seatId}>{warning.seatId}：{warning.message}</li>)}</ul></details>}
-    <WholeOfficeScene layout={topology.team.layout} seats={seats} characters={characters} canAnimate={assetsReady} reducedMotion={reducedMotion} childCount={topology.childAgentIds.length} live selectedId={selectedId} onSelect={setSelected} leaderLabel={leaderLabel} floorLabel={`${activeWorking} 个工作中`} floorStatus={uncertain ? `${uncertain} 个状态未知` : phaseLabels[state.phase]} working={activeWorking > 0} statusForSeat={seat => { const target = targets.find(item => item.id === seat.id)!; return { status: target.status, label: target.identityKey ? liveStatusLabels[target.status] : '状态未知 · 未收到数据' }; }} poseForSeat={seat => {
+    <WholeOfficeScene layout={topology.team.layout} seats={visualSeats} characters={visualCharacters} canAnimate={assetsReady} reducedMotion={reducedMotion} childCount={topology.childAgentIds.length} live selectedId={selectedId} onSelect={setSelected} leaderLabel={leaderLabel} floorLabel={`${activeWorking} 个工作中`} floorStatus={uncertain ? `${uncertain} 个状态未知` : phaseLabels[state.phase]} working={activeWorking > 0} statusForSeat={seat => { const target = targets.find(item => item.id === seat.id); const retained = actors.find(item => item.id === seat.id)?.visualOnly; return { status: retained ? 'unknown' : target?.status ?? 'unknown', label: !retained && target?.identityKey ? liveStatusLabels[target.status] : '状态未知 · 未收到数据' }; }} poseForSeat={seat => {
       const actor = actors.find(item => item.id === seat.id);
       return actor ? liveOfficePose(actor, reducedMotion) : null;
     }} loading={!assetsReady && <div className="wo-loading" role="status"><strong>{assets.failed.length ? '部分动作素材加载失败' : '正在载入办公室动作素材…'}</strong>{assets.failed.length > 0 && <button onClick={() => setLoadAttempt(value => value + 1)}>重新加载素材</button>}</div>} />
