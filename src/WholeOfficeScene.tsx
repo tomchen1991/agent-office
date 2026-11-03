@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { CharacterId, OfficeStatus } from './core';
 import { demoCharacters } from './demoAssets';
@@ -37,14 +37,45 @@ const furniturePosition = (seat: OfficeSeat, x: number, y: number, width: number
   return { ...position(point.x, point.y, width * seat.scale, height * seat.scale, depth), '--seat-scale': seat.scale } as CSSProperties;
 };
 
+const COMFORTABLE_ZOOM = .65;
+type OfficeRegion = 'overview' | 'private' | 'public' | 'desks' | 'fit';
+const regionCenters = {
+  private: { x: 350, y: 650 }, public: { x: 1510, y: 430 }, desks: { x: 1510, y: 1060 },
+};
+
 /** Shared approved office presentation. The caller owns its clock and data semantics. */
 export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demoCharacters, canAnimate, reducedMotion,
   childCount, worldStage = 'live', floorLabel, floorStatus, working = false, error = false,
   leaderLabel = 'ChatGPT', live = false, selectedId, onSelect, loading, children, statusForSeat }: WholeOfficeSceneProps) {
-  const [zoom, setZoom] = useState<number | null>(null);
+  const [zoom, setZoom] = useState<number | null>(COMFORTABLE_ZOOM);
+  const [navigation, setNavigation] = useState<{ region: OfficeRegion; behavior: ScrollBehavior }>({ region: 'overview', behavior: 'auto' });
   const viewport = useRef<HTMLDivElement>(null);
   const world = useRef<HTMLDivElement>(null);
   const visibleScale = () => (world.current?.getBoundingClientRect().width || world.current?.clientWidth || 1200) / OFFICE_WORLD.width;
+  // A fresh request also handles repeated clicks at the same zoom. Measure only
+  // after React has committed the requested width, without remounting the scene.
+  useLayoutEffect(() => {
+    const port = viewport.current, floor = world.current;
+    if (!port || !floor) return;
+    const bounds = floor.getBoundingClientRect();
+    const width = bounds.width || floor.clientWidth;
+    if (!width || !port.clientWidth || !port.clientHeight) return;
+    const height = bounds.height || width * OFFICE_WORLD.height / OFFICE_WORLD.width;
+    const maxLeft = Math.max(0, width - port.clientWidth);
+    const maxTop = Math.max(0, height - port.clientHeight);
+    let left = 0, top = navigation.region === 'overview' ? 100 : 0;
+    if (navigation.region !== 'overview' && navigation.region !== 'fit') {
+      const center = regionCenters[navigation.region];
+      left = center.x / OFFICE_WORLD.width * width - port.clientWidth / 2;
+      top = center.y / OFFICE_WORLD.height * height - port.clientHeight / 2;
+    }
+    port.scrollTo({ left: Math.max(0, Math.min(maxLeft, left)), top: Math.max(0, Math.min(maxTop, top)),
+      behavior: navigation.behavior });
+  }, [navigation]);
+  const navigate = (region: OfficeRegion) => {
+    setZoom(value => region === 'fit' ? null : region === 'overview' ? COMFORTABLE_ZOOM : Math.max(COMFORTABLE_ZOOM, value ?? visibleScale()));
+    setNavigation({ region, behavior: region === 'fit' || reducedMotion ? 'auto' : 'smooth' });
+  };
   const furnitureSeats: OfficeSceneSeat[] = fixedOfficeSeats().map(template => {
     const occupant = seats.find(seat => (seat.geometryId ?? seat.id) === template.id);
     return occupant ? { ...occupant, x: template.x, y: template.y, scale: template.scale, sharedTable: template.sharedTable, tableId: template.tableId, mirrored: template.mirrored } : template;
@@ -95,8 +126,9 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
   };
 
   return <div className="wo-scene-card">
-      <div className="wo-view-controls"><span>1 间主办公室 · 4 张协作桌 · 10 个独立工位 · 23 席</span><div><button onClick={() => setZoom(value => { const current = value ?? visibleScale(); return Math.min(current, Math.max(.025, current * .8)); })} aria-label="缩小办公室">−</button><button onClick={() => setZoom(value => Math.min(1.5, (value ?? visibleScale()) / .8))} aria-label="放大办公室">＋</button><button onClick={() => { setZoom(null); viewport.current?.scrollTo(0, 0); }} aria-pressed={zoom === null}>适应全景</button><button onClick={() => setZoom(1)} aria-pressed={zoom === 1}>100%</button><button onClick={() => viewport.current?.scrollBy({ left: -320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向左平移">←</button><button onClick={() => viewport.current?.scrollBy({ left: 320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向右平移">→</button><button onClick={() => viewport.current?.scrollBy({ top: -260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向上平移">↑</button><button onClick={() => viewport.current?.scrollBy({ top: 260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向下平移">↓</button></div></div>
-      <div ref={viewport} className="wo-viewport" tabIndex={0} role="region" aria-label="办公室全景，可缩放及横向纵向滚动">
+      <div className="wo-view-controls"><span>默认近景 · 可滚动全景 · 23 席完整保留<small>1 间主办公室 · 4 张协作桌 · 10 个独立工位</small></span><div><button onClick={() => setZoom(value => { const current = value ?? visibleScale(); return Math.min(current, Math.max(.025, current * .8)); })} aria-label="缩小办公室">−</button><button onClick={() => setZoom(value => Math.min(1.5, (value ?? visibleScale()) / .8))} aria-label="放大办公室">＋</button><button onClick={() => navigate('overview')} aria-pressed={zoom === COMFORTABLE_ZOOM}>舒适近景</button><button onClick={() => navigate('fit')} aria-pressed={zoom === null}>适应全景</button><button onClick={() => setZoom(1)} aria-pressed={zoom === 1}>100%</button><button onClick={() => viewport.current?.scrollBy({ left: -320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向左平移">←</button><button onClick={() => viewport.current?.scrollBy({ left: 320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向右平移">→</button><button onClick={() => viewport.current?.scrollBy({ top: -260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向上平移">↑</button><button onClick={() => viewport.current?.scrollBy({ top: 260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向下平移">↓</button></div></div>
+      <div className="wo-region-controls" role="group" aria-label="跳转办公区域"><span>查看区域</span><button onClick={() => navigate('private')}>主办公室</button><button onClick={() => navigate('public')}>公共协作桌</button><button onClick={() => navigate('desks')}>独立工位</button><small>滚动或使用方向按钮探索整层</small></div>
+      <div ref={viewport} className="wo-viewport" tabIndex={0} role="region" aria-label="办公室可滚动全景，默认近景，完整保留 23 席，可缩放及横向纵向滚动">
         <div ref={world} className={`wo-world wo-fixed-world wo-stage-${worldStage}`} style={zoom === null ? undefined : { width: OFFICE_WORLD.width * zoom }}>
           <div className="wo-back-wall" aria-hidden="true"><span className="wo-studio-sign">✦ NIGHT SHIFT STUDIO</span><div className="wo-window wo-window-private"><i /><i /><i /><i /></div><div className="wo-window wo-window-team"><i /><i /><i /><i /></div><span className="wo-wall-clock">03 : 26</span></div>
           <div className="wo-floor" aria-hidden="true" />
