@@ -5,6 +5,7 @@ import type { DemoStage } from './demoTimeline';
 import { demoCharacters } from './demoAssets';
 import type { DemoCharacter } from './demoAssets';
 import { startMotionClock } from './motionClock';
+import { seatingPose, seatingPlacement, SEATED_CONTACT_Y, DEMO_SPRITE_WIDTH_PERCENT } from './demoSeating';
 import './lifecycle.css';
 
 const stageDescriptions: Record<DemoStage, string> = {
@@ -58,19 +59,18 @@ export function LifecycleDemo({ characters = demoCharacters }: {characters?: rea
   const atlas = character[sheet];
   // World-space contact points, not a collection of unrelated status cards.
   const travel = stage === 'arrival' ? progress : stage === 'exit' ? 1 - progress : 1;
-  const x = seated ? 68 : 13 + 55 * travel;
-  const transition = reducedMotion ? 1 : progress;
-  const y = stage === 'sit' ? 67 - 2 * transition : stage === 'stand' ? 65 + 2 * transition : seated ? 65 : 79 - 12 * travel;
-  const blend = stage === 'sit' ? transition : stage === 'stand' ? 1 - transition : seated ? 1 : 0;
-  // Feet-to-seat contact interpolation prevents sitting/standing from teleporting at atlas swaps.
-  const contact = {
-    x: character.locomotion.anchor.x + (character.seated.anchor.x - character.locomotion.anchor.x) * blend,
-    y: character.locomotion.anchor.y + (character.seated.anchor.y - character.locomotion.anchor.y) * blend,
-  };
+  const transitionPose = stage === 'sit' || stage === 'stand' ? seatingPose(stage, stageElapsedMs, reducedMotion) : null;
+  const transitionPlacement = transitionPose ? seatingPlacement(transitionPose, character.locomotion.anchor, character.seated.anchor) : null;
+  const mirrored = transitionPose?.mirrored ?? stage === 'exit';
+  const x = transitionPlacement?.x ?? (seated ? 68 : 13 + 55 * travel);
+  const y = transitionPlacement?.y ?? (seated ? SEATED_CONTACT_Y : 79 - 12 * travel);
+  const contactX = transitionPlacement?.contactX ?? (mirrored ? 1 - atlas.anchor.x : atlas.anchor.x);
+  const contactY = transitionPlacement?.contactY ?? atlas.anchor.y;
   const opacity = stage === 'exit' ? Math.min(1, (1 - progress) * 9) : 1;
   const spriteStyle = {
     left: `${x}%`, top: `${y}%`,
-    '--contact-x': `${(stage === 'exit' ? 1 - contact.x : contact.x) * 100}%`, '--contact-y': `${contact.y * 100}%`,
+    width: `${DEMO_SPRITE_WIDTH_PERCENT}%`,
+    '--contact-x': `${contactX * 100}%`, '--contact-y': `${contactY * 100}%`,
     '--sprite-ratio': `${atlas.cellWidth} / ${atlas.cellHeight}`,
     opacity: reducedMotion ? 1 : opacity,
   } as CSSProperties;
@@ -78,7 +78,7 @@ export function LifecycleDemo({ characters = demoCharacters }: {characters?: rea
     backgroundImage: `url("${assetUrl(atlas.src)}")`,
     backgroundSize: `${atlas.columns * 100}% ${atlas.rows * 100}%`,
     backgroundPosition: `${(frame % atlas.columns) / (atlas.columns - 1) * 100}% ${Math.floor(frame / atlas.columns) / (atlas.rows - 1) * 100}%`,
-    transform: stage === 'exit' ? 'scaleX(-1)' : undefined,
+    transform: mirrored ? 'scaleX(-1)' : undefined,
   };
   const activeStage = DEMO_STAGES.find(item => item.id === stage)!;
   const working = stage === 'work';

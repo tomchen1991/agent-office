@@ -1,3 +1,4 @@
+import { seatingPose } from './demoSeating.ts';
 /** Demonstration script only. These stages are not assertions about collector status. */
 export type DemoStage = 'arrival' | 'sit' | 'work' | 'slack' | 'error' | 'stand' | 'exit';
 export const DEMO_STAGES: readonly {id: DemoStage; label: string; durationMs: number}[] = [
@@ -49,8 +50,7 @@ export function demoFrame(position: ReturnType<typeof demoPosition>, reducedMoti
   const {stage,stageElapsedMs,progress}=position;
   switch(stage) {
     case 'arrival': case 'exit': return {sheet:'locomotion',frame:reducedMotion?0:Math.floor(stageElapsedMs/160)%4};
-    case 'sit': return {sheet:'locomotion',frame:reducedMotion?5:4+Math.min(1,Math.floor(progress*2))};
-    case 'stand': return {sheet:'locomotion',frame:reducedMotion?7:6+Math.min(1,Math.floor(progress*2))};
+    case 'sit': case 'stand': { const pose=seatingPose(stage,stageElapsedMs,reducedMotion); return {sheet:pose.sheet,frame:pose.frame}; }
     case 'work': return {sheet:'seated',frame:reducedMotion?0:Math.floor(stageElapsedMs/260)%2};
     case 'slack': return {sheet:'seated',frame:2+(reducedMotion?1:Math.floor(stageElapsedMs/900)%2)};
     case 'error': return {sheet:'seated',frame:4+(reducedMotion?1:Math.floor(stageElapsedMs/450)%2)};

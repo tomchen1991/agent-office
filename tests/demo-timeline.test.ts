@@ -33,7 +33,7 @@ test('walk uses four actual frame slots and each seated action has separate pose
  assert.deepEqual([0,260].map(stageElapsedMs=>demoFrame({stage:'work',stageElapsedMs,progress:0}).frame),[0,1]);
  assert.equal(demoFrame({stage:'slack',stageElapsedMs:0,progress:0}).frame,2);
  assert.equal(demoFrame({stage:'error',stageElapsedMs:0,progress:0}).frame,4);
- assert.equal(demoFrame({stage:'sit',stageElapsedMs:1800,progress:0.9}).frame,5);
+ assert.deepEqual(demoFrame({stage:'sit',stageElapsedMs:1800,progress:0.9}),{sheet:'seated',frame:0});
  assert.equal(demoFrame({stage:'stand',stageElapsedMs:1800,progress:0.9}).frame,7);
 });
 test('reduced-motion uses still action poses independent of clock',async()=>{
