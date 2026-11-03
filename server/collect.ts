@@ -56,7 +56,7 @@ export function normalizeStatus(payload: unknown, options: Pick<CollectOptions, 
     if (validForMs === 0) throw new Error('Invalid stale threshold');
     const current = item.connection === 'connected' && item.freshness === 'fresh';
     agents.push({
-      id, name: configured?.name ?? '未配置 Agent', character: configured?.character ?? 'unknown',
+      id, identity, name: configured?.name ?? '未配置 Agent', character: configured?.character ?? 'unknown',
       status: item.connection === 'disconnected' ? 'offline' : current && item.status === 'active' ? 'working' : current && item.status === 'idle' ? 'idle' : 'unknown',
       latestUserRequest: null,
       // Only server snapshot time is a status observation. Never mix source progress time into freshness.
@@ -68,6 +68,7 @@ export function normalizeStatus(payload: unknown, options: Pick<CollectOptions, 
   }
   return {
     agents, receivedAt: new Date(now).toISOString(),
+    identityCoverage: body.nextOffset === null && !omitted && total === agents.length && body.storageReady ? 'complete' : 'partial',
     coverage: `仅当前第一页（${agents.length}/${total}）；${body.nextOffset !== null ? '有后续分页；' : ''}内存保留有限，${omitted ? '存在遗漏' : '未报告遗漏'}。缺席不代表已退出；不提供用户请求摘要或团队关系。`,
   };
 }
@@ -112,7 +113,7 @@ export function createCollectAdapter(options: CollectOptions): OfficeAdapter {
   let request: AbortController | undefined;
   let failures = 0;
   const emit = (next: AdapterState) => { state = next; for (const listener of listeners) listener(state); };
-  const disconnectSnapshot = (): OfficeSnapshot | null => state.snapshot ? { ...state.snapshot, agents: state.snapshot.agents.map(agent => ({ ...agent, status: 'unknown', observedAt: null, sourceFreshness: 'unknown' })) } : null;
+  const disconnectSnapshot = (): OfficeSnapshot | null => state.snapshot ? { ...state.snapshot, identityCoverage: 'unknown', agents: state.snapshot.agents.map(agent => ({ ...agent, status: 'unknown', observedAt: null, sourceFreshness: 'unknown' })) } : null;
   async function poll(current: number) {
     const controller = new AbortController();
     request = controller;

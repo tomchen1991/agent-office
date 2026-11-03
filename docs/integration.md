@@ -34,3 +34,35 @@
 `identity()` 仅配置名字与人物外观，不会改变实例 ID。实例键由 `[sourceId, instanceId, collectorEpoch]` 序列化得到；epoch 改变后它是新实例。宿主应把“自研 Agent 主席位”等逻辑座位按明确规则重新绑定到本次快照的实例键，并传入新的 `topology`。不要只改 identity 的名字就以为座位已重绑定，更不能自动沿用旧 epoch 的运行状态。`App` 会校验重复座位与未明确指定的团队负责人；宿主应在配置编辑时先校验并向用户显示可修正错误。
 
 新鲜度使用数据源的 fresh/stale/unknown 判断及有效窗口；renderer 自收到快照起用单调时钟计算经过时间，不以服务端 snapshotReceivedAt 减去客户端时间。snapshotReceivedAt 只作为最近状态观测时间展示，旧快照可能仍因心跳而有效。网络失败或手动断开会将缓存状态降为未知，不继续宣称正在工作。
+
+## 版本化配置与公开核心入口
+
+`src/index.ts` 是 renderer-safe 可复用入口；Node 适配器仍必须单独从 `server/collect.ts` 引入。当前是源码集成入口，不是已发布的 npm 包。
+
+```ts
+import { importOfficeConfig, exportOfficeConfig, bindOffice, enrichOfficeSnapshot } from './src/index';
+
+const config = importOfficeConfig(userChosenJson); // 不读取磁盘、不自动保存
+const enhanced = enrichOfficeSnapshot(snapshot, { userRequests: hostSuppliedRequests });
+const bound = bindOffice(config, enhanced.snapshot);
+// 将 bound.snapshot 提供给宿主 bridge adapter；将 bound.topology 传给 App。
+// 必须把 bound.warnings 呈现给用户，不能把歧义空位当作实例离线。
+const jsonForUserExport = exportOfficeConfig(config);
+```
+
+`examples/office-config.json` 全为合成示例。配置严格限定版本和字段，不能混入 token、部署 URL、任意请求参数。它只描述逻辑席位、显式角色外观和身份选择器；没有本地自动保存、网络调用或浏览器存储副作用。导入/导出函数返回数据/字符串；文件选择和保存界面由实际宿主提供。
+
+每个选择器必须指定 **sourceId + instanceId**，不能从模型、host、role 或显示名字猜身份：
+
+- `epoch.policy: exact`：只匹配指定 `value`。重启后保持未绑定，需要用户明确修改配置。
+- `epoch.policy: follow-unique`：宿主明确允许同 source + instance 的新 epoch 接替，但只有一个候选且 `snapshot.identityCoverage === "complete"` 才绑定。采集适配器仅在第一页覆盖全部实例、无遗漏且存储就绪时标记 complete；分页 / 遗漏 / 未声明完整性均禁止自动跟随，断线也撤销完整性。服务同时保留旧离线实例和新实例时仍是歧义，不自动挑“最新”或“在线”者。用户可选择 exact 解除歧义。
+- 零候选 / 多候选均保留空位并返回警告；配置冲突和重复实例 ID 拒绝处理。未配置实例不自动进入办公室。绑定结果若过滤了任意实例，会降级身份覆盖为 partial，不能再用该子集证明全局唯一性；重绑定应使用原始完整快照。
+- `bindOffice` 无历史缓存；每次从本次快照重新绑定。它不会把旧 epoch 的状态、请求或角色自动复制到新实例。
+
+实例 DTO 的 `identity` 是适配器提供的结构化来源身份；缺失时不解析 id 字符串或猜测。collect 适配器现在显式提供此字段。绑定只覆盖当前匹配实例的名字和角色外观，不更改原始输入。
+
+### 用户请求增强
+
+`OfficeEnrichment.userRequests` 是未来可信宿主主动提供的、按**完整当前实例 ID**索引的用户请求摘要与来源。此接口不意味着 collect 状态协议支持摘要。未知或旧 epoch 的增强记录不会应用，而是返回 `unmatchedAgentIds`。同一实例更早 receivedAt 的增强不会覆盖已有最新摘要，而是返回 `ignoredOlderAgentIds`；相同时间允许可信宿主修正文案。输入还必须区分用户请求与模型生成内容；本模块不能替宿主判断语义或权限。没有增强时保持原有 `null`，绝不生成替代摘要。
+
+拓扑增强通过显式配置构建新的 `bound.topology`，与请求增强独立；两者不要求修改上游服务。

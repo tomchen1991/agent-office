@@ -1,18 +1,21 @@
 /** Public display contract. Never include credentials or raw collector payloads here. */
 export type CharacterId = 'self' | 'deepseek' | 'chatgpt' | 'grok' | 'unknown';
 export type OfficeStatus = 'idle' | 'working' | 'waiting' | 'stopping' | 'offline' | 'unknown';
+export interface AgentIdentity { sourceId: string; instanceId: string; collectorEpoch: string }
+export interface UserRequestSummary { summary: string; receivedAt: string; source?: string }
 export interface OfficeAgent {
   id: string;
   name: string;
   character: CharacterId;
   status: OfficeStatus;
-  latestUserRequest: { summary: string; receivedAt: string } | null;
+  latestUserRequest: UserRequestSummary | null;
+  identity?: AgentIdentity;
   observedAt: string | null;
   sourceFreshness?: 'fresh' | 'stale' | 'unknown';
   validForMs?: number;
   source: string;
 }
-export interface OfficeSnapshot { agents: readonly OfficeAgent[]; receivedAt: string; coverage?: string }
+export interface OfficeSnapshot { agents: readonly OfficeAgent[]; receivedAt: string; coverage?: string; identityCoverage?: 'complete' | 'partial' | 'unknown' }
 /** Configuration, not inferred from process roles, provider names or host names. */
 export interface OfficeTopology {
   selfAgentId: string;

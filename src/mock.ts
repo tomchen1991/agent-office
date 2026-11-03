@@ -7,7 +7,7 @@ export const demoTopology: OfficeTopology = {
 export function mockSnapshot(now: number): OfficeSnapshot {
   const timestamp = new Date(now).toISOString();
   return {
-    receivedAt: timestamp,
+    receivedAt: timestamp, identityCoverage: 'complete',
     agents: [
       { id: 'self', name: '自研 Agent', character: 'self', status: 'idle', latestUserRequest: { summary: '【模拟请求】请检查办公室布局。', receivedAt: timestamp }, observedAt: timestamp, sourceFreshness: 'fresh' as const, validForMs: 30_000, source: 'mock' },
       ...(['deepseek', 'chatgpt', 'grok'] as const).map((character, index) => ({ id: character, name: ['DeepSeek', 'ChatGPT', 'Grok'][index], character, status: 'unknown' as const, latestUserRequest: null, observedAt: timestamp, sourceFreshness: 'fresh' as const, validForMs: 30_000, source: 'mock' })),

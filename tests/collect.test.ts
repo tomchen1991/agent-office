@@ -24,7 +24,7 @@ test('status normalization does not invent model, task or topology; collision-sa
   assert.equal(snapshot.agents[0].character, 'unknown');
   assert.equal(snapshot.agents[0].latestUserRequest, null);
   assert.equal(snapshot.agents[0].status, 'working');
-  assert.match(snapshot.coverage!, /第一页/);
+  assert.match(snapshot.coverage!, /第一页/); assert.equal(snapshot.identityCoverage, 'complete');
 });
 test('stale and disconnected observations never retain current active work', () => {
   assert.equal(normalizeStatus(payload([{ ...instance, freshness: 'stale' }]), {}, 0).agents[0].status, 'unknown');
@@ -34,7 +34,7 @@ test('stale and disconnected observations never retain current active work', () 
 });
 test('explicit identity mapping, dedupe, page coverage and validation', () => {
   const result = normalizeStatus({ ...payload([instance, instance]), total: 40, nextOffset: 32, coverage: { omitted: true } }, { identity: () => ({ name: 'Configured', character: 'self' }) }, 0);
-  assert.equal(result.agents.length, 1); assert.equal(result.agents[0].character, 'self'); assert.match(result.coverage!, /后续分页/);
+  assert.equal(result.identityCoverage, 'partial'); assert.equal(result.agents.length, 1); assert.equal(result.agents[0].character, 'self'); assert.match(result.coverage!, /后续分页/);
   assert.throws(() => normalizeStatus({ ...payload(), version: 2 }, {}, 0));
   assert.throws(() => normalizeStatus({ ...payload(), coverage: { omitted: 2 } }, {}, 0));
   assert.throws(() => normalizeStatus(payload([{ ...instance, status: 'invented' }]), {}, 0));
@@ -82,7 +82,7 @@ test('transport failure removes stale current status and never exposes thrown se
   let calls = 0;
   const h = harness(async () => { if (++calls === 1) return response(); throw new Error('token=secret and internal URL'); });
   h.adapter.connect(); await flush(); h.fire(5000); await flush();
-  assert.equal(h.states.at(-1)!.snapshot!.agents[0].status, 'unknown'); assert.equal(h.states.at(-1)!.snapshot!.agents[0].observedAt, null); assert.equal(h.states.at(-1)!.snapshot!.agents[0].sourceFreshness, 'unknown');
+  assert.equal(h.states.at(-1)!.snapshot!.identityCoverage, 'unknown'); assert.equal(h.states.at(-1)!.snapshot!.agents[0].status, 'unknown'); assert.equal(h.states.at(-1)!.snapshot!.agents[0].observedAt, null); assert.equal(h.states.at(-1)!.snapshot!.agents[0].sourceFreshness, 'unknown');
   assert.doesNotMatch(JSON.stringify(h.states), /token=secret/); h.adapter.dispose();
 });
 test('malformed response retries; restart replaces previous current instances', async () => {

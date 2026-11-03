@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "seats": [
+    {
+      "id": "owner",
+      "name": "自研 Agent（示例）",
+      "character": "self",
+      "selector": {
+        "sourceId": "demo-source",
+        "instanceId": "demo-agent",
+        "epoch": { "policy": "follow-unique" }
+      }
+    }
+  ],
+  "office": {
+    "selfSeatId": "owner",
+    "childSeatIds": [],
+    "team": { "layout": "peer-table", "memberSeatIds": [] }
+  }
+}
