@@ -52,9 +52,9 @@ A single cancellable RAF drives transitions and actual active/idle cycles. Pausi
 ## Topology and inspection
 
 - Self-office privilege and team leadership are separate explicit concepts.
-- The physical floor is fixed: one owner desk and two independent private child desks; three three-seat public tables plus ten independent public desks. All 22 seats exist simultaneously.
+- The physical floor is fixed: one owner desk and two independent private child desks; two three-seat public tables plus ten independent public desks and one dedicated GitHub desk. All 20 seats exist simultaneously.
 - At most two child seats are expanded, with an explicit `+N` badge.
-- Public capacity is 19. Explicit `team.seatAssignments` maps configured IDs to public physical seat IDs; remaining members are assigned deterministically without changing identities. Additional members remain in the inspector and an overflow notice. Unassigned seats contain furniture only, never synthetic agents or working/error displays.
+- Common-team capacity is 16; the separate GitHub role adds one dedicated seat. Explicit `team.seatAssignments` maps configured IDs to public physical seat IDs; remaining members are assigned deterministically without changing identities. Additional members remain in the inspector and an overflow notice. Unassigned seats contain furniture only, never synthetic agents or working/error displays.
 - Status labels are independent of whether an actor is present, so an initial offline/unknown/stale observation is not mislabeled as missing data.
 - The inspector separates effective status, source-reported status, source, connection, freshness, and observed time.
 - Latest user request text, request time, and request source come only from `latestUserRequest`. Null stays explicitly unavailable. Replies, activities, model names, and former-epoch requests never become synthesized user requests.
@@ -81,6 +81,12 @@ In version-1 configuration, `office.team.seatAssignments` maps logical member ID
 }
 ```
 
-Allowed destinations are `public-desk-1` through `public-desk-10`, and `public-table-1-seat-1` through `public-table-3-seat-3`. The key must identify a configured public member. Duplicate destinations, private-room destinations, unknown fields and accessors are rejected. `bindOffice` remaps logical keys to actual epoch-bound IDs; hosts supplying `topology` directly use current agent IDs as keys.
+Allowed destinations are `public-desk-1` through `public-desk-10`, and `public-table-1-seat-1` through `public-table-2-seat-3`. The key must identify a configured public member. Duplicate destinations, private-room destinations, unknown fields and accessors are rejected. `bindOffice` remaps logical keys to actual epoch-bound IDs; hosts supplying `topology` directly use current agent IDs as keys.
 
 `liveOfficeSeatReport(topology)` returns physical assignments plus child/public overflow IDs. A configured but temporarily missing agent keeps its reserved slot, while source freshness governs its neutral/absent visual state. Unconfigured physical slots stay empty and cannot emit statuses, request summaries or animation targets. Overflow members remain inspectable; they do not silently replace seated members. The self office always reserves one owner seat and at most two child seats.
+
+## Dedicated GitHub desk
+
+Optional version-1 `office.githubSeatId` references one explicitly configured logical seat. Direct topology uses optional `githubAgentId`. These identities must be distinct from owner, children, and common-team members; the dedicated desk is not a team-leader designation. Existing four-role configs remain valid and leave it empty. Selectors and freshness rules remain unchanged. The `github` character has its own approved atlases, not a borrowed persona.
+
+The removed `public-table-3-seat-1` through `public-table-3-seat-3` IDs are rejected with a migration error. Explicitly choose a remaining public table or desk for affected members. They are never automatically moved to `github-desk`.

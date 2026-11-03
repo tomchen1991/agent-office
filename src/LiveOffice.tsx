@@ -106,15 +106,15 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const presentationCache = useRef<{ key: unknown; agents: Map<string, Pick<OfficeAgent, 'id' | 'name' | 'character'>> }>({ key: sourceKey, agents: new Map() });
   const presentation = new Map(received.key === sourceKey && presentationCache.current.key === sourceKey ? presentationCache.current.agents : []);
   if (officeConfig && bound) {
-    const logicalIds = [officeConfig.office.selfSeatId, ...officeConfig.office.childSeatIds, ...officeConfig.office.team.memberSeatIds];
-    const actualIds = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds];
+    const logicalIds = [officeConfig.office.selfSeatId, ...officeConfig.office.childSeatIds, ...officeConfig.office.team.memberSeatIds, ...(officeConfig.office.githubSeatId === undefined ? [] : [officeConfig.office.githubSeatId])];
+    const actualIds = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds, ...(topology.githubAgentId === undefined ? [] : [topology.githubAgentId])];
     logicalIds.forEach((logicalId, index) => {
       const configured = officeConfig.seats.find(seat => seat.id === logicalId)!;
       presentation.set(actualIds[index], { id: actualIds[index], name: configured.name, character: configured.character });
     });
   }
   for (const agent of observedAgents) presentation.set(agent.id, { id: agent.id, name: agent.name, character: agent.character });
-  const ids = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds];
+  const ids = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds, ...(topology.githubAgentId === undefined ? [] : [topology.githubAgentId])];
   for (const id of presentation.keys()) if (!ids.includes(id)) presentation.delete(id);
   useEffect(() => { presentationCache.current = { key: sourceKey, agents: presentation }; }, [snapshot, sourceKey, topology]);
   const seats = liveOfficeSeats(topology, [...presentation.values()]);
@@ -143,7 +143,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
       const actor = actors.find(item => item.id === seat.id);
       return actor ? liveOfficePose(actor, reducedMotion) : null;
     }} loading={!assetsReady && <div className="wo-loading" role="status"><strong>{assets.failed.length ? '部分动作素材加载失败' : '正在载入办公室动作素材…'}</strong><span>数据状态仍正常显示；素材就绪后才播放动作。</span>{assets.failed.length > 0 && <button onClick={() => setLoadAttempt(value => value + 1)}>重新加载素材</button>}</div>} />
-    {allocation.teamOverflowIds.length > 0 && <p className="live-warning">公共区域 19 个席位已分配，另有 {allocation.teamOverflowIds.length} 位成员未入座，可在下方选择查看；不会替换已有角色或伪造额外席位。</p>}
+    {allocation.teamOverflowIds.length > 0 && <p className="live-warning">公共团队区域 16 个席位已分配，另有 {allocation.teamOverflowIds.length} 位成员未入座，可在下方选择查看；不会替换已有角色或伪造额外席位。</p>}
     <div className="live-details-layout"><nav className="live-agent-list" aria-label="选择 Agent 查看数据">{ids.map(id => <button key={id} aria-pressed={selectedId === id} onClick={() => setSelected(id)}>{presentation.get(id)?.name ?? id}</button>)}</nav>
       <section className="live-inspector" aria-labelledby="live-details-title"><div><span className="wo-kicker">AGENT INSPECTOR</span><h2 id="live-details-title">{currentAgent?.name ?? presentation.get(selectedId)?.name ?? selectedId}</h2></div><dl>
         <div><dt>当前显示状态</dt><dd data-live-current-status={effectiveStatus}>{liveStatusLabels[effectiveStatus]}</dd></div>

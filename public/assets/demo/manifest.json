@@ -119,6 +119,32 @@
       "columns": 4,
       "rows": 2,
       "sha256": "196e151c5b833febda440d40206b00ce1d35b32350c3c2cffbfa84877db1c1ec"
+    },
+    {
+      "path": "assets/demo/github/locomotion.png",
+      "character": "github",
+      "sheet": "locomotion",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "a9afd8d71e3d72fd682f0d1a09db8da3180845e8cad935f85522bf0acdac8807",
+      "provenance": "Approved silver-gray twin-braid GitHub repair/review concept; separately generated action atlas, copied byte-for-byte."
+    },
+    {
+      "path": "assets/demo/github/seated.png",
+      "character": "github",
+      "sheet": "seated",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "4b1e0940bb2df2acd2899141d8123953c976fc748c2b08e384e12a88a6eeb596",
+      "provenance": "Approved silver-gray twin-braid GitHub repair/review concept; separately generated action atlas, copied byte-for-byte."
     }
   ]
 }

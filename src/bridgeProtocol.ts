@@ -43,7 +43,7 @@ function agentDTO(value: unknown): OfficeAgent {
   const input = record(value);
   const result: OfficeAgent = {
     id: text(input.id, OFFICE_BRIDGE_LIMITS.id), name: text(input.name),
-    character: choice(input.character, ['self', 'deepseek', 'chatgpt', 'grok', 'unknown']),
+    character: choice(input.character, ['self', 'deepseek', 'chatgpt', 'grok', 'github', 'unknown']),
     status: choice(input.status, ['idle', 'working', 'waiting', 'stopping', 'offline', 'unknown']),
     source: text(input.source), observedAt: input.observedAt === null ? null : timestamp(input.observedAt), latestUserRequest: null,
   };

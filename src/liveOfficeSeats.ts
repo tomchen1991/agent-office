@@ -8,19 +8,19 @@ export function liveOfficeSeats(topology: OfficeTopology, agents: readonly Pick<
   const report = liveOfficeSeatReport(topology);
   const byGeometry = new Map(Object.entries(report.assignments).map(([id, physicalId]) => [physicalId, id]));
   const byId = new Map(agents.map(agent => [agent.id, agent]));
-  const usedIds = new Set([...agents.map(agent => agent.id), topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds]);
+  const usedIds = new Set([...agents.map(agent => agent.id), topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds, ...(topology.githubAgentId === undefined ? [] : [topology.githubAgentId])]);
   return fixedOfficeSeats().map(template => {
     const id = byGeometry.get(template.id);
     if (id === undefined) {
       let emptyId = JSON.stringify(['empty-office-seat', template.id]);
       while (usedIds.has(emptyId)) emptyId += '_';
       usedIds.add(emptyId);
-      return { ...template, id: emptyId, geometryId: template.id, persona: 'unknown', label: '空位', empty: true, isLeader: false };
+      return { ...template, id: emptyId, geometryId: template.id, persona: 'unknown', label: template.kind === 'github' ? 'GitHub Agent 专属桌' : '空位', empty: true, isLeader: false };
     }
     const agent = byId.get(id);
     const isLeader = template.kind === 'team' && topology.team.layout === 'leader-desks' && id === topology.team.leaderId;
     return { ...template, id, geometryId: template.id, empty: false, persona: agent?.character ?? 'unknown', label: agent?.name ?? id,
-      isLeader, role: template.kind === 'owner' ? '独立办公室 · 专属席位' : template.kind === 'simulated-child' ? '子 Agent · 显式配置'
+      isLeader, role: template.kind === 'github' ? 'GitHub 修复 / 审核 · 专属席位' : template.kind === 'owner' ? '独立办公室 · 专属席位' : template.kind === 'simulated-child' ? '子 Agent · 显式配置'
         : isLeader ? '团队任务负责人' : template.sharedTable ? '公共协作桌 · 显式成员' : '独立工位 · 同级办公' };
   });
 }

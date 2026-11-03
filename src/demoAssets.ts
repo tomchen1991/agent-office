@@ -3,7 +3,7 @@ export interface DemoAtlas {
   anchor: {x:number;y:number};
 }
 export interface DemoCharacter {
-  id: 'self'|'deepseek'|'chatgpt'|'grok'; label:string; ready:boolean;
+  id: 'self'|'deepseek'|'chatgpt'|'grok'|'github'; label:string; ready:boolean;
   locomotion:DemoAtlas; seated:DemoAtlas;
 }
 /** Each identity receives its own inspected action frames; never substitute another character. */
@@ -12,5 +12,6 @@ export const demoCharacters:readonly DemoCharacter[]=[
   {id:'deepseek',label:'DeepSeek',ready:true,locomotion:{src:'assets/demo/deepseek/locomotion.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:300/512,y:470/512}},seated:{src:'assets/demo/deepseek/seated.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}}},
   {id:'chatgpt',label:'ChatGPT',ready:true,locomotion:{src:'assets/demo/chatgpt/locomotion.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:300/512,y:470/512}},seated:{src:'assets/demo/chatgpt/seated.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}}},
   {id:'grok',label:'Grok',ready:true,locomotion:{src:'assets/demo/grok/locomotion.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:300/512,y:470/512}},seated:{src:'assets/demo/grok/seated.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}}},
+  {id:'github',label:'GitHub Agent',ready:true,locomotion:{src:'assets/demo/github/locomotion.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:300/512,y:470/512}},seated:{src:'assets/demo/github/seated.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}}},
 ];
 export const demoSprites=demoCharacters[0];

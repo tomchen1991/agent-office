@@ -47,6 +47,7 @@ export function bindOffice(configInput: OfficeConfig, snapshot: OfficeSnapshot):
     snapshot: {...snapshot, agents: boundAgents, identityCoverage: boundAgents.length === snapshot.agents.length ? snapshot.identityCoverage : 'partial'}, bindings, warnings,
     topology: {
       selfAgentId: displayIds[config.office.selfSeatId],
+      ...(config.office.githubSeatId === undefined ? {} : { githubAgentId: displayIds[config.office.githubSeatId] }),
       childAgentIds: config.office.childSeatIds.map(id => displayIds[id]),
       team: {
         layout: config.office.team.layout,

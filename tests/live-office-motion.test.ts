@@ -63,7 +63,7 @@ test('explicit topology uses the approved geometry, isolates self privileges, ca
   assert.equal(seats.filter(seat => seat.kind === 'simulated-child').length, 2);
   assert.equal(seats.find(seat => seat.kind === 'owner')?.id, 'owner');
   assert.equal(seats.find(seat => seat.isLeader)?.id, 'b');
-  assert.equal(seats.length, 22);
+  assert.equal(seats.length, 20);
   assert.equal(seats.find(seat => seat.id === 'b')?.geometryId, 'public-desk-2');
   assert.equal(seats.find(seat => seat.id === 'a')?.persona, 'unknown');
   const peer = liveOfficeSeats({ ...topology, team: { layout: 'peer-table', memberIds: ['a', 'b', 'c'] } }, agents);

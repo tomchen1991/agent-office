@@ -103,10 +103,29 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       assert.equal(container.querySelectorAll('[data-office-actor="self"]').length, 1);
       await step(62); assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
       await render({ topology: { ...topology, team: { ...topology.team, layout: 'peer-table' } } });
-      assert.equal(container.querySelectorAll('[data-office-shared-table]').length, 3);
+      assert.equal(container.querySelectorAll('[data-office-shared-table]').length, 2);
       assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length, 10);
       assert.equal(container.querySelector('[data-office-actor="mystery"]')?.getAttribute('data-office-facing'), 'left');
       await act(async () => { reduced = true; media.forEach(listener => listener()); }); assert.equal(frames.size, 0);
+    });
+    await t.test('GitHub dedicated actor retains presentation and inspector selection for topology and config', async () => {
+      const github = agent('repair', 'waiting', { name: 'GitHub fixture', character: 'github' });
+      await emit([agent('self'), github], { identityCoverage: 'complete' });
+      await render({ topology: { ...topology, githubAgentId: 'repair' } });
+      const actor = () => container.querySelector('[data-office-actor="repair"]');
+      assert.equal(actor()?.getAttribute('data-office-persona'), 'github');
+      assert.equal(actor()?.getAttribute('data-office-seat-kind'), 'github');
+      const select = container.querySelector('button[aria-label^="GitHub fixture，"]')!;
+      await act(async () => select.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })));
+      assert.match(container.querySelector('.live-inspector')?.textContent ?? '', /GitHub fixture/);
+      const config: OfficeConfig = { version: 1, seats: ['self','repair'].map(id => ({ id, name: id === 'repair' ? 'Configured GitHub' : 'Owner', character: id === 'repair' ? 'github' : 'self', selector: { sourceId: 'test', instanceId: id, epoch: { policy: 'follow-unique' } } })), office: { selfSeatId: 'self', githubSeatId: 'repair', childSeatIds: [], team: { layout: 'peer-table', memberSeatIds: [] } } };
+      await render({ topology: undefined, officeConfig: config });
+      assert.equal(actor()?.getAttribute('data-office-persona'), 'github');
+      assert.match(container.querySelector('.live-inspector')?.textContent ?? '', /Configured GitHub/);
+      await emit([agent('self'), { ...github, sourceFreshness: 'stale' }]);
+      assert.equal(actor()?.getAttribute('data-office-status'), 'unknown');
+      await emit([agent('self')]);assert.equal(actor(), null);
+      assert.match(container.textContent ?? '', /没有匹配实例/);
     });
     await t.test('config rebinding follows unique epochs, partial binding stays empty, stale callback ignored and teardown clean', async () => {
       const late = [...listeners][0];

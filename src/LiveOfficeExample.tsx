@@ -58,7 +58,7 @@ export function LiveOfficeExample() {
       <div className="live-actions" role="group" aria-label="模拟自研 Agent 状态">{(['working', 'idle', 'waiting', 'stopping', 'offline', 'unknown'] as const).map(value => <button key={value} aria-pressed={status === value && !missing && !stale} onClick={() => { source.setStatus(value); setStatus(value); setMissing(false); setStale(false); }}>{liveStatusLabels[value]}</button>)}</div>
       <div className="live-actions"><button aria-pressed={missing} onClick={() => { source.setMissing(!missing); setMissing(!missing); }}>{missing ? '恢复完整快照' : '模拟局部缺失'}</button><button aria-pressed={stale} onClick={() => { source.setStale(!stale); setStale(!stale); }}>{stale ? '恢复新鲜状态' : '模拟状态过期'}</button><button onClick={() => source.replaceEpoch()}>替换 collector epoch</button><button onClick={() => { source.refresh(); setStale(false); }}>刷新合成快照</button></div>
       {missing && <p role="status">此示例使用自动跟随唯一 epoch 的绑定策略。覆盖不完整时，全部席位会暂时取消绑定；恢复完整快照后恢复。使用 exact epoch 的宿主仍可绑定已知实例。</p>}
-      <p>固定 22 席同时存在。当前显式分配：DeepSeek 在公共协作桌 1，ChatGPT、Grok 在独立工位 1、2；其余公共席位留空。主办公室的两张独立办公桌用于最多 2 个可见子 Agent。</p>
+      <p>固定 20 席同时存在。当前显式分配：DeepSeek 在公共协作桌 1，ChatGPT、Grok 在独立工位 1、2；其余公共席位留空。主办公室的两张独立办公桌用于最多 2 个可见子 Agent。</p>
     </section>
     <LiveOffice adapterFactory={source.adapterFactory} officeConfig={officeConfig} modeLabel="合成合约示例 · 非真实采集" />
   </>;

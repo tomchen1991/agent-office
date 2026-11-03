@@ -11,7 +11,7 @@ import './whole-office.css';
 const descriptions: Record<DemoStage, string> = {
   arrival: '从共享入口进场，穿过门口，走向各自的真实席位。',
   sit: '在每把椅子前停稳，转身对齐，再坐下。',
-  work: '四位角色与模拟子 Actor 同时坐在各自桌后工作。',
+  work: '五位角色与模拟子 Actor 同时坐在各自桌后工作。',
   slack: '一起暂停片刻，靠回椅子，喝一口饮料。',
   error: '演示任务异常：表情、屏幕与提示同步切换。',
   stand: '结束当前任务，收回双手，从椅子上起身。',
@@ -24,8 +24,8 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
   const [reducedMotion, setReducedMotion] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [assets, setAssets] = useState<{ ready: boolean; failed: string[] }>({ ready: false, failed: [] });
-  const seats = useMemo(() => wholeOfficeSeats(layout), [layout]);
-  const available = ['self', 'deepseek', 'chatgpt', 'grok'].every(id => characters.some(character => character.id === id && character.ready));
+  const seats = useMemo(() => wholeOfficeSeats(layout, SIMULATED_CHILD_COUNT, characters.some(character => character.id === 'github' && character.ready)), [layout, characters]);
+  const available = ['self', 'deepseek', 'chatgpt', 'grok', 'github'].every(id => characters.some(character => character.id === id && character.ready));
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -39,7 +39,7 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
     const loaded = new Set<string>();
     const failed = new Set<string>();
     setAssets({ ready: false, failed: [] });
-    // Children explicitly reuse self's two sheets. Load all eight approved atlases before the shared clock runs.
+    // Children explicitly reuse self's two sheets. Load all ten approved atlases before the shared clock runs.
     const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
     const publish = () => { if (alive) setAssets({ ready: loaded.size === sources.length && failed.size === 0, failed: [...failed] }); };
     const images = sources.map(src => {
@@ -70,8 +70,8 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
 
   return <section className="whole-office-demo" aria-labelledby="whole-office-title" data-office-stage={stage} data-office-complete={state.completed} data-office-layout="fixed-office" data-office-assets-ready={canAnimate} data-office-reduced-motion={reducedMotion}>
     <div className="wo-heading"><div><span className="wo-kicker">AGENT OFFICE / THE WHOLE STUDIO</span><h1 id="whole-office-title">同一间办公室，一起上一天班。</h1><p>自研 Agent 有自己的房间。团队有自己的协作方式。只有已分配角色的席位播放动作，空位不会凭空生成 Agent。</p></div><span className="wo-demo-tag"><i /> 26 秒完整演示 · 模拟数据</span></div>
-    <div className="wo-toolbar"><p>固定办公室：主办公室 1 个大工位 + 2 张独立办公桌；公共区域 3 张协作桌 + 10 个独立工位。每张协作桌 3 席，所有位置同时存在。</p><span className="wo-demo-tag">22 个实体席位 · 空位保留</span></div>
-    <WholeOfficeScene layout={layout} seats={seats} characters={characters} canAnimate={canAnimate} reducedMotion={reducedMotion} childCount={SIMULATED_CHILD_COUNT} worldStage={stage} floorLabel={activeStage.label} floorStatus={status} working={working} error={error} poseForSeat={seat => seat.empty ? null : ({ ...current, label: activeStage.label })} loading={!canAnimate && <div className="wo-loading" role="status"><strong>{assets.failed.length ? '部分角色动作加载失败' : !available ? '角色动作素材尚未齐备' : '正在载入四位角色的完整动作…'}</strong><span>全部 8 张动作图集就绪后，整间办公室才会一起开始。</span>{assets.failed.length > 0 && <button onClick={() => setLoadAttempt(value => value + 1)}>重新加载素材</button>}</div>}>
+    <div className="wo-toolbar"><p>固定办公室：主办公室 1 个大工位 + 2 张独立办公桌；公共区域 2 张协作桌 + 10 个独立工位 + 1 张 GitHub 专属大桌。每张协作桌 3 席，所有位置同时存在。</p><span className="wo-demo-tag">20 个实体席位 · 空位保留</span></div>
+    <WholeOfficeScene layout={layout} seats={seats} characters={characters} canAnimate={canAnimate} reducedMotion={reducedMotion} childCount={SIMULATED_CHILD_COUNT} worldStage={stage} floorLabel={activeStage.label} floorStatus={status} working={working} error={error} poseForSeat={seat => seat.empty ? null : ({ ...current, label: activeStage.label })} loading={!canAnimate && <div className="wo-loading" role="status"><strong>{assets.failed.length ? '部分角色动作加载失败' : !available ? '角色动作素材尚未齐备' : '正在载入五位角色的完整动作…'}</strong><span>全部 10 张动作图集就绪后，整间办公室才会一起开始。</span>{assets.failed.length > 0 && <button onClick={() => setLoadAttempt(value => value + 1)}>重新加载素材</button>}</div>}>
       <div className="wo-stage-summary"><div><span className="wo-step">0{DEMO_STAGES.findIndex(item => item.id === stage) + 1}</span><div><h2>{activeStage.label}</h2><p>{descriptions[stage]}</p></div></div><time>{(state.elapsedMs / 1000).toFixed(1)} / {TOTAL_DEMO_MS / 1000} s</time></div>
       <div className="wo-progress" role="progressbar" aria-label="办公室完整演示进度" aria-valuemin={0} aria-valuemax={TOTAL_DEMO_MS} aria-valuenow={state.elapsedMs}><span style={{ width: `${state.elapsedMs / TOTAL_DEMO_MS * 100}%` }} /></div>
     </WholeOfficeScene>

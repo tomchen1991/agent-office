@@ -6,26 +6,26 @@ import {fixedOfficeSeats,fixedOfficeTables,OFFICE_WORLD,wholeOfficeSeats,officeR
 const close=(a:number,b:number)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 test('office privilege stays independent from explicitly configured team leader',()=>{
  for(const layout of ['independent-desks','leader-desks','peer-table'] as const){
-  const seats=wholeOfficeSeats(layout);assert.equal(seats.length,6);assert.equal(new Set(seats.map(s=>s.id)).size,6);
+  const seats=wholeOfficeSeats(layout);assert.equal(seats.length,7);assert.equal(new Set(seats.map(s=>s.id)).size,7);
   assert.deepEqual(seats.filter(s=>s.kind==='team').map(s=>s.persona).sort(),['chatgpt','deepseek','grok']);
   assert.equal(seats.filter(s=>s.kind==='simulated-child').length,2);
   assert.equal(seats.find(s=>s.id==='self')!.kind,'owner');
   assert.equal(seats.filter(s=>s.role.includes('负责人')).length,layout==='leader-desks'?1:0);
  }
- assert.equal(wholeOfficeSeats('leader-desks',0).length,4);assert.equal(wholeOfficeSeats('leader-desks',99).length,6);
+ assert.equal(wholeOfficeSeats('leader-desks',0).length,5);assert.equal(wholeOfficeSeats('leader-desks',99).length,7);
  assert.deepEqual(wholeOfficeSeats('leader-desks').filter(s=>s.kind!=='team'),wholeOfficeSeats('peer-table').filter(s=>s.kind!=='team'));
 });
 test('private routes cross doorway before travelling inside and terminate at the calibrated chair approach',()=>{
  for(const layout of ['independent-desks','leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
   const route=officeRoute(seat),last=pointAlongOfficeRoute(route,1),first=pointAlongOfficeRoute(route,0);
   assert.equal(first.x,780);assert.equal(first.y,1010);close(last.x,officeApproachPoint(seat).x);close(last.y,officeApproachPoint(seat).y);
-  if(seat.kind!=='team'){assert.ok(route.some(p=>p.x===486&&p.y===980));assert.ok(route.some(p=>p.x===780&&p.y===980));}
+  if(seat.kind==='owner'||seat.kind==='simulated-child'){assert.ok(route.some(p=>p.x===486&&p.y===980));assert.ok(route.some(p=>p.x===780&&p.y===980));}
   for(let t=0;t<=1;t+=.01){const p=pointAlongOfficeRoute(route,t);assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));}
  }
 });
 test('all office seats retain four boundary contact positions and unchanged seated endpoints',()=>{
  for(const layout of ['independent-desks','leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
-  const character=demoCharacters.find(c=>c.id===seat.persona)!;
+  const character=demoCharacters.find(c=>c.id===seat.persona) ?? demoCharacters[0];
   const place=(stage:Parameters<typeof officeActorPlacement>[2],t:number,p:number)=>officeActorPlacement(seat,character,stage,t,p);
   const wrapper=(p:ReturnType<typeof place>)=>({x:p.x-p.contactX*p.width,y:p.y-p.contactY*p.width});
   for(const [a,b]of [[place('arrival',4000,1),place('sit',0,0)],[place('sit',2000,1),place('work',0,0)],[place('error',3500,1),place('stand',0,0)],[place('stand',2000,1),place('exit',0,0)]]){
@@ -39,7 +39,7 @@ test('all office seats retain four boundary contact positions and unchanged seat
 test('staggered travel releases distinct seats and finishes inside each shared four-second window',()=>{
  const seats=wholeOfficeSeats('leader-desks');assert.equal(new Set(seats.map(s=>officeTravelTiming(s).arrivalDelayMs)).size,seats.length);
  for(const seat of seats){
-  const c=demoCharacters.find(c=>c.id===seat.persona)!,timing=officeTravelTiming(seat);
+  const c=demoCharacters.find(c=>c.id===seat.persona) ?? demoCharacters[0],timing=officeTravelTiming(seat);
   const p=(stage:'arrival'|'exit',time:number,reduced=false)=>officeActorPlacement(seat,c,stage,time,time/4000,reduced);
   assert.equal(p('arrival',timing.arrivalDelayMs).opacity,0);assert.equal(p('arrival',4000).opacity,1);
   close(p('arrival',4000).x,officeApproachPoint(seat).x);close(p('arrival',4000).y,officeApproachPoint(seat).y);
@@ -49,7 +49,7 @@ test('staggered travel releases distinct seats and finishes inside each shared f
 });
 test('whole-office sit and stand feet stay at the physical seated floor contact, never on the tabletop',()=>{
  for(const seat of wholeOfficeSeats('peer-table')){
-  const c=demoCharacters.find(c=>c.id===seat.persona)!;
+  const c=demoCharacters.find(c=>c.id===seat.persona) ?? demoCharacters[0];
   const ground=officeApproachPoint(seat,c);
   assert.ok(ground.y>seat.y+20*seat.scale);
   for(const stage of ['sit','stand'] as const)for(let t=0;t<=2000;t+=100){const p=officeActorPlacement(seat,c,stage,t,t/2000);close(p.x,ground.x);close(p.y,ground.y);}
@@ -58,7 +58,7 @@ test('whole-office sit and stand feet stay at the physical seated floor contact,
 
 test('staggered arrival ends in the exact planted pose used to start sitting',()=>{
  for(const layout of ['independent-desks','leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
-  const c=demoCharacters.find(c=>c.id===seat.persona)!;
+  const c=demoCharacters.find(c=>c.id===seat.persona) ?? demoCharacters[0];
   for(const t of [3880,3900,3999]){
    const p=officeActorPlacement(seat,c,'arrival',t,t/4000);
    close(p.x,officeApproachPoint(seat).x);close(p.y,officeApproachPoint(seat).y);
@@ -67,10 +67,10 @@ test('staggered arrival ends in the exact planted pose used to start sitting',()
  }
 });
 
-test('fixed floor has 22 permanent empty seats, 3 shared tables, 13 individual desks, and compact usable aisles',()=>{
- const seats=fixedOfficeSeats(); assert.equal(seats.length,22); assert.equal(new Set(seats.map(s=>s.id)).size,22);
- assert.ok(seats.every(s=>s.empty)); assert.equal(seats.filter(s=>s.kind==='team').length,19);
- assert.equal(seats.filter(s=>!s.sharedTable).length,13); assert.equal(fixedOfficeTables.length,3);
+test('fixed floor has 20 permanent empty seats, 2 shared tables, 14 individual desks, and compact usable aisles',()=>{
+ const seats=fixedOfficeSeats(); assert.equal(seats.length,20); assert.equal(new Set(seats.map(s=>s.id)).size,20);
+ assert.ok(seats.every(s=>s.empty)); assert.equal(seats.filter(s=>s.kind==='team').length,16);
+ assert.equal(seats.filter(s=>!s.sharedTable).length,14); assert.equal(fixedOfficeTables.length,2);
  for(const table of fixedOfficeTables){assert.equal(seats.filter(s=>s.tableId===table.id).length,3);assert.ok(table.x+table.width<OFFICE_WORLD.width);}
  const desks=seats.filter(s=>s.id.startsWith('public-desk-'));
  assert.equal(desks.length,10);assert.equal(new Set(desks.map(s=>s.y)).size,2);
@@ -92,7 +92,7 @@ test('shared seats form an inward-facing arc and mirrored Grok approaches from o
  assert.ok(fixedOfficeSeats().filter(s=>s.kind==='simulated-child').every(s=>!s.sharedTable&&!s.tableId&&!s.mirrored));
 });
 
-test('all 22 physical routes stay inside the world and cross the partition only through the open door',()=>{
+test('all 20 physical routes stay inside the world and cross the partition only through the open door',()=>{
  for(const seat of fixedOfficeSeats()){
   const route=officeRoute(seat);
   for(let index=1;index<route.length;index++){
@@ -102,13 +102,13 @@ test('all 22 physical routes stay inside the world and cross the partition only 
     assert.equal(a.y,980);assert.equal(b.y,980);
    }
   }
-  const character=demoCharacters.find(c=>c.id===seat.persona)!;
+  const character=demoCharacters.find(c=>c.id===seat.persona) ?? demoCharacters[0];
   const arrival=officeActorPlacement(seat,character,'arrival',4000,1);
   const sit=officeActorPlacement(seat,character,'sit',0,0);
   close(arrival.x,sit.x);close(arrival.y,sit.y);assert.equal(arrival.mirrored,sit.mirrored);
  }
  const timings=fixedOfficeSeats().map(officeTravelTiming);
- assert.equal(new Set(timings.map(t=>t.arrivalDelayMs)).size,22);
+ assert.equal(new Set(timings.map(t=>t.arrivalDelayMs)).size,20);
  assert.ok(timings.every(t=>t.exitDelayMs+t.exitTravelMs<=4000));
 });
 

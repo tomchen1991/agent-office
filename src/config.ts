@@ -13,6 +13,7 @@ export interface OfficeConfig {
   seats: readonly SeatConfig[];
   office: {
     selfSeatId: string;
+    githubSeatId?: string;
     childSeatIds: readonly string[];
     team: { layout: 'independent-desks' | 'leader-desks' | 'peer-table'; memberSeatIds: readonly string[]; leaderSeatId?: string; seatAssignments?: OfficeSeatAssignments };
   };
@@ -44,7 +45,7 @@ function seat(value: unknown): SeatConfig {
   if (epoch.policy === 'exact') policy = { policy: 'exact', value: string(epoch.value) };
   else if (epoch.policy === 'follow-unique' && !Object.hasOwn(epoch, 'value')) policy = { policy: 'follow-unique' };
   else throw new Error('Invalid epoch selection policy');
-  if (typeof data.character !== 'string' || !['self', 'deepseek', 'chatgpt', 'grok', 'unknown'].includes(data.character)) throw new Error('Invalid character');
+  if (typeof data.character !== 'string' || !['self', 'deepseek', 'chatgpt', 'grok', 'github', 'unknown'].includes(data.character)) throw new Error('Invalid character');
   return { id: string(data.id), name: string(data.name, 100), character: data.character as CharacterId,
     selector: {sourceId: string(selector.sourceId), instanceId: string(selector.instanceId), epoch: policy} };
 }
@@ -61,13 +62,14 @@ export function parseOfficeConfig(input: unknown): OfficeConfig {
     if (left.sourceId === right.sourceId && left.instanceId === right.instanceId &&
       (left.epoch.policy === 'follow-unique' || right.epoch.policy === 'follow-unique' || left.epoch.value === right.epoch.value)) throw new Error('Conflicting instance selectors');
   }
-  const office = object(data.office, ['selfSeatId', 'childSeatIds', 'team']);
+  const office = object(data.office, ['selfSeatId', 'childSeatIds', 'githubSeatId', 'team']);
   const team = object(office.team, ['layout', 'memberSeatIds', 'leaderSeatId', 'seatAssignments']);
   if (team.layout !== 'independent-desks' && team.layout !== 'leader-desks' && team.layout !== 'peer-table') throw new Error('Invalid team layout');
   const selfSeatId = string(office.selfSeatId);
   const childSeatIds = array(office.childSeatIds).map(value => string(value));
   const memberSeatIds = array(team.memberSeatIds).map(value => string(value));
-  const assigned = [selfSeatId, ...childSeatIds, ...memberSeatIds];
+  const githubSeatId = Object.hasOwn(office, 'githubSeatId') ? string(office.githubSeatId) : undefined;
+  const assigned = [...(githubSeatId === undefined ? [] : [githubSeatId]), selfSeatId, ...childSeatIds, ...memberSeatIds];
   if (new Set(assigned).size !== assigned.length) throw new Error('Duplicate office assignments');
   if (assigned.some(id => !ids.has(id)) || assigned.length !== seats.length) throw new Error('Missing or unassigned logical seat');
   let normalizedTeam: OfficeConfig['office']['team'];
@@ -83,7 +85,7 @@ export function parseOfficeConfig(input: unknown): OfficeConfig {
     validateSeatAssignments(team.seatAssignments as OfficeSeatAssignments, memberSeatIds);
     normalizedTeam.seatAssignments = { ...(team.seatAssignments as OfficeSeatAssignments) };
   }
-  return { version: 1, seats, office: { selfSeatId, childSeatIds, team: normalizedTeam } };
+  return { version: 1, seats, office: { selfSeatId, childSeatIds, ...(githubSeatId === undefined ? {} : { githubSeatId }), team: normalizedTeam } };
 }
 export function importOfficeConfig(json: string): OfficeConfig {
   if (typeof json !== 'string' || new TextEncoder().encode(json).byteLength > MAX_JSON_BYTES) throw new Error('Config JSON exceeds size limit');

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createBridgeAdapter, createOfficePreloadApi, exposeOfficePreload } from '../src/bridge.ts';
 import type { OfficeIpcRenderer } from '../src/bridge.ts';
 import type { AdapterState } from '../src/core.ts';
-import { OFFICE_BRIDGE_CHANNELS, OFFICE_BRIDGE_ERROR } from '../src/bridgeProtocol.ts';
+import { OFFICE_BRIDGE_CHANNELS, OFFICE_BRIDGE_ERROR, sanitizeBridgeState } from '../src/bridgeProtocol.ts';
 import type { OfficeBridgeApi, OfficeBridgeCommand } from '../src/bridgeProtocol.ts';
 
 const connected = (): AdapterState => ({phase: 'connected', error: null, snapshot: {agents: [], receivedAt: '2026-01-01T00:00:00Z', identityCoverage: 'complete'}});
@@ -135,4 +135,15 @@ test('renderer adapter cached replay also ages TTL and retains original receipt 
   assert.equal(states.at(-1)!.snapshot!.agents[0].sourceFreshness, 'stale');
   now = 1400; adapter.subscribe(value => states.push(value));
   assert.equal(states.at(-1)!.snapshot!.agents[0].status, 'unknown'); adapter.dispose();
+});
+
+
+test('GitHub display persona crosses the same narrow IPC contract without new data privileges',()=>{
+ const agent={id:'repair',name:'GitHub Agent',character:'github',status:'waiting',latestUserRequest:null,observedAt:null,source:'synthetic-test',token:'DO NOT TRANSFER'};
+ const state={...connected(),snapshot:{...connected().snapshot!,agents:[agent]}};
+ const sanitized=sanitizeBridgeState(state);
+ assert.equal(sanitized.snapshot?.agents[0].character,'github');
+ assert.equal(sanitized.snapshot?.agents[0].status,'waiting');
+ assert.equal(JSON.stringify(sanitized).includes('DO NOT TRANSFER'),false);
+ assert.equal(sanitizeBridgeState({...state,snapshot:{...state.snapshot,agents:[{...agent,character:'unapproved-persona'}]}}).phase,'disconnected');
 });
