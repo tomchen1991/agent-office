@@ -1,6 +1,6 @@
 /** Public display contract. Never include credentials or raw collector payloads here. */
 export type CharacterId = 'self' | 'deepseek' | 'chatgpt' | 'grok' | 'unknown';
-export type OfficeStatus = 'idle' | 'working' | 'waiting' | 'offline' | 'unknown';
+export type OfficeStatus = 'idle' | 'working' | 'waiting' | 'stopping' | 'offline' | 'unknown';
 export interface OfficeAgent {
   id: string;
   name: string;
