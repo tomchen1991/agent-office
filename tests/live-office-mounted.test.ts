@@ -34,7 +34,7 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
   const sprite = () => self()?.querySelector('[data-office-frame]');
   const click = async (label: string) => { const button = [...container.querySelectorAll('button')].find(item => item.textContent === label); assert.ok(button, label); await act(async () => button.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))); };
   const step = async (count = 1) => { for (let index = 0; index < count; index++) { now += 100; const callbacks = [...frames.values()]; frames.clear(); await act(async () => { callbacks.forEach(callback => callback(now)); timers.forEach(callback => callback()); }); } };
-  const render = async (props: Record<string, unknown> = {}) => { const { LiveOffice } = await vite.ssrLoadModule('/src/LiveOffice.tsx'); await act(async () => root.render(createElement(StrictMode, null, createElement(LiveOffice, { adapterFactory: factory, topology, modeLabel: 'Synthetic contract test', ...props })))); await act(async () => pending.splice(0).forEach(callback => callback())); };
+  const render = async (props: Record<string, unknown> = {}) => { const { LiveOffice } = await vite.ssrLoadModule('/src/LiveOffice.tsx'); await act(async () => root.render(createElement(StrictMode, null, createElement(LiveOffice, { adapterFactory: factory, topology, modeLabel: 'Synthetic contract test', wallClock: () => new Date(2026, 0, 1, 12), ...props })))); await act(async () => pending.splice(0).forEach(callback => callback())); };
   try {
     await render();
     await t.test('same spatial office, correct identities and latest request without fabricated summaries', async () => {
@@ -215,7 +215,7 @@ test('contract demo partial coverage is explicit and does not shuffle other agen
   source.setMissing(true);const partial=latest!.snapshot!;
   assert.equal(partial.identityCoverage,'partial');assert.ok(!partial.agents.some(agent=>agent.identity!.instanceId==='self'));
   for(const agent of partial.agents)assert.equal(agent.status,before.get(agent.identity!.instanceId));
-  const result=bindOffice(contractExampleConfig('independent-desks'),partial);assert.equal(result.warnings.length,9);assert.equal(result.snapshot.agents.length,0);assert.match(partial.coverage!,/暂停全部自动绑定/);
+  const result=bindOffice(contractExampleConfig('independent-desks'),partial);assert.equal(result.warnings.length,10);assert.equal(result.snapshot.agents.length,0);assert.match(partial.coverage!,/暂停全部自动绑定/);
   source.setMissing(false);assert.equal(bindOffice(contractExampleConfig('independent-desks'),latest!.snapshot!).warnings.length,0);
   stop();adapter.dispose();
  }finally{await vite.close();}

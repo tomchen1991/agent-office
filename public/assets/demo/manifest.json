@@ -21,6 +21,16 @@
       "error-b",
       "idle-a",
       "idle-b"
+    ],
+    "sleep": [
+      "seated-neutral",
+      "drowsy",
+      "lean",
+      "sleep-a",
+      "sleep-b",
+      "wake-lean",
+      "wake-drowsy",
+      "seated-neutral"
     ]
   },
   "assets": [
@@ -273,6 +283,30 @@
       ],
       "sha256": "610d6efa06dd96d0ee731fef8ada36530fb28b2f0f8a19b7180ae9ef57581e6f",
       "provenance": "Common 512px registration; palette-normalized together with spin and pose to the approved source palette, without changing alpha or geometry. Artist final copied byte-for-byte. Pickup frames 0/1 omit the weapon; 2/3 contain it. Pickup frame 3 exactly equals extra frame 8. Parked prop retains identical origin and shaft contact."
+    },
+    {
+      "path": "assets/demo/self/sleep.png",
+      "character": "self",
+      "sheet": "sleep",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "d7ee9d6879ba2ed0511490a1da8f3bca2f9e2bed1f4172a29630b9439b6148ea"
+    },
+    {
+      "path": "assets/demo/github/sleep.png",
+      "character": "github",
+      "sheet": "sleep",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "3e9469634e23f02aa9377c39c8b94d78bf5236081ba8575c1a6d8ca7771784af"
     }
   ]
 }

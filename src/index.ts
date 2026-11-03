@@ -10,3 +10,6 @@ export type { OfficeEnrichment, UserRequestEnrichment, EnrichmentResult } from '
 export { createMockAdapter, demoTopology } from './mock.ts';
 export { createBridgeAdapter } from './bridge.ts';
 export type { OfficeBridgeApi } from './bridgeProtocol.ts';
+
+export { DEFAULT_NIGHT_REST, parseNightRestConfig, isNightRestTime } from './nightRest.ts';
+export type { NightRestConfig } from './nightRest.ts';

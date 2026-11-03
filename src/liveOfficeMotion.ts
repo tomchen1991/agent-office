@@ -1,10 +1,11 @@
+import { NIGHT_LOWER_MS, NIGHT_WAKE_MS } from './nightRest.ts';
 import { advancePersonal, interruptPersonal, personalPose, personalStart, PERSONAL_IDLE_DELAY_MS } from './personalIdle.ts';
 import type { PersonalIdle, PersonalRole } from './personalIdle.ts';
 import type { OfficeStatus } from './core.ts';
 import type { DemoStage } from './demoTimeline.ts';
 import { seatingPose } from './demoSeating.ts';
 
-export type LiveOfficePhase = 'arrival' | 'sit' | 'seated' | 'stand' | 'exit' | 'personal';
+export type LiveOfficePhase = 'arrival' | 'sit' | 'seated' | 'stand' | 'exit' | 'personal' | 'drowse' | 'sleep' | 'wake';
 export interface LiveOfficeTarget {
   id: string;
   /** Full source/instance/epoch identity, not a display name. Null means no current observation. */
@@ -12,6 +13,12 @@ export interface LiveOfficeTarget {
   seatKey: string;
   status: OfficeStatus;
   personalRole?: PersonalRole;
+  /** Only dedicated self/github, fresh connected explicit idle, loaded own sleep art. */
+  nightEligible?: boolean;
+  /** Night suppresses daytime leisure even if optional sleep artwork is unavailable. */
+  nightRest?: boolean;
+  nightArtReady?: boolean;
+  nightArtKey?: string;
 }
 export interface LiveOfficeActor extends LiveOfficeTarget {
   identityKey: string;
@@ -56,12 +63,21 @@ export function reconcileLiveOffice(previous: LiveOfficeMotionState, targets: re
       return [{ ...next, personalRole: 'self' as const, frozen: true }];
     }
     next.frozen = false;
+    if (actor.phase === 'drowse' || actor.phase === 'sleep' || actor.phase === 'wake') {
+      if (target.status === 'unknown' || !target.identityKey || target.nightArtReady === false || actor.nightArtKey !== target.nightArtKey || reducedMotion || actor.seatKey !== target.seatKey) {
+        return target.status === 'offline' ? [] : [{ ...next, phase: 'seated', elapsedMs: 0, personal: undefined }];
+      }
+      // A wake is latched: repeated idle/work/time changes cannot replay or cancel it.
+      if (actor.phase === 'wake') return [next];
+      if (!target.nightEligible || target.status !== 'idle') return [{ ...next, phase: 'wake', elapsedMs: actor.phase === 'drowse' ? 450 - Math.min(2, Math.floor(actor.elapsedMs / 300)) * 150 : 0 }];
+      return [next];
+    }
     if (target.status === 'unknown') {
       // Cancel unfinished travel rather than showing activity or a fictitious departure.
       return [{ ...next, phase: 'seated', elapsedMs: 0, personal: undefined }];
     }
     if (actor.phase === 'personal' && !reducedMotion && actor.seatKey === target.seatKey && (actor.personalRole === target.personalRole || actor.personalRole === 'self')) {
-      const personal = target.status === 'idle' ? actor.personal : actor.personal && interruptPersonal(actor.personal);
+      const personal = target.status === 'idle' && !target.nightRest ? actor.personal : actor.personal && interruptPersonal(actor.personal);
       if (personal) return [{ ...next, personalRole: actor.personalRole, personal }];
       actor = { ...actor, phase: 'seated', personal: undefined, elapsedMs: 0 };
       next.phase = 'seated'; next.personal = undefined; next.elapsedMs = 0;
@@ -93,6 +109,16 @@ export function advanceLiveOffice(previous: LiveOfficeMotionState, deltaMs: numb
       }
       return actor.status === 'offline' ? [{ ...actor, personal: undefined, phase: 'stand', elapsedMs: 0 }] : [{ ...actor, personal: undefined, phase: 'seated', elapsedMs: 0 }];
     }
+    if (actor.phase === 'drowse') {
+      const elapsedMs = actor.elapsedMs + deltaMs;
+      return [{ ...actor, phase: elapsedMs >= NIGHT_LOWER_MS ? 'sleep' : 'drowse', elapsedMs: elapsedMs >= NIGHT_LOWER_MS ? (elapsedMs - NIGHT_LOWER_MS) % 2400 : elapsedMs }];
+    }
+    if (actor.phase === 'sleep') return [{ ...actor, elapsedMs: (actor.elapsedMs + deltaMs) % 2400 }];
+    if (actor.phase === 'wake') {
+      const elapsedMs = actor.elapsedMs + deltaMs;
+      if (elapsedMs < NIGHT_WAKE_MS) return [{ ...actor, elapsedMs }];
+      return actor.status === 'offline' ? [{ ...actor, phase: 'stand', elapsedMs: 0 }] : [{ ...actor, phase: 'seated', elapsedMs: 0 }];
+    }
     let elapsedMs = actor.elapsedMs + deltaMs;
     let phase = actor.phase;
     while (phase !== 'seated' && elapsedMs >= durations[phase]) {
@@ -102,7 +128,10 @@ export function advanceLiveOffice(previous: LiveOfficeMotionState, deltaMs: numb
       else if (phase === 'stand') phase = 'exit';
       else return [];
     }
-    if (phase === 'seated' && actor.status === 'idle' && actor.personalRole && elapsedMs >= PERSONAL_IDLE_DELAY_MS) {
+    if (phase === 'seated' && actor.status === 'idle' && actor.nightEligible && elapsedMs >= PERSONAL_IDLE_DELAY_MS) {
+      return [{ ...actor, phase: 'drowse', elapsedMs: 0 }];
+    }
+    if (phase === 'seated' && actor.status === 'idle' && !actor.nightRest && actor.personalRole && elapsedMs >= PERSONAL_IDLE_DELAY_MS) {
       return [{ ...actor, phase: 'personal', elapsedMs: 0, personal: personalStart(actor.personalRole) }];
     }
     // Bound the seated animation counter. No demo lifecycle repeats behind live data.
@@ -119,9 +148,15 @@ export const liveStatusLabels: Record<OfficeStatus, string> = {
 };
 export function liveOfficePose(actor: LiveOfficeActor, reducedMotion = false): {
   stage: DemoStage; stageElapsedMs: number; progress: number; label: string; status: OfficeStatus;
-  phase: LiveOfficePhase; sheet: 'locomotion' | 'seated' | 'extra' | 'pickup'; frame?: number; personal?: PersonalIdle;
+  phase: LiveOfficePhase; sheet: 'locomotion' | 'seated' | 'extra' | 'pickup' | 'sleep'; frame?: number; personal?: PersonalIdle;
 } {
   const common = { label: liveStatusLabels[actor.status], status: actor.status, phase: actor.phase, stageElapsedMs: actor.elapsedMs };
+  if (actor.phase === 'drowse' || actor.phase === 'sleep' || actor.phase === 'wake') {
+    const frame = actor.phase === 'drowse' ? Math.min(2, Math.floor(actor.elapsedMs / 300))
+      : actor.phase === 'sleep' ? 3 + Math.floor(actor.elapsedMs / 1200) % 2
+      : 4 + Math.min(3, Math.floor(actor.elapsedMs / 150));
+    return { ...common, label: actor.phase === 'wake' ? `${common.label}，正在醒来` : '待机，夜间伏桌休息（服务持续运行）', stage: 'work', progress: 0, sheet: 'sleep', frame };
+  }
   if (actor.phase === 'personal' && actor.personal) return { ...common, ...personalPose(actor.personal) };
   if (actor.phase === 'arrival' || actor.phase === 'exit') return {
     ...common, stage: actor.phase, progress: actor.elapsedMs / durations[actor.phase], sheet: 'locomotion',

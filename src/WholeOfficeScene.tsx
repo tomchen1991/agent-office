@@ -14,7 +14,7 @@ import type { PersonalIdle } from './personalIdle';
 export interface OfficeSceneSeat extends Omit<OfficeSeat, 'persona'> { persona: CharacterId; isLeader?: boolean; geometryId?: string }
 export interface OfficeScenePose {
   stage: DemoStage; stageElapsedMs: number; progress: number; label: string;
-  sheet?: 'locomotion' | 'seated' | 'extra' | 'pickup'; frame?: number; personal?: PersonalIdle;
+  sheet?: 'locomotion' | 'seated' | 'extra' | 'pickup' | 'sleep'; frame?: number; personal?: PersonalIdle;
   status?: OfficeStatus; phase?: string;
 }
 export interface WholeOfficeSceneProps {
@@ -86,7 +86,7 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
     const current = seat.empty ? null : poseForSeat(seat);
     const indication = seat.empty ? null : statusForSeat?.(seat) ?? current;
     const { stage = 'work', stageElapsedMs = 0, progress = 0 } = current ?? {};
-    const working = current?.status ? current.status === 'working' && (!live || current.phase === 'seated') : stage === 'work' && current !== null;
+    const working = current?.status ? current.status === 'working' && (!current.phase || current.phase === 'seated') : stage === 'work' && current !== null;
     const error = !seat.empty && current !== null && !live && stage === 'error';
     const workBeat = reducedMotion ? 0 : Math.floor(stageElapsedMs / 260);
     const personal = current?.personal;

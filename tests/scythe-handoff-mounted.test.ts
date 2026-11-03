@@ -70,7 +70,7 @@ test('independent mounted scythe lifecycle: one prop, freeze, return, replacemen
   const { WholeOfficeScene } = await vite.ssrLoadModule('/src/WholeOfficeScene.tsx');
   const { fixedOfficeSeats } = await vite.ssrLoadModule('/src/wholeOfficeGeometry.ts');
   const { personalPose } = await vite.ssrLoadModule('/src/personalIdle.ts');
-  const render = async (finishImages = true) => { await act(async () => root.render(createElement(StrictMode, null, createElement(LiveOffice, { key: generation, adapterFactory: factory, topology, characters })))); if (finishImages) await act(async () => images.splice(0).forEach(image => image.finish())); };
+  const render = async (finishImages = true) => { await act(async () => root.render(createElement(StrictMode, null, createElement(LiveOffice, { key: generation, adapterFactory: factory, wallClock: () => new Date(2026, 0, 1, 12), topology, characters })))); if (finishImages) await act(async () => images.splice(0).forEach(image => image.finish())); };
   const emit = async (agents: readonly OfficeAgent[], phase: AdapterState['phase'] = 'connected', extra: Partial<OfficeSnapshot> = {}) => { snapshot = { ...snapshot, ...extra, agents }; await act(async () => listeners.forEach(fn => fn({ phase, snapshot, error: null }))); };
   const step = async (count = 1) => { for (let i = 0; i < count; i++) { now += 100; const jobs = [...frames.values()]; frames.clear(); await act(async () => { jobs.forEach(fn => fn(now)); timers.forEach(fn => fn()); }); } };
   const self = () => container.querySelector('[data-office-seat-kind="owner"][data-office-actor]')!;

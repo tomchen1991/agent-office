@@ -5,14 +5,16 @@ import { startMotionClock } from './motionClock';
 
 export function useLiveOfficeMotion(targets: readonly LiveOfficeTarget[], options: {
   sourceKey: unknown; reducedMotion: boolean; paused: boolean; assetsReady: boolean;
+  /** Synthetic previews may begin at a known seated pose; live callers omit this. */
+  initialActors?: LiveOfficeMotionState;
 }): LiveOfficeMotionState {
-  const [stored, setStored] = useState<{ key: unknown; actors: LiveOfficeMotionState }>({ key: options.sourceKey, actors: [] });
+  const [stored, setStored] = useState<{ key: unknown; actors: LiveOfficeMotionState }>({ key: options.sourceKey, actors: options.initialActors ?? [] });
   const generation = useRef(0);
   const targetKey = JSON.stringify(targets);
   // Project new data synchronously, so an old work frame cannot leak through a source switch.
-  const actors = reconcileLiveOffice(stored.key === options.sourceKey ? stored.actors : stored.actors.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal').map(actor => ({ ...actor, visualOnly: true, frozen: true })), targets, options.reducedMotion);
+  const actors = reconcileLiveOffice(stored.key === options.sourceKey ? stored.actors : (options.initialActors ?? stored.actors.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal').map(actor => ({ ...actor, visualOnly: true, frozen: true }))), targets, options.reducedMotion);
   useEffect(() => {
-    setStored(previous => ({ key: options.sourceKey, actors: reconcileLiveOffice(previous.key === options.sourceKey ? previous.actors : previous.actors.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal').map(actor => ({ ...actor, visualOnly: true, frozen: true })), JSON.parse(targetKey), options.reducedMotion) }));
+    setStored(previous => ({ key: options.sourceKey, actors: reconcileLiveOffice(previous.key === options.sourceKey ? previous.actors : (options.initialActors ?? previous.actors.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal').map(actor => ({ ...actor, visualOnly: true, frozen: true }))), JSON.parse(targetKey), options.reducedMotion) }));
   }, [targetKey, options.sourceKey, options.reducedMotion]);
   const needsClock = liveOfficeNeedsClock(actors);
   useEffect(() => {

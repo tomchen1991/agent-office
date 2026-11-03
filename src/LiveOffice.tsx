@@ -1,3 +1,5 @@
+import { DEFAULT_NIGHT_REST, isNightRestTime, parseNightRestConfig } from './nightRest';
+import type { NightRestConfig } from './nightRest';
 import { personalAssets, personalAssetsReady } from './personalIdle';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeSnapshot, OfficeTopology } from './core';
@@ -12,6 +14,7 @@ import { liveOfficePose, liveStatusLabels } from './liveOfficeMotion';
 import { useLiveOfficeMotion } from './useLiveOfficeMotion';
 import './live-office.css';
 
+const systemWallClock = () => new Date();
 const emptySnapshot: OfficeSnapshot = { agents: [], receivedAt: '', identityCoverage: 'unknown' };
 const initialState: AdapterState = { phase: 'connecting', snapshot: null, error: null };
 const phaseLabels = { connecting: '连接中', connected: '已连接', disconnected: '已断开' };
@@ -26,11 +29,18 @@ export interface LiveOfficeProps {
   topology?: OfficeTopology;
   modeLabel?: string;
   characters?: readonly DemoCharacter[];
+  nightRestConfig?: NightRestConfig;
+  /** Injectable local wall clock; does not alter source timestamps/freshness. */
+  wallClock?: () => Date;
+  wallClockLabel?: string;
 }
 
 /** Real normalized DTOs drive the approved full office, independently of the scripted demo. */
-export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopology, modeLabel = '规范化数据源', characters = demoCharacters }: LiveOfficeProps) {
+export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopology, modeLabel = '规范化数据源', characters = demoCharacters, nightRestConfig = DEFAULT_NIGHT_REST, wallClock = systemWallClock, wallClockLabel = '本机时间' }: LiveOfficeProps) {
   if (Boolean(officeConfig) === Boolean(fixedTopology)) throw new Error('Provide exactly one officeConfig or topology');
+  const configuredNight = parseNightRestConfig(nightRestConfig);
+  const [nightOverride, setNightOverride] = useState<NightRestConfig | null>(null);
+  const nightConfig = nightOverride ?? configuredNight;
   const [enabled, setEnabled] = useState(true);
   const [retry, setRetry] = useState(0);
   const sourceKey = useMemo(() => ({ adapterFactory, retry }), [adapterFactory, retry]);
@@ -84,7 +94,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     let alive = true;
     const loaded = new Set<string>(), failed = new Set<string>();
     const required = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
-    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...personalAssets(character)]))];
+    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...personalAssets(character), ...(character.sleep ? [character.sleep.src] : [])]))];
     setAssets({ key: characters, ready: sources.length === 0, failed: [], loaded: [] });
     const images = sources.map(src => {
       const image = new Image();
@@ -121,10 +131,15 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   useEffect(() => { presentationCache.current = { key: sourceKey, agents: presentation }; }, [snapshot, sourceKey, topology]);
   const seats = liveOfficeSeats(topology, [...presentation.values()]);
   const allocation = liveOfficeSeatReport(topology);
+  const nightTime = isNightRestTime(wallClock(), nightConfig);
   const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
     const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : undefined;
-    return { personalRole: !state.error && personalRole && characters.some(item => item.id === personalRole && personalAssetsReady(item, assets.loaded)) ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
+    const nightRest = Boolean(personalRole && nightTime);
+    const nightArtReady = characters.some(item => item.id === personalRole && item.sleep && assets.key === characters && assets.loaded.includes(item.sleep.src));
+    const nightEligible = Boolean(!state.error && nightRest && agent && displayStatus(agent, elapsed, state.phase) === 'idle' && nightArtReady);
+    const nightArtKey = JSON.stringify([personalRole, characters.find(item => item.id === personalRole)?.sleep?.src]);
+    return { nightRest, nightEligible, nightArtReady, nightArtKey, personalRole: !state.error && personalRole && characters.some(item => item.id === personalRole && personalAssetsReady(item, assets.loaded)) ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
   });
   const assetsReady = assets.key === characters && assets.ready;
   const actors = useLiveOfficeMotion(targets, { sourceKey, reducedMotion, paused, assetsReady });
@@ -147,6 +162,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   return <section className="whole-office-demo live-office" aria-labelledby="live-office-title" data-live-office="true" data-office-layout="fixed-office" data-office-assets-ready={assetsReady} data-office-reduced-motion={reducedMotion}>
     <h1 id="live-office-title" className="sr-only">状态办公室</h1>
     <div className="wo-toolbar"><div className="live-connection" role="status">{modeLabel} · {phaseLabels[state.phase]}</div><div className="live-actions"><button onClick={() => setEnabled(value => !value)}>{enabled ? '断开数据源' : '连接数据源'}</button><button onClick={() => { setEnabled(true); setRetry(value => value + 1); }}>重新连接</button><button disabled={reducedMotion} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{reducedMotion ? '系统偏好：减少动态' : paused ? '继续状态动画' : '暂停状态动画'}</button></div></div>
+    <details className="live-night-settings"><summary>夜间休息 · {nightConfig.start}–{nightConfig.end} · {wallClockLabel}</summary><label><input aria-label="启用夜间空闲休息" type="checkbox" checked={nightConfig.enabled} onChange={event => setNightOverride({ ...nightConfig, enabled: event.target.checked })} />空闲时伏桌休息</label>{(['start', 'end'] as const).map(key => <label key={key}>{key === 'start' ? '开始' : '结束'}<input aria-label={key === 'start' ? '夜间休息开始时间' : '夜间休息结束时间'} type="time" value={nightConfig[key]} onChange={event => { try { setNightOverride(parseNightRestConfig({ ...nightConfig, [key]: event.target.value })); } catch { /* Keep the last valid window. */ } }} /></label>)}</details>
     {state.error && <p className="live-warning" role="alert">{state.error}</p>}
     {state.phase !== 'connected' && <p className="live-warning" role="status">数据源{phaseLabels[state.phase]}。未知状态不表示离线，也不会继续显示工作动作。</p>}
     {snapshot?.coverage && <p className="live-warning">覆盖范围：{snapshot.coverage}</p>}
