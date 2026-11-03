@@ -1,0 +1,116 @@
+import { useEffect, useReducer, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { DEMO_STAGES, TOTAL_DEMO_MS, initialDemoState, demoPosition, demoReducer, demoFrame } from './demoTimeline';
+import type { DemoStage } from './demoTimeline';
+import { demoCharacters } from './demoAssets';
+import type { DemoCharacter } from './demoAssets';
+import { startMotionClock } from './motionClock';
+import './lifecycle.css';
+
+const stageDescriptions: Record<DemoStage, string> = {
+  arrival: '从门口沿地面路线走向工位。',
+  sit: '到达椅子前，转入落座动作。',
+  work: '坐在办公桌后，敲键盘处理任务。',
+  slack: '暂时靠回椅子，喝口饮料。',
+  error: '任务遇到异常，角色与屏幕同步提示。',
+  stand: '结束当前任务，从椅子上起身。',
+  exit: '沿原路离开，在门口结束这次演示。',
+};
+
+export function LifecycleDemo({ characters = demoCharacters }: {characters?: readonly DemoCharacter[]} = {}) {
+  const [state, dispatch] = useReducer(demoReducer, undefined, initialDemoState);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [selectedId, setSelectedId] = useState<DemoCharacter['id']>('self');
+  const character = characters.find(item => item.id === selectedId)!;
+  const [loadedId, setLoadedId] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
+  const assetError = errorId === selectedId;
+  const assetUrl = (src: string) => `${import.meta.env.BASE_URL}${src}`;
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => { setReducedMotion(media.matches); if (media.matches) dispatch({ type: 'pause' }); };
+    apply(); media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, []);
+  useEffect(() => {
+    setLoadedId(null); setErrorId(null);
+    if (!character.ready) return;
+    let alive = true;
+    let count = 0;
+    const images = [character.locomotion.src, character.seated.src].map(src => {
+      const image = new Image();
+      image.onload = () => { if (alive && ++count === 2) setLoadedId(character.id); };
+      image.onerror = () => { if (alive) setErrorId(character.id); };
+      image.src = assetUrl(src);
+      return image;
+    });
+    return () => { alive = false; for (const image of images) { image.onload = null; image.onerror = null; } };
+  }, [character]);
+  const canAnimate = character.ready && loadedId === selectedId && !assetError;
+  useEffect(() => {
+    if (!state.running || !canAnimate || reducedMotion) return;
+    return startMotionClock({ request: callback => window.requestAnimationFrame(callback), cancel: handle => window.cancelAnimationFrame(handle) }, deltaMs => dispatch({ type: 'tick', deltaMs }));
+  }, [state.running, canAnimate, reducedMotion]);
+
+  const { stage, stageElapsedMs, progress } = demoPosition(state);
+  const seated = stage === 'work' || stage === 'slack' || stage === 'error';
+  const {sheet, frame} = demoFrame({ stage, stageElapsedMs, progress }, reducedMotion);
+  const atlas = character[sheet];
+  // World-space contact points, not a collection of unrelated status cards.
+  const travel = stage === 'arrival' ? progress : stage === 'exit' ? 1 - progress : 1;
+  const x = seated ? 68 : 13 + 55 * travel;
+  const transition = reducedMotion ? 1 : progress;
+  const y = stage === 'sit' ? 67 - 2 * transition : stage === 'stand' ? 65 + 2 * transition : seated ? 65 : 79 - 12 * travel;
+  const blend = stage === 'sit' ? transition : stage === 'stand' ? 1 - transition : seated ? 1 : 0;
+  // Feet-to-seat contact interpolation prevents sitting/standing from teleporting at atlas swaps.
+  const contact = {
+    x: character.locomotion.anchor.x + (character.seated.anchor.x - character.locomotion.anchor.x) * blend,
+    y: character.locomotion.anchor.y + (character.seated.anchor.y - character.locomotion.anchor.y) * blend,
+  };
+  const opacity = stage === 'exit' ? Math.min(1, (1 - progress) * 9) : 1;
+  const spriteStyle = {
+    left: `${x}%`, top: `${y}%`,
+    '--contact-x': `${(stage === 'exit' ? 1 - contact.x : contact.x) * 100}%`, '--contact-y': `${contact.y * 100}%`,
+    '--sprite-ratio': `${atlas.cellWidth} / ${atlas.cellHeight}`,
+    opacity: reducedMotion ? 1 : opacity,
+  } as CSSProperties;
+  const frameStyle: CSSProperties = {
+    backgroundImage: `url("${assetUrl(atlas.src)}")`,
+    backgroundSize: `${atlas.columns * 100}% ${atlas.rows * 100}%`,
+    backgroundPosition: `${(frame % atlas.columns) / (atlas.columns - 1) * 100}% ${Math.floor(frame / atlas.columns) / (atlas.rows - 1) * 100}%`,
+    transform: stage === 'exit' ? 'scaleX(-1)' : undefined,
+  };
+  const activeStage = DEMO_STAGES.find(item => item.id === stage)!;
+  const working = stage === 'work';
+  const error = stage === 'error';
+  const workBeat = reducedMotion ? 0 : Math.floor(stageElapsedMs / 260);
+  const workLines = [0, 1, 2].map(index => working ? 28 + ((workBeat * 13 + index * 19) % 60) : 50 - index * 10);
+  const jumpTo = (next: DemoStage) => { dispatch({ type: 'jump', stage: next }); dispatch({ type: 'pause' }); };
+  return <section className="lifecycle-demo" aria-labelledby="lifecycle-title" data-demo-stage={stage} data-demo-complete={state.completed} data-demo-character={selectedId}>
+    <div className="lifecycle-heading"><div><span className="lc-kicker">AGENT OFFICE · CHARACTER LAB</span><h1 id="lifecycle-title">看她，真的上一天班。</h1><p>从推门入场，到下班离开。一个房间，一段完整的角色演示。</p></div><span className="lc-demo-badge">独立演示 · 不连接采集服务</span></div>
+    <nav className="lc-character-nav" aria-label="角色选择">{characters.map(item => <button key={item.id} className={`lc-character-choice character-${item.id}`} aria-pressed={selectedId === item.id} onClick={() => { setSelectedId(item.id); dispatch({type:'restart'}); if (reducedMotion) dispatch({type:'pause'}); }}><strong>{item.label}</strong><span>{item.ready ? '独立动作素材' : '动作素材准备中'}</span></button>)}</nav>
+    <div className="lc-stage-wrap">
+      <div className={`lc-world lc-${stage}`} role="img" aria-label={`${character.label} 的像素办公室场景：${activeStage.label}。${stageDescriptions[stage]}`}>
+        <div className="lc-wall"><div className="lc-wall-title">✦ NIGHT SHIFT STUDIO</div><div className="lc-window"><span /><span /><span /><span /></div><div className="lc-board"><b>今日安排</b><span>01 / 到办公室</span><span>02 / 好好工作</span><span>03 / 记得休息</span></div><div className="lc-wall-trim" /></div>
+        <div className="lc-floor" />
+        <div className="lc-route" aria-hidden="true"><span>→</span><span>→</span><span>→</span><span>→</span></div>
+        <div className="lc-door"><span className="lc-door-plaque">OFFICE / 01</span><div className="lc-door-inner"><span className="lc-door-handle" /></div><span className="lc-door-mat">WELCOME</span></div>
+        <div className="lc-plant"><div className="lc-leaves">✦</div><div className="lc-pot" /></div>
+        {selectedId === 'self' && <svg className="lc-scythe-rack" viewBox="0 0 90 180" role="img" aria-label="停放在工位旁的星月镰刀"><path d="M42 35 L52 167" stroke="#5a365f" strokeWidth="9"/><path d="M42 35 L52 167" stroke="#cca0e2" strokeWidth="4"/><path d="M12 39 Q42 -3 82 30 Q52 16 28 51Z" fill="#d8b5ed" stroke="#63417c" strokeWidth="3"/><path d="M44 24 L55 35 L46 47 L35 35Z" fill="#9c57cc" stroke="#f0d6ff" strokeWidth="2"/><path d="M27 47 L22 66 L34 60Z" fill="#aa78c8"/><path d="M35 164 H70 L75 174 H30Z" fill="#684575"/><circle cx="59" cy="53" r="5" fill="#ead7a0"/></svg>}
+        <div className="lc-chair"><span className="lc-chair-back" /><span className="lc-chair-seat" /><span className="lc-chair-leg" /></div>
+        <div className="lc-desk-back" />
+        <div className="lc-monitor"><div className={`lc-screen ${working ? 'screen-work' : ''} ${error ? 'screen-error' : ''}`}><span>{error ? '!' : working ? '>_' : stage === 'slack' ? '☕' : '···'}</span>{workLines.map((width, index) => <i key={index} style={{width: `${width}%`}} />)}{working && <b className="lc-screen-progress" style={{width: `${Math.round(progress * 100)}%`}} />}</div><div className="lc-monitor-neck" /></div>
+        {canAnimate && <div className="lc-character" style={spriteStyle} aria-hidden="true"><div className="lc-sprite-frame" data-demo-frame={frame} data-demo-sheet={sheet} style={frameStyle} /></div>}
+        {!canAnimate && <div className="lc-asset-pending" role="status">{assetError ? '角色帧加载失败，请重新载入页面。' : !character.ready ? '正在准备真正的逐帧动作素材' : '正在载入角色动作…'}<small>素材就绪前，不用静态滑动冒充走路。</small></div>}
+        <div className="lc-desk-front"><span className="lc-desk-top" /><span className="lc-keyboard" data-demo-workbeat={working ? workBeat : undefined}>{[0, 1, 2, 3, 4, 5, 6, 7].map(key => <i key={key} className={working && !reducedMotion && key === workBeat % 8 ? 'key-pressed' : ''} />)}</span><span className="lc-cup">☕</span><span className="lc-desk-leg left" /><span className="lc-desk-leg right" /><span className="lc-desk-name">{character.label}</span></div>
+        {error && <div className="lc-error-note">任务异常 · 等待处理</div>}
+        <div className="lc-scene-caption"><span className="lc-live-dot" />{activeStage.label}<span>{!canAnimate ? '素材未就绪' : state.completed ? '演示结束' : state.running ? '演示中' : '已暂停'}</span></div>
+      </div>
+      <div className="lc-stage-summary"><div><span className="lc-step-number">0{DEMO_STAGES.findIndex(item => item.id === stage) + 1}</span><div><h2>{activeStage.label}</h2><p>{stageDescriptions[stage]}</p></div></div><time>{(state.elapsedMs / 1000).toFixed(1)} / {(TOTAL_DEMO_MS / 1000).toFixed(0)} s</time></div>
+      <div className="lc-progress" role="progressbar" aria-label="完整演示进度" aria-valuemin={0} aria-valuemax={TOTAL_DEMO_MS} aria-valuenow={state.elapsedMs}><span style={{ width: `${state.elapsedMs / TOTAL_DEMO_MS * 100}%` }} /></div>
+    </div>
+    <div className="lc-controls"><div><button className="lc-primary" aria-label={state.running ? '暂停' : state.completed ? '重新播放' : '播放'} disabled={!canAnimate || reducedMotion} onClick={() => dispatch({ type: state.running ? 'pause' : state.completed ? 'restart' : 'play' })}>{state.running ? '暂停演示' : state.completed ? '再看一次' : '继续播放'}</button><button aria-label="从头重新播放" disabled={!canAnimate} onClick={() => { dispatch({ type: 'restart' }); if (reducedMotion) dispatch({ type: 'pause' }); }}>从头开始</button></div><p>{reducedMotion ? '已遵循减少动态效果偏好：请选择下方阶段查看静帧。' : '只播放一遍 · 可暂停检查动作，或直接选择阶段'}</p></div>
+    <nav className="lc-stage-nav" aria-label="动作阶段">{DEMO_STAGES.map((item, index) => <button key={item.id} aria-current={stage === item.id ? 'step' : undefined} onClick={() => jumpTo(item.id)}><span>0{index + 1}</span><strong>{item.label}</strong><small>{item.durationMs / 1000}s</small></button>)}</nav>
+    <p className="lc-footnote">这里是动作与空间编排的独立 Demo；工作、摸鱼、异常都是演示脚本，不用于推断真实 Agent 的行为。角色素材与桌椅接触点仍处于视觉验证阶段。</p>
+  </section>;
+}

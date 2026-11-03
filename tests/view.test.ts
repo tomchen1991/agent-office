@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { demoTopology } from '../src/mock.ts';
 
 test('office SSR renders accessible topology, bounded seats and truthful missing data', async () => {
-  const vite = await createServer({ server: { middlewareMode: true, watch: null }, appType: 'custom' });
+  const vite = await createServer({ server: { middlewareMode: true, watch: null, hmr: false }, appType: 'custom' });
   try {
     const { App } = await vite.ssrLoadModule('/src/App.tsx');
     const html = renderToStaticMarkup(createElement(App));

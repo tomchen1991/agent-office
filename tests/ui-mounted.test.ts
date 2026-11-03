@@ -8,7 +8,7 @@ import type { AdapterState, OfficeAdapter, OfficeTopology } from '../src/core.ts
 
 // Vite only transforms TSX here. These are mounted DOM lifecycle tests, not browser/visual QA.
 test('mounted office interactions and hook cleanup', async t => {
-  const vite = await createServer({ server: { middlewareMode: true, watch: null }, appType: 'custom' });
+  const vite = await createServer({ server: { middlewareMode: true, watch: null, hmr: false }, appType: 'custom' });
   const dom = new JSDOM('<!doctype html><div id="root"></div>', { url: 'http://localhost/', pretendToBeVisual: true });
   const original = Object.fromEntries(['window', 'document', 'HTMLElement', 'IS_REACT_ACT_ENVIRONMENT'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   for (const [key, value] of Object.entries({window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true})) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });

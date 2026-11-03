@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "status": "generated action-frame prototype; scene-tested separately; not pixel-locked production sprites",
+  "frameOrder": {
+    "locomotion": [
+      "walk-a",
+      "walk-b",
+      "walk-c",
+      "walk-d",
+      "sit-a",
+      "sit-b",
+      "stand-a",
+      "stand-b"
+    ],
+    "seated": [
+      "work-a",
+      "work-b",
+      "slack-a",
+      "slack-b",
+      "error-a",
+      "error-b",
+      "idle-a",
+      "idle-b"
+    ]
+  },
+  "assets": [
+    {
+      "path": "assets/demo/self/locomotion.png",
+      "character": "self",
+      "sheet": "locomotion",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "81b44c94e4c6d4394b77d242660456199bd73ec53a5cde21048ff4a32c47bf79"
+    },
+    {
+      "path": "assets/demo/self/seated.png",
+      "character": "self",
+      "sheet": "seated",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "75fcf1988ef338f3587282f3c1f6db9ea7fbd62c8bd3b4e59508f0d8b8a6e9ca"
+    },
+    {
+      "path": "assets/demo/deepseek/locomotion.png",
+      "character": "deepseek",
+      "sheet": "locomotion",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "ae72c6cc47a9605e330a5810741e461176e1c740efadedb7e1aaf9917bc9c351"
+    },
+    {
+      "path": "assets/demo/deepseek/seated.png",
+      "character": "deepseek",
+      "sheet": "seated",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "3346207527081e732120eb6df584a30d578496fcdce21a42a397d3d27b23a773"
+    },
+    {
+      "path": "assets/demo/chatgpt/locomotion.png",
+      "character": "chatgpt",
+      "sheet": "locomotion",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "66937d2e7ad43cb252cf43f72115fb109c21ac9563c2acc76e81fa25f71b3032"
+    },
+    {
+      "path": "assets/demo/chatgpt/seated.png",
+      "character": "chatgpt",
+      "sheet": "seated",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "3058ecd7e7e6784be2cc4dd9f54cfeb03d23f7226c7c4b83bdd7b3dd1fc00d89"
+    },
+    {
+      "path": "assets/demo/grok/locomotion.png",
+      "character": "grok",
+      "sheet": "locomotion",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "dc6fe946238b4a2ced1629e29535f524832d224fa63cb32debe66de87570cfc0"
+    },
+    {
+      "path": "assets/demo/grok/seated.png",
+      "character": "grok",
+      "sheet": "seated",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "196e151c5b833febda440d40206b00ce1d35b32350c3c2cffbfa84877db1c1ec"
+    }
+  ]
+}
