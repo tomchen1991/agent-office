@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeSnapshot, OfficeTopology } from './core';
-import { displayStatus, freshness, validateTopology } from './core';
+import { displayStatus, freshness, validateTopology, liveOfficeSeatReport } from './core';
 import { bindOffice } from './binding';
 import type { OfficeConfig } from './config';
 import { demoCharacters } from './demoAssets';
@@ -118,7 +118,8 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   for (const id of presentation.keys()) if (!ids.includes(id)) presentation.delete(id);
   useEffect(() => { presentationCache.current = { key: sourceKey, agents: presentation }; }, [snapshot, sourceKey, topology]);
   const seats = liveOfficeSeats(topology, [...presentation.values()]);
-  const targets = seats.map(seat => {
+  const allocation = liveOfficeSeatReport(topology);
+  const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
     return { id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
   });
@@ -131,7 +132,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const leaderLabel = seats.find(seat => seat.isLeader)?.label ?? '未绑定';
   const activeWorking = targets.filter(target => target.status === 'working').length;
   const uncertain = targets.filter(target => target.status === 'unknown').length;
-  return <section className="whole-office-demo live-office" aria-labelledby="live-office-title" data-live-office="true" data-office-layout={topology.team.layout} data-office-assets-ready={assetsReady} data-office-reduced-motion={reducedMotion}>
+  return <section className="whole-office-demo live-office" aria-labelledby="live-office-title" data-live-office="true" data-office-layout="fixed-office" data-office-assets-ready={assetsReady} data-office-reduced-motion={reducedMotion}>
     <div className="wo-heading"><div><span className="wo-kicker">AGENT OFFICE / STATUS-DRIVEN STUDIO</span><h1 id="live-office-title">同一间办公室，跟随每个状态。</h1><p>只展示数据源明确给出的状态；用户请求、观测时间与数据新鲜度分开呈现。</p></div><span className="wo-demo-tag"><i />{modeLabel}</span></div>
     <div className="wo-toolbar"><div className="live-connection" role="status">{modeLabel} · {phaseLabels[state.phase]}</div><div className="live-actions"><button onClick={() => setEnabled(value => !value)}>{enabled ? '断开数据源' : '连接数据源'}</button><button onClick={() => { setEnabled(true); setRetry(value => value + 1); }}>重新连接</button><button disabled={reducedMotion} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{reducedMotion ? '系统偏好：减少动态' : paused ? '继续状态动画' : '暂停状态动画'}</button></div></div>
     {state.error && <p className="live-warning" role="alert">{state.error}</p>}
@@ -142,7 +143,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
       const actor = actors.find(item => item.id === seat.id);
       return actor ? liveOfficePose(actor, reducedMotion) : null;
     }} loading={!assetsReady && <div className="wo-loading" role="status"><strong>{assets.failed.length ? '部分动作素材加载失败' : '正在载入办公室动作素材…'}</strong><span>数据状态仍正常显示；素材就绪后才播放动作。</span>{assets.failed.length > 0 && <button onClick={() => setLoadAttempt(value => value + 1)}>重新加载素材</button>}</div>} />
-    {topology.team.memberIds.length > 3 && <p className="live-warning">协作区展示 3 个空间席位，另有 {topology.team.memberIds.length - 3} 位成员可在下方选择查看。</p>}
+    {allocation.teamOverflowIds.length > 0 && <p className="live-warning">公共区域 19 个席位已分配，另有 {allocation.teamOverflowIds.length} 位成员未入座，可在下方选择查看；不会替换已有角色或伪造额外席位。</p>}
     <div className="live-details-layout"><nav className="live-agent-list" aria-label="选择 Agent 查看数据">{ids.map(id => <button key={id} aria-pressed={selectedId === id} onClick={() => setSelected(id)}>{presentation.get(id)?.name ?? id}</button>)}</nav>
       <section className="live-inspector" aria-labelledby="live-details-title"><div><span className="wo-kicker">AGENT INSPECTOR</span><h2 id="live-details-title">{currentAgent?.name ?? presentation.get(selectedId)?.name ?? selectedId}</h2></div><dl>
         <div><dt>当前显示状态</dt><dd data-live-current-status={effectiveStatus}>{liveStatusLabels[effectiveStatus]}</dd></div>

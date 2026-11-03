@@ -1,4 +1,5 @@
-import type { CharacterId } from './core.ts';
+import { validateSeatAssignments } from './core.ts';
+import type { OfficeSeatAssignments, CharacterId } from './core.ts';
 
 export type EpochPolicy = { policy: 'exact'; value: string } | { policy: 'follow-unique' };
 export interface SeatConfig {
@@ -13,7 +14,7 @@ export interface OfficeConfig {
   office: {
     selfSeatId: string;
     childSeatIds: readonly string[];
-    team: { layout: 'independent-desks' | 'leader-desks' | 'peer-table'; memberSeatIds: readonly string[]; leaderSeatId?: string };
+    team: { layout: 'independent-desks' | 'leader-desks' | 'peer-table'; memberSeatIds: readonly string[]; leaderSeatId?: string; seatAssignments?: OfficeSeatAssignments };
   };
 }
 const MAX_JSON_BYTES = 128 * 1024;
@@ -61,7 +62,7 @@ export function parseOfficeConfig(input: unknown): OfficeConfig {
       (left.epoch.policy === 'follow-unique' || right.epoch.policy === 'follow-unique' || left.epoch.value === right.epoch.value)) throw new Error('Conflicting instance selectors');
   }
   const office = object(data.office, ['selfSeatId', 'childSeatIds', 'team']);
-  const team = object(office.team, ['layout', 'memberSeatIds', 'leaderSeatId']);
+  const team = object(office.team, ['layout', 'memberSeatIds', 'leaderSeatId', 'seatAssignments']);
   if (team.layout !== 'independent-desks' && team.layout !== 'leader-desks' && team.layout !== 'peer-table') throw new Error('Invalid team layout');
   const selfSeatId = string(office.selfSeatId);
   const childSeatIds = array(office.childSeatIds).map(value => string(value));
@@ -77,6 +78,10 @@ export function parseOfficeConfig(input: unknown): OfficeConfig {
   } else {
     if (Object.hasOwn(team, 'leaderSeatId')) throw new Error('Equal office layouts must not configure a leader');
     normalizedTeam = { layout: team.layout, memberSeatIds };
+  }
+  if (Object.hasOwn(team, 'seatAssignments')) {
+    validateSeatAssignments(team.seatAssignments as OfficeSeatAssignments, memberSeatIds);
+    normalizedTeam.seatAssignments = { ...(team.seatAssignments as OfficeSeatAssignments) };
   }
   return { version: 1, seats, office: { selfSeatId, childSeatIds, team: normalizedTeam } };
 }

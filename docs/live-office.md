@@ -45,16 +45,16 @@ Supply **exactly one** of:
 | Explicit `offline` | An already-seated actor stands and exits once. Initial offline data remains an empty seat with an offline label. An interrupted arrival is canceled. |
 | Unsupported/unknown persona | Neutral `?` placeholder. Never substitute the purple self persona. |
 
-The live controller does not call the demo reducer or replay a demo lifecycle. Repeated observations update state without restarting entry. Layout changes and rapid offline/return changes cancel obsolete travel rather than creating duplicate actors. Travel uses the calibrated logical geometry slot, while DOM identity and inspector selection use the actual normalized agent ID.
+The live controller does not call the demo reducer or replay a demo lifecycle. Repeated observations update state without restarting entry. Seat reassignment and rapid offline/return changes cancel obsolete travel rather than creating duplicate actors. Travel uses the calibrated logical geometry slot, while DOM identity and inspector selection use the actual normalized agent ID.
 
 A single cancellable RAF drives transitions and actual active/idle cycles. Pausing freezes the exact current pose and position; it does not teleport to a reduced-motion endpoint. System reduced-motion preference settles transitions without animation. Freshness continues on a separate monotonic timer while animation is paused. Phase-only repeats of the same snapshot do not renew its freshness. Adapter callbacks are generation-guarded, and subscriptions, asset handlers, timers, media listeners, and RAF handles are released on unmount/reconnect.
 
 ## Topology and inspection
 
 - Self-office privilege and team leadership are separate explicit concepts.
-- Independent desks, leader desks, and peer-table layouts all use the approved spatial scene.
+- The physical floor is fixed: one owner desk and one three-seat private collaboration table; three three-seat public tables plus ten independent public desks. All 23 seats exist simultaneously.
 - At most three child seats are expanded, with an explicit `+N` badge.
-- The approved physical team scene has three seats. Additional configured team members remain in the complete inspector list and an overflow notice; a configured leader is included in the visible three.
+- Public capacity is 19. Explicit `team.seatAssignments` maps configured IDs to public physical seat IDs; remaining members are assigned deterministically without changing identities. Additional members remain in the inspector and an overflow notice. Unassigned seats contain furniture only, never synthetic agents or working/error displays.
 - Status labels are independent of whether an actor is present, so an initial offline/unknown/stale observation is not mislabeled as missing data.
 - The inspector separates effective status, source-reported status, source, connection, freshness, and observed time.
 - Latest user request text, request time, and request source come only from `latestUserRequest`. Null stays explicitly unavailable. Replies, activities, model names, and former-epoch requests never become synthesized user requests.
@@ -66,3 +66,21 @@ The “状态驱动办公室” tab runs `LiveOfficeExample`, which publishes ex
 `tests/live-office-motion.test.ts` covers semantic transitions, missing data, reduced motion, epoch replacement, canceled departures, persona safety, child bounds, leadership, and geometry mapping. `tests/live-office-mounted.test.ts` mounts the actual React component under Strict Mode with an injected adapter and controlled scheduler. It covers the shared scene, latest-request truthfulness, mid-arrival/mid-sit pause, rapid status changes, monotonic expiry while paused, disconnect, offline exit, config rebinding, partial coverage, unknown persona, late callbacks, and complete teardown. Existing whole-office tests verify the shared presentation still preserves the 26-second demo and its geometry.
 
 These are mounted DOM and deterministic contract tests, not an actual Electron installation or real-host end-to-end test. See [electron-integration.md](electron-integration.md) for that remaining host integration boundary.
+
+## Fixed physical seat assignment
+
+The floor contains all furniture at once; legacy `team.layout` is only a fallback allocation preference, not a visible room-layout switch. `independent-desks` / `leader-desks` allocate unassigned public members to desks first; `peer-table` allocates table seats first. Explicit positions always reserve their locations before fallback allocation. Member array order is stable and does not depend on network result ordering. A leader remains a data role, never an automatic private-office occupant.
+
+In version-1 configuration, `office.team.seatAssignments` maps logical member IDs to physical seats, for example:
+
+```json
+{
+  "deepseek": "public-table-1-seat-1",
+  "chatgpt": "public-desk-1",
+  "grok": "public-desk-2"
+}
+```
+
+Allowed destinations are `public-desk-1` through `public-desk-10`, and `public-table-1-seat-1` through `public-table-3-seat-3`. The key must identify a configured public member. Duplicate destinations, private-room destinations, unknown fields and accessors are rejected. `bindOffice` remaps logical keys to actual epoch-bound IDs; hosts supplying `topology` directly use current agent IDs as keys.
+
+`liveOfficeSeatReport(topology)` returns physical assignments plus child/public overflow IDs. A configured but temporarily missing agent keeps its reserved slot, while source freshness governs its neutral/absent visual state. Unconfigured physical slots stay empty and cannot emit statuses, request summaries or animation targets. Overflow members remain inspectable; they do not silently replace seated members. The self office always reserves one owner seat and at most three child seats.

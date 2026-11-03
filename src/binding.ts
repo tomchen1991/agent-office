@@ -51,6 +51,7 @@ export function bindOffice(configInput: OfficeConfig, snapshot: OfficeSnapshot):
       team: {
         layout: config.office.team.layout,
         memberIds: config.office.team.memberSeatIds.map(id => displayIds[id]),
+        ...(config.office.team.seatAssignments ? {seatAssignments: Object.fromEntries(Object.entries(config.office.team.seatAssignments).map(([id, physicalId]) => [displayIds[id], physicalId]))} : {}),
         ...(config.office.team.leaderSeatId ? {leaderId: displayIds[config.office.team.leaderSeatId]} : {}),
       },
     },

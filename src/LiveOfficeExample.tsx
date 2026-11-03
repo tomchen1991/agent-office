@@ -43,12 +43,12 @@ export function contractExampleConfig(layout: OfficeConfig['office']['team']['la
   const names = ['自研 Agent', 'DeepSeek', 'ChatGPT', 'Grok', '子 Agent 1', '子 Agent 2', '子 Agent 3', '子 Agent 4', '子 Agent 5'];
   const ids = ['self', 'deepseek', 'chatgpt', 'grok', 'child-1', 'child-2', 'child-3', 'child-4', 'child-5'];
   return { version: 1, seats: ids.map((id, index) => ({ id, name: names[index], character: index < 4 ? (['self', 'deepseek', 'chatgpt', 'grok'] as const)[index] : 'self', selector: { sourceId: 'contract-example', instanceId: id, epoch: { policy: 'follow-unique' } } })),
-    office: { selfSeatId: 'self', childSeatIds: ids.slice(4), team: { layout, memberSeatIds: ids.slice(1, 4), ...(layout === 'leader-desks' ? { leaderSeatId: 'chatgpt' } : {}) } } };
+    office: { selfSeatId: 'self', childSeatIds: ids.slice(4), team: { layout, memberSeatIds: ids.slice(1, 4), seatAssignments: { deepseek: 'public-table-1-seat-1', chatgpt: 'public-desk-1', grok: 'public-desk-2' }, ...(layout === 'leader-desks' ? { leaderSeatId: 'chatgpt' } : {}) } } };
 }
 
 export function LiveOfficeExample() {
   const source = useMemo(createContractExampleSource, []);
-  const [layout, setLayout] = useState<OfficeConfig['office']['team']['layout']>('independent-desks');
+  const layout = 'independent-desks' as const;
   const [status, setStatus] = useState<OfficeStatus>('working');
   const [missing, setMissing] = useState(false);
   const [stale, setStale] = useState(false);
@@ -58,7 +58,7 @@ export function LiveOfficeExample() {
       <div className="live-actions" role="group" aria-label="模拟自研 Agent 状态">{(['working', 'idle', 'waiting', 'stopping', 'offline', 'unknown'] as const).map(value => <button key={value} aria-pressed={status === value && !missing && !stale} onClick={() => { source.setStatus(value); setStatus(value); setMissing(false); setStale(false); }}>{liveStatusLabels[value]}</button>)}</div>
       <div className="live-actions"><button aria-pressed={missing} onClick={() => { source.setMissing(!missing); setMissing(!missing); }}>{missing ? '恢复完整快照' : '模拟局部缺失'}</button><button aria-pressed={stale} onClick={() => { source.setStale(!stale); setStale(!stale); }}>{stale ? '恢复新鲜状态' : '模拟状态过期'}</button><button onClick={() => source.replaceEpoch()}>替换 collector epoch</button><button onClick={() => { source.refresh(); setStale(false); }}>刷新合成快照</button></div>
       {missing && <p role="status">此示例使用自动跟随唯一 epoch 的绑定策略。覆盖不完整时，全部席位会暂时取消绑定；恢复完整快照后恢复。使用 exact epoch 的宿主仍可绑定已知实例。</p>}
-      <div className="wo-layout-picker" role="group" aria-label="显式拓扑配置">{([['independent-desks', '独立工位'], ['leader-desks', '主从工位'], ['peer-table', '平等协作桌']] as const).map(([value, label]) => <button key={value} aria-pressed={layout === value} onClick={() => setLayout(value)}>{label}</button>)}</div>
+      <p>固定 23 席同时存在。当前显式分配：DeepSeek 在公共协作桌 1，ChatGPT、Grok 在独立工位 1、2；其余公共席位留空。主办公室的协作桌用于最多 3 个可见子 Agent。</p>
     </section>
     <LiveOffice adapterFactory={source.adapterFactory} officeConfig={officeConfig} modeLabel="合成合约示例 · 非真实采集" />
   </>;
