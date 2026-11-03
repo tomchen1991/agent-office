@@ -17,7 +17,7 @@ test('compact architecture and fit aspect match the logical floor without a defa
  const css=readFileSync(new URL('../src/whole-office.css',import.meta.url),'utf8');
  assert.ok(css.includes('aspect-ratio:2250/1050'));
  assert.ok(css.includes('width:min(100%,167.1428571vh)'));
- assert.ok(css.includes('.wo-fixed-world .wo-glass-wall{left:28.888889%;top:11.428571%;width:.4%;height:60%;z-index:750'));
+ assert.ok(css.includes('.wo-fixed-world .wo-glass-wall{left:28.888889%;top:11.428571%;width:.4%;height:55.238095%;z-index:700'));
  assert.ok(css.includes('.wo-fixed-world .wo-private-bottom{left:1.777778%;top:95.238095%;'));
  assert.ok(!css.includes('aspect-ratio:2400/1600'));
 });

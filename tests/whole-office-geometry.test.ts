@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {demoCharacters} from '../src/demoAssets.ts';
 import {demoFrame} from '../src/demoTimeline.ts';
-import {fixedOfficeSeats,fixedOfficeTables,OFFICE_WORLD,wholeOfficeSeats,officeRoute,officeApproachPoint,pointAlongOfficeRoute,officeActorPlacement,officeTravelTiming} from '../src/wholeOfficeGeometry.ts';
+import {fixedOfficeSeats,fixedOfficeTables,OFFICE_WORLD,wholeOfficeSeats,officeRoute,officeApproachPoint,pointAlongOfficeRoute,officeActorPlacement,officeTravelTiming,officeActorWidth,OFFICE_ACTOR_RATIO,OFFICE_DESK,officeLocalPoint} from '../src/wholeOfficeGeometry.ts';
 const close=(a:number,b:number)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 test('office privilege stays independent from explicitly configured team leader',()=>{
  for(const layout of ['independent-desks','leader-desks','peer-table'] as const){
@@ -19,7 +19,7 @@ test('private routes cross doorway before travelling inside and terminate at the
  for(const layout of ['independent-desks','leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
   const route=officeRoute(seat),last=pointAlongOfficeRoute(route,1),first=pointAlongOfficeRoute(route,0);
   assert.equal(first.x,780);assert.equal(first.y,1010);close(last.x,officeApproachPoint(seat).x);close(last.y,officeApproachPoint(seat).y);
-  if(seat.kind!=='team'){assert.ok(route.some(p=>p.x===518&&p.y===980));assert.ok(route.some(p=>p.x===780&&p.y===980));}
+  if(seat.kind!=='team'){assert.ok(route.some(p=>p.x===486&&p.y===980));assert.ok(route.some(p=>p.x===780&&p.y===980));}
   for(let t=0;t<=1;t+=.01){const p=pointAlongOfficeRoute(route,t);assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));}
  }
 });
@@ -112,7 +112,7 @@ test('all 23 physical routes stay inside the world and cross the partition only 
  assert.ok(timings.every(t=>t.exitDelayMs+t.exitTravelMs<=4000));
 });
 
-test('second density increment grows actual furniture without changing width or camera fit',()=>{
+test('character ratio correction keeps world, camera fit, seat capacity and floor scale unchanged',()=>{
  assert.deepEqual(OFFICE_WORLD,{width:2250,height:1050});
  const seats=fixedOfficeSeats(),owner=seats.find(s=>s.id==='self')!,desks=seats.filter(s=>s.id.startsWith('public-desk-'));
  close(owner.scale/1.05,1.1/1.05);assert.ok(desks.every(s=>s.scale===.756));
@@ -120,7 +120,7 @@ test('second density increment grows actual furniture without changing width or 
  assert.equal(fixedOfficeTables[1].y,245);assert.equal(desks[0].y,580);
  assert.equal(fixedOfficeTables[0].scale,.65,'Private table preserves its constrained access aisle');
  for(const table of fixedOfficeTables.filter(t=>!t.private)){
-  close(table.scale/.7,1.03);close(table.width,635*table.scale);close(table.height,268*table.scale);
+  close(table.scale/.7,1.03);close(table.width,635*table.scale*.9);close(table.height,268*table.scale);
  }
  const viewport={width:1108,height:590};
  const previousFit=Math.min(viewport.width/2250,viewport.height/1100);
@@ -149,6 +149,44 @@ test('route centers avoid other tabletop and desk-front envelopes with positive 
      :a.y>item.top&&a.y<item.bottom&&Math.max(a.x,b.x)>item.left&&Math.min(a.x,b.x)<item.right;
     assert.ok(!intersects,`${seat.id} route segment ${i} crosses ${item.id}`);
    }
+  }
+ }
+});
+
+
+test('actors grow independently by 25% while desktop widths shrink by 10%',()=>{
+ assert.equal(OFFICE_ACTOR_RATIO,1.25);
+ close(OFFICE_DESK.frontWidth/330,.9);
+ for(const seat of fixedOfficeSeats())for(const character of demoCharacters){
+  const oldWidth=220*seat.scale;
+  close(officeActorWidth(seat)/oldWidth,1.25);
+  const work=officeActorPlacement(seat,character,'work',0,0);
+  close(work.width,officeActorWidth(seat));
+  close(work.width/(OFFICE_DESK.frontWidth*seat.scale)/(220/330),1.25/.9);
+  // The registered seated hand contact does not move when the body grows.
+  close(work.x,seat.x);close(work.y,seat.y);
+  const keyboardCenter=officeLocalPoint({...seat,scale:seat.scale*OFFICE_ACTOR_RATIO},685,365.5);
+  assert.ok(Math.abs(keyboardCenter.x-seat.x)<7);
+  assert.ok(Math.abs(keyboardCenter.y-seat.y)<2);
+  const approach=officeApproachPoint(seat,character);
+  close(approach.y,seat.y+(character.locomotion.anchor.y-character.seated.anchor.y)*work.width);
+ }
+ for(const table of fixedOfficeTables)close(table.width/(635*table.scale),.9);
+});
+
+
+test('shared side seats inset the whole station so enlarged keyboards stay on the surface',()=>{
+ for(const table of fixedOfficeTables){
+  const seats=fixedOfficeSeats().filter(s=>s.tableId===table.id);
+  // Verified against all four approved seated PNG masks (all eight frames).
+  // Moving the center with the left station preserves their original clearance.
+  assert.ok(seats[1].x-seats[0].x>=180*table.scale-1e-8);
+  assert.ok(seats[2].x-seats[1].x>=180*table.scale);
+  for(const seat of [seats[0],seats[2]]){
+   const scale=seat.scale*OFFICE_ACTOR_RATIO;
+   const corners=[officeLocalPoint({...seat,scale},630,358),officeLocalPoint({...seat,scale},740,373)];
+   assert.ok(Math.min(...corners.map(p=>p.x))>=table.x+2,`${seat.id} keyboard extends beyond left edge`);
+   assert.ok(Math.max(...corners.map(p=>p.x))<=table.x+table.width-2,`${seat.id} keyboard extends beyond right edge`);
   }
  }
 });

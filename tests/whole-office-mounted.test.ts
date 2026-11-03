@@ -38,6 +38,7 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   assert.equal(scene().getAttribute('data-office-layout'),'fixed-office');
   assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length,10);
   assert.equal(container.querySelectorAll('[data-office-shared-table]').length,4);
+  for(const surface of container.querySelectorAll('.wo-shared-furniture'))assert.equal(surface.getAttribute('preserveAspectRatio'),'none','Horizontal table tightening must not rescale its calibrated height');
   assert.equal(container.querySelectorAll('.wo-chair').length,23);
   assert.equal(container.querySelectorAll('.wo-team-links').length,0);
   assert.equal(container.querySelectorAll('[data-office-actor]').length,7);

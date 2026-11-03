@@ -3,7 +3,10 @@ import type { DemoCharacter } from './demoAssets.ts';
 import type { DemoStage } from './demoTimeline.ts';
 import { DEMO_SPRITE_WIDTH_PERCENT, SEATED_CONTACT_Y, seatingPlacement, seatingPose } from './demoSeating.ts';
 
-/** A single shared world. Only furniture and actors use the original scene's calibration. */
+/** Actor-only enlargement. Furniture/world/camera scales remain independent. */
+export const OFFICE_ACTOR_RATIO = 1.25;
+export const officeActorWidth = (seat: OfficeSeat) => DEMO_SPRITE_WIDTH_PERCENT * 10 * seat.scale * OFFICE_ACTOR_RATIO;
+export const OFFICE_DESK = { backX: 610, backWidth: 277, frontX: 600, frontWidth: 297 } as const;
 export const OFFICE_WORLD = { width: 2250, height: 1050 } as const;
 export const officeRegionCenters = { private: { x: 325, y: 520 }, public: { x: 1420, y: 320 }, desks: { x: 1420, y: 720 } } as const;
 export const MAX_SIMULATED_CHILD_SEATS = 3;
@@ -28,10 +31,10 @@ const SOURCE_SEAT = { x: 680, y: SEATED_CONTACT_Y * 5.7 };
 export interface OfficeTable extends OfficePoint {
   id: string; width: number; height: number; depth: number; scale: number; private: boolean;
 }
-/** The approved continuous shared surface, repeated without changing its shape. */
+/** Continuous three-seat surface: horizontal excess trimmed, original height retained. */
 export const fixedOfficeTables: readonly OfficeTable[] = [
-  { id: 'private-table', x: 90, y: 600, width: 412.75, height: 174.2, depth: 724.8, scale: .65, private: true },
-  ...[0, 1, 2].map(index => ({ id: `public-table-${index + 1}`, x: 740 + index * 480, y: 245, width: 457.835, height: 193.228, depth: 383.432, scale: .721, private: false })),
+  { id: 'private-table', x: 110, y: 600, width: 371.475, height: 174.2, depth: 724.8, scale: .65, private: true },
+  ...[0, 1, 2].map(index => ({ id: `public-table-${index + 1}`, x: 800 + index * 460, y: 245, width: 412.0515, height: 193.228, depth: 383.432, scale: .721, private: false })),
 ];
 /** All furniture exists even when no agent is connected. No template is an actor. */
 export function fixedOfficeSeats(): OfficeSeat[] {
@@ -40,7 +43,7 @@ export function fixedOfficeSeats(): OfficeSeat[] {
     const offsets = [{ x: 40, y: 89 }, { x: 240, y: 6 }, { x: 580, y: 89, mirrored: true }];
     offsets.forEach((offset, index) => {
       const id = table.private ? `self-child-${index + 1}` : `${table.id}-seat-${index + 1}`;
-      seats.push({ id, geometryId: id, persona: 'self', label: `空席 ${index + 1}`, kind: table.private ? 'simulated-child' : 'team', role: table.private ? '办公室协作席' : '公共协作席', x: table.x + offset.x * table.scale, y: table.y + offset.y * table.scale, scale: .85 * table.scale, sharedTable: true, tableId: table.id, mirrored: offset.mirrored, empty: true });
+      seats.push({ id, geometryId: id, persona: 'self', label: `空席 ${index + 1}`, kind: table.private ? 'simulated-child' : 'team', role: table.private ? '办公室协作席' : '公共协作席', x: table.x + offset.x * table.scale * .9 + (index === 2 ? -12 : 20), y: table.y + offset.y * table.scale, scale: .85 * table.scale, sharedTable: true, tableId: table.id, mirrored: offset.mirrored, empty: true });
     });
   }
   for (let index = 0; index < 10; index++) {
@@ -62,7 +65,7 @@ export function officeLocalPoint(seat: OfficeSeat, sourceX: number, sourceY: num
   return { x: seat.x + (seat.mirrored ? -1 : 1) * (sourceX - SOURCE_SEAT.x) * seat.scale, y: seat.y + (sourceY - SOURCE_SEAT.y) * seat.scale };
 }
 export function officeApproachPoint(seat: OfficeSeat, character = demoCharacters.find(item => item.id === seat.persona)!): OfficePoint {
-  const width = DEMO_SPRITE_WIDTH_PERCENT * 10 * seat.scale;
+  const width = officeActorWidth(seat);
   // In the whole office, upright feet stay on the same floor as seated feet.
   // The isolated character lab retains its own earlier short approach choreography.
   return { x: seat.x + (seat.mirrored ? -1 : 1) * (character.locomotion.anchor.x - character.seated.anchor.x) * width, y: seat.y + (character.locomotion.anchor.y - character.seated.anchor.y) * width };
@@ -80,11 +83,11 @@ export function officeRoute(seat: OfficeSeat, character?: DemoCharacter): Office
   if (seat.sharedTable) {
     const table = fixedOfficeTables.find(item => item.id === seat.tableId)!;
     const perimeterX = seat.mirrored ? table.x + table.width + 12 : seat.x - (table.private ? 0 : 25);
-    const aisleY = table.y - 110;
-    return [...entry, ...(table.private ? [{ x: 518, y: 980 }, { x: 518, y: aisleY }] : [{ x: 735, y: 980 }, { x: 735, y: aisleY }]), { x: perimeterX, y: aisleY }, { x: perimeterX, y: end.y }, end];
+    const aisleY = table.y - 70;
+    return [...entry, ...(table.private ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: perimeterX, y: aisleY }, { x: perimeterX, y: end.y }, end];
   }
-  const aisleY = seat.y - (seat.kind === 'owner' ? 120 : 100);
-  return [...entry, ...(seat.kind === 'owner' ? [{ x: 518, y: 980 }, { x: 518, y: aisleY }] : [{ x: 750, y: 980 }, { x: 750, y: aisleY }]), { x: seat.x - (seat.kind === 'owner' ? 60 : 80), y: aisleY }, { x: seat.x - (seat.kind === 'owner' ? 60 : 80), y: end.y }, end];
+  const aisleY = seat.y - (seat.kind === 'owner' ? 60 : 100);
+  return [...entry, ...(seat.kind === 'owner' ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: seat.x - (seat.kind === 'owner' ? 30 : 80), y: aisleY }, { x: seat.x - (seat.kind === 'owner' ? 30 : 80), y: end.y }, end];
 }
 export function pointAlongOfficeRoute(route: readonly OfficePoint[], progress: number): OfficePoint & { movingLeft: boolean } {
   const lengths = route.slice(1).map((point, index) => Math.hypot(point.x - route[index].x, point.y - route[index].y));
@@ -100,7 +103,7 @@ export function pointAlongOfficeRoute(route: readonly OfficePoint[], progress: n
   return { ...route[0], movingLeft: false };
 }
 export function officeActorPlacement(seat: OfficeSeat, character: DemoCharacter, stage: DemoStage, stageElapsedMs: number, _progress: number, reducedMotion = false) {
-  const width = DEMO_SPRITE_WIDTH_PERCENT * 10 * seat.scale;
+  const width = officeActorWidth(seat);
   if (stage === 'sit' || stage === 'stand') {
     const pose = seatingPose(stage, stageElapsedMs, reducedMotion);
     const placement = seatingPlacement(pose, character.locomotion.anchor, character.seated.anchor);

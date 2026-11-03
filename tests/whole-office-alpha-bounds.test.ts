@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {demoCharacters} from '../src/demoAssets.ts';
-import {fixedOfficeSeats,officeRoute,OFFICE_WORLD} from '../src/wholeOfficeGeometry.ts';
-import {DEMO_SPRITE_WIDTH_PERCENT} from '../src/demoSeating.ts';
+import {fixedOfficeSeats,officeRoute,OFFICE_WORLD,officeActorWidth} from '../src/wholeOfficeGeometry.ts';
 
 // Pillow RGBA alpha.getbbox() measured the four actual walking cells. Hashes bind
 // these opaque bounds to the unchanged approved PNGs, with no runtime dependency.
@@ -15,7 +14,7 @@ test('opaque walking pixels stay inside the compact world for every seat, person
   const atlas=character.locomotion, measured=bounds[character.id];
   assert.equal(createHash('sha256').update(readFileSync(new URL(`../public/${atlas.src}`,import.meta.url))).digest('hex'),measured.sha256,'Re-measure alpha bounds when changing an approved atlas');
   for(const seat of fixedOfficeSeats()){
-   const route=officeRoute(seat,character),width=DEMO_SPRITE_WIDTH_PERCENT*10*seat.scale;
+   const route=officeRoute(seat,character),width=officeActorWidth(seat);
    for(let index=1;index<route.length;index++){
     const from=route[index-1],to=route[index];
     // Translations are linear, so endpoints bound world extrema. Intermediate
@@ -33,10 +32,10 @@ test('opaque walking pixels stay inside the compact world for every seat, person
      assert.ok(pixelLeft>=0&&pixelRight<=OFFICE_WORLD.width,`${context}: horizontal [${pixelLeft},${pixelRight}]`);
      assert.ok(pixelTop>=0&&pixelBottom<=OFFICE_WORLD.height,`${context}: vertical [${pixelTop},${pixelBottom}]`);
      maximumRight=Math.max(maximumRight,pixelRight);
-     // Below the open door (y750–1000), actors may cross the partition.
+     // Below the open door (y700–1000), actors may cross the partition.
      // Above it, the full opaque silhouette stays on its assigned side.
      if((seat.kind==='owner'||seat.kind==='simulated-child')&&pixelTop<1000&&pixelBottom>120) assert.ok(pixelLeft>=49,`${context}: private pixels cross left wall: ${pixelLeft}`);
-     if(pixelTop<750&&pixelBottom>120){
+     if(pixelTop<700&&pixelBottom>120){
       if(seat.kind==='owner'||seat.kind==='simulated-child') { assert.ok(pixelRight<=650,`${context}: private pixels cross partition: ${pixelRight}`); }
       else assert.ok(pixelLeft>=659,`${context}: public pixels cross partition: ${pixelLeft}`);
      }
