@@ -4,8 +4,8 @@ import type { DemoStage } from './demoTimeline.ts';
 import { DEMO_SPRITE_WIDTH_PERCENT, SEATED_CONTACT_Y, seatingPlacement, seatingPose } from './demoSeating.ts';
 
 /** A single shared world. Only furniture and actors use the original scene's calibration. */
-export const OFFICE_WORLD = { width: 2250, height: 1100 } as const;
-export const officeRegionCenters = { private: { x: 325, y: 540 }, public: { x: 1420, y: 320 }, desks: { x: 1420, y: 750 } } as const;
+export const OFFICE_WORLD = { width: 2250, height: 1050 } as const;
+export const officeRegionCenters = { private: { x: 325, y: 520 }, public: { x: 1420, y: 320 }, desks: { x: 1420, y: 720 } } as const;
 export const MAX_SIMULATED_CHILD_SEATS = 3;
 export const SIMULATED_CHILD_COUNT = 5;
 export type OfficeLayout = 'independent-desks' | 'leader-desks' | 'peer-table';
@@ -30,12 +30,12 @@ export interface OfficeTable extends OfficePoint {
 }
 /** The approved continuous shared surface, repeated without changing its shape. */
 export const fixedOfficeTables: readonly OfficeTable[] = [
-  { id: 'private-table', x: 90, y: 620, width: 412.75, height: 174.2, depth: 744.8, scale: .65, private: true },
-  ...[0, 1, 2].map(index => ({ id: `public-table-${index + 1}`, x: 750 + index * 470, y: 250, width: 444.5, height: 187.6, depth: 384.4, scale: .7, private: false })),
+  { id: 'private-table', x: 90, y: 600, width: 412.75, height: 174.2, depth: 724.8, scale: .65, private: true },
+  ...[0, 1, 2].map(index => ({ id: `public-table-${index + 1}`, x: 740 + index * 480, y: 245, width: 457.835, height: 193.228, depth: 383.432, scale: .721, private: false })),
 ];
 /** All furniture exists even when no agent is connected. No template is an actor. */
 export function fixedOfficeSeats(): OfficeSeat[] {
-  const seats: OfficeSeat[] = [{ id: 'self', geometryId: 'self', persona: 'self', label: '主工位', kind: 'owner', role: '独立办公室 · 大工位', x: 240, y: 350, scale: 1.05, empty: true }];
+  const seats: OfficeSeat[] = [{ id: 'self', geometryId: 'self', persona: 'self', label: '主工位', kind: 'owner', role: '独立办公室 · 大工位', x: 250, y: 340, scale: 1.1, empty: true }];
   for (const table of fixedOfficeTables) {
     const offsets = [{ x: 40, y: 89 }, { x: 240, y: 6 }, { x: 580, y: 89, mirrored: true }];
     offsets.forEach((offset, index) => {
@@ -45,7 +45,7 @@ export function fixedOfficeSeats(): OfficeSeat[] {
   }
   for (let index = 0; index < 10; index++) {
     const id = `public-desk-${index + 1}`;
-    seats.push({ id, geometryId: id, persona: 'self', label: `工位 ${String(index + 1).padStart(2, '0')}`, kind: 'team', role: '公共独立工位', x: 910 + index % 5 * 270, y: 600 + Math.floor(index / 5) * 250, scale: .72, empty: true });
+    seats.push({ id, geometryId: id, persona: 'self', label: `工位 ${String(index + 1).padStart(2, '0')}`, kind: 'team', role: '公共独立工位', x: 910 + index % 5 * 270, y: 580 + Math.floor(index / 5) * 235, scale: .756, empty: true });
   }
   return seats;
 }
@@ -76,15 +76,15 @@ export function officeTravelTiming(seat: OfficeSeat) {
 /** Routes use the central aisle and the open partition doorway, then each table perimeter. */
 export function officeRoute(seat: OfficeSeat, character?: DemoCharacter): OfficePoint[] {
   const end = officeApproachPoint(seat, character);
-  const entry = [{ x: 780, y: 1050 }, { x: 780, y: 990 }];
+  const entry = [{ x: 780, y: 1010 }, { x: 780, y: 980 }];
   if (seat.sharedTable) {
     const table = fixedOfficeTables.find(item => item.id === seat.tableId)!;
     const perimeterX = seat.mirrored ? table.x + table.width + 12 : seat.x - (table.private ? 0 : 25);
     const aisleY = table.y - 110;
-    return [...entry, ...(table.private ? [{ x: 510, y: 990 }, { x: 510, y: aisleY }] : [{ x: 745, y: 990 }, { x: 745, y: aisleY }]), { x: perimeterX, y: aisleY }, { x: perimeterX, y: end.y }, end];
+    return [...entry, ...(table.private ? [{ x: 518, y: 980 }, { x: 518, y: aisleY }] : [{ x: 735, y: 980 }, { x: 735, y: aisleY }]), { x: perimeterX, y: aisleY }, { x: perimeterX, y: end.y }, end];
   }
   const aisleY = seat.y - (seat.kind === 'owner' ? 120 : 100);
-  return [...entry, ...(seat.kind === 'owner' ? [{ x: 510, y: 990 }, { x: 510, y: aisleY }] : [{ x: 745, y: 990 }, { x: 745, y: aisleY }]), { x: seat.x - (seat.kind === 'owner' ? 60 : 90), y: aisleY }, { x: seat.x - (seat.kind === 'owner' ? 60 : 90), y: end.y }, end];
+  return [...entry, ...(seat.kind === 'owner' ? [{ x: 518, y: 980 }, { x: 518, y: aisleY }] : [{ x: 750, y: 980 }, { x: 750, y: aisleY }]), { x: seat.x - (seat.kind === 'owner' ? 60 : 80), y: aisleY }, { x: seat.x - (seat.kind === 'owner' ? 60 : 80), y: end.y }, end];
 }
 export function pointAlongOfficeRoute(route: readonly OfficePoint[], progress: number): OfficePoint & { movingLeft: boolean } {
   const lengths = route.slice(1).map((point, index) => Math.hypot(point.x - route[index].x, point.y - route[index].y));

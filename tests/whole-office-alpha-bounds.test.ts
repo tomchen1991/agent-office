@@ -18,9 +18,10 @@ test('opaque walking pixels stay inside the compact world for every seat, person
    const route=officeRoute(seat,character),width=DEMO_SPRITE_WIDTH_PERCENT*10*seat.scale;
    for(let index=1;index<route.length;index++){
     const from=route[index-1],to=route[index];
-    // Translations are linear on each segment. Its endpoints bound all interior
-    // positions. Test both directions, including the mirror change at corners.
-    for(const mirrored of [to.x<from.x,!(to.x<from.x)])for(const [frame,box] of measured.frames.entries())for(const point of [from,to]){
+    // Translations are linear, so endpoints bound world extrema. Intermediate
+    // samples additionally exercise the conditional wall-height checks. Test
+    // both directions, including the mirror change at corners.
+    for(const mirrored of [to.x<from.x,!(to.x<from.x)])for(const [frame,box] of measured.frames.entries())for(const point of Array.from({length:33},(_,step)=>({x:from.x+(to.x-from.x)*step/32,y:from.y+(to.y-from.y)*step/32}))){
      const [x0,y0,x1,y1]=box;
      const left=mirrored?atlas.cellWidth-x1:x0,right=mirrored?atlas.cellWidth-x0:x1;
      const anchor=mirrored?1-atlas.anchor.x:atlas.anchor.x;
@@ -32,10 +33,10 @@ test('opaque walking pixels stay inside the compact world for every seat, person
      assert.ok(pixelLeft>=0&&pixelRight<=OFFICE_WORLD.width,`${context}: horizontal [${pixelLeft},${pixelRight}]`);
      assert.ok(pixelTop>=0&&pixelBottom<=OFFICE_WORLD.height,`${context}: vertical [${pixelTop},${pixelBottom}]`);
      maximumRight=Math.max(maximumRight,pixelRight);
-     // Below the open door (y775–1040), actors may cross the partition.
+     // Below the open door (y750–1000), actors may cross the partition.
      // Above it, the full opaque silhouette stays on its assigned side.
-     if((seat.kind==='owner'||seat.kind==='simulated-child')&&pixelTop<1040&&pixelBottom>120) assert.ok(pixelLeft>=49,`${context}: private pixels cross left wall: ${pixelLeft}`);
-     if(pixelTop<775&&pixelBottom>120){
+     if((seat.kind==='owner'||seat.kind==='simulated-child')&&pixelTop<1000&&pixelBottom>120) assert.ok(pixelLeft>=49,`${context}: private pixels cross left wall: ${pixelLeft}`);
+     if(pixelTop<750&&pixelBottom>120){
       if(seat.kind==='owner'||seat.kind==='simulated-child') { assert.ok(pixelRight<=650,`${context}: private pixels cross partition: ${pixelRight}`); }
       else assert.ok(pixelLeft>=659,`${context}: public pixels cross partition: ${pixelLeft}`);
      }
