@@ -49,6 +49,7 @@ docs/requirements.md    已确认需求和未定事项
 docs/assets.md          素材来源、状态与限制
 docs/integration.md     接入契约与宿主边界
 docs/motion.md          视觉生命周期与动作插槽限制
+docs/ui-qa.md           ReactDOM 挂载交互覆盖和浏览器验收边界
 ```
 
 ## 重要限制
