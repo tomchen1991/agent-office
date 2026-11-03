@@ -45,8 +45,7 @@ const regionCenters = officeRegionCenters;
 
 /** Shared approved office presentation. The caller owns its clock and data semantics. */
 export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demoCharacters, canAnimate, reducedMotion,
-  childCount, worldStage = 'live', floorLabel, floorStatus, working = false, error = false,
-  leaderLabel = 'ChatGPT', live = false, selectedId, onSelect, loading, children, statusForSeat }: WholeOfficeSceneProps) {
+  childCount, worldStage = 'live', floorLabel, floorStatus, live = false, selectedId, onSelect, loading, children, statusForSeat }: WholeOfficeSceneProps) {
   const [zoom, setZoom] = useState<number | null>(null);
   const [navigation, setNavigation] = useState<{ region: OfficeRegion; behavior: ScrollBehavior }>({ region: 'fit', behavior: 'auto' });
   const viewport = useRef<HTMLDivElement>(null);
@@ -114,15 +113,13 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
       <div data-office-seat={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} className={`wo-chair wo-${seat.kind} ${facingClass}`} style={furniturePosition({ ...seat, scale: seat.scale * OFFICE_ACTOR_RATIO, persona: calibration.id }, 625, 262.2, 110, 142.5, seat.y - 5)} aria-hidden="true"><span className="wo-chair-back" /><span className="wo-chair-seat" /><span className="wo-chair-leg" /></div>
       {!shared && <div className={`wo-desk-back wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.backX, 376.2, OFFICE_DESK.backWidth, 57, seat.y - 10)} aria-hidden="true" />}
       <div className={`wo-monitor ${facingClass} ${working ? 'wo-screen-work' : ''} ${error ? 'wo-screen-error' : ''}`} style={furniturePosition({ ...seat, persona: calibration.id }, 770, 267.9, shared ? 105 : 120, shared ? 110 : 119.7, shared ? surfaceDepth + 1 : surfaceDepth - 1)} aria-hidden="true"><div className="wo-screen"><strong>{seat.empty ? '○' : error ? '!' : working ? '>_' : !live && stage === 'slack' ? '☕' : indication?.status === 'stopping' ? 'Ⅱ' : indication?.status === 'unknown' ? '?' : '···'}</strong>{[0, 1, 2].map(index => <i key={index} style={{ width: `${working ? 28 + (workBeat * 13 + index * 19) % 60 : 50 - index * 10}%` }} />)}{working && !live && <b style={{ width: `${progress * 100}%` }} />}</div><span className="wo-monitor-neck" /></div>
-      {!seat.empty && (canAnimate || (seat.kind === 'owner' && personal)) && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-personal-phase={current.personal?.phase} data-scythe-owner={seat.kind === 'owner' && seat.persona === 'self' && actorHasScythe(personal) ? 'actor' : undefined} data-scythe-state={seat.kind === 'owner' ? scytheOwnership(personal) : undefined} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role="img" aria-label={`${seat.label}，${seat.role}，${current.label}`}>{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona"><b>?</b><span>身份未映射</span></div>}</div>}
+      {!seat.empty && (canAnimate || (seat.kind === 'owner' && personal)) && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-personal-phase={current.personal?.phase} data-scythe-owner={seat.kind === 'owner' && seat.persona === 'self' && actorHasScythe(personal) ? 'actor' : undefined} data-scythe-state={seat.kind === 'owner' ? scytheOwnership(personal) : undefined} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role="img" aria-label={`${seat.label}，${seat.role}，${current.label}`}>{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona" aria-label="身份未映射"><b aria-hidden="true">?</b></div>}</div>}
       {!shared && <div className={`wo-desk-front wo-${seat.kind} wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.frontX, 376.2, OFFICE_DESK.frontWidth, 119.7, surfaceDepth)} data-office-leader={seat.isLeader || undefined} data-office-desk={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} data-office-seat-kind={seat.kind}>
         <span className="wo-desk-top" /><span className="wo-desk-leg wo-left" /><span className="wo-desk-leg wo-right" />
-        <span className="wo-nameplate"><strong>{seat.label}</strong><small>{seat.role}</small></span>
       </div>}
       <div className={`wo-keyboard ${facingClass}`} style={furniturePosition({ ...seat, scale: seat.scale * OFFICE_ACTOR_RATIO, persona: calibration.id }, 630, 358, 110, 15, surfaceDepth + 1)} data-office-workbeat={working ? workBeat : undefined} aria-hidden="true">{Array.from({ length: 8 }, (_, key) => <i key={key} className={working && !reducedMotion && key === workBeat % 8 ? 'wo-key-pressed' : ''} />)}</div>
-      {shared && <div className={`wo-shared-name wo-${seat.persona}`} style={position(seat.x - 37, seat.y + 27, 120, 42, surfaceDepth + 3)}><strong>{seat.label}</strong><small>{seat.role}</small></div>}
-      {live && !seat.empty && <button className={`wo-seat-select ${selectedId === seat.id ? 'wo-seat-selected' : ''}`} style={position(seat.x - 55 * seat.scale, seat.y + 36 * seat.scale, 180 * seat.scale, 78 * seat.scale, 950)} onClick={() => onSelect?.(seat.id)} aria-pressed={selectedId === seat.id} aria-label={`${seat.label}，${indication?.label ?? '未收到数据'}，查看详情`}><span className={`wo-live-status wo-status-${indication?.status ?? 'unknown'}`}>{indication?.label ?? '未收到数据'}</span></button>}
-      {error && seat.kind !== 'simulated-child' && <div className="wo-error-bubble" style={position(seat.x - 62, seat.y - 158, 150, undefined, 900)}>! 演示任务异常</div>}
+      {live && !seat.empty && <button className={`wo-seat-select ${selectedId === seat.id ? 'wo-seat-selected' : ''}`} style={position(seat.x - 55 * seat.scale, seat.y + 36 * seat.scale, 180 * seat.scale, 78 * seat.scale, 950)} onClick={() => onSelect?.(seat.id)} aria-pressed={selectedId === seat.id} aria-label={`${seat.label}，${indication?.label ?? '未收到数据'}，查看详情`}><span className={`wo-live-status wo-status-${indication?.status ?? 'unknown'}`} aria-hidden="true">●</span></button>}
+      {error && seat.kind !== 'simulated-child' && <div className="wo-error-bubble" style={position(seat.x - 62, seat.y - 158, 150, undefined, 900)} role="img" aria-label="演示任务异常">!</div>}
     </Fragment>;
   };
 
@@ -130,16 +127,14 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
       <div className="wo-view-controls"><div><button onClick={() => setZoom(value => { const current = value ?? visibleScale(); return Math.min(current, Math.max(.025, current * .8)); })} aria-label="缩小办公室">−</button><button onClick={() => setZoom(value => Math.min(1.5, (value ?? visibleScale()) / .8))} aria-label="放大办公室">＋</button><button onClick={() => navigate('overview')} aria-pressed={zoom === COMFORTABLE_ZOOM}>舒适近景</button><button onClick={() => navigate('fit')} aria-pressed={zoom === null}>适应全景</button><button onClick={() => setZoom(1)} aria-pressed={zoom === 1}>100%</button><button onClick={() => viewport.current?.scrollBy({ left: -320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向左平移">←</button><button onClick={() => viewport.current?.scrollBy({ left: 320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向右平移">→</button><button onClick={() => viewport.current?.scrollBy({ top: -260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向上平移">↑</button><button onClick={() => viewport.current?.scrollBy({ top: 260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向下平移">↓</button></div></div>
       <div className="wo-region-controls" role="group" aria-label="跳转办公区域"><button onClick={() => navigate('private')}>主办公室</button><button onClick={() => navigate('public')}>公共协作桌</button><button onClick={() => navigate('desks')}>独立工位</button></div>
       <div ref={viewport} className="wo-viewport" tabIndex={0} role="region" aria-label="办公室可滚动全景，默认紧凑全景，完整保留 20 席，可缩放及横向纵向滚动">
-        <div ref={world} className={`wo-world wo-fixed-world wo-stage-${worldStage}`} style={zoom === null ? undefined : { width: OFFICE_WORLD.width * zoom }}>
-          <div className="wo-back-wall" aria-hidden="true"><span className="wo-studio-sign">✦ NIGHT SHIFT STUDIO</span><div className="wo-window wo-window-private"><i /><i /><i /><i /></div><div className="wo-window wo-window-team"><i /><i /><i /><i /></div><span className="wo-wall-clock">03 : 26</span></div>
+        <div ref={world} className={`wo-world wo-fixed-world wo-stage-${worldStage}`} role="group" aria-label={`${floorLabel}，${floorStatus}`} style={zoom === null ? undefined : { width: OFFICE_WORLD.width * zoom }}>
+          <div className="wo-back-wall" aria-hidden="true"><div className="wo-window wo-window-private"><i /><i /><i /><i /></div><div className="wo-window wo-window-team"><i /><i /><i /><i /></div></div>
           <div className="wo-floor" aria-hidden="true" />
           <div className="wo-private-floor" aria-hidden="true" />
           <div className="wo-team-rug" aria-hidden="true" />
           <div className="wo-private-border wo-private-top" aria-hidden="true" /><div className="wo-private-border wo-private-left" aria-hidden="true" /><div className="wo-private-border wo-private-bottom" aria-hidden="true" />
           <div className="wo-glass-wall" aria-hidden="true"><i /><i /><i /></div>
-          <div className="wo-private-door" aria-label="独立办公室的敞开门口"><span>OPEN</span></div>
-          <div className="wo-room-title wo-private-title"><h2>自研 Agent 独立办公室</h2></div>
-          <div className="wo-room-title wo-team-title"><h2>公共办公区</h2></div>
+          <div className="wo-private-door" aria-label="独立办公室的敞开门口"></div>
           <div className="wo-owner-rug" aria-hidden="true" />
           {(() => {
             const owner = furnitureSeats.find(seat => seat.kind === 'owner')!;
@@ -156,8 +151,7 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
               alt="停放在取放点的星月镰刀" style={{ ...position(placement.x, placement.y, placement.width, undefined, placement.y + 1),
                 transform: `translate(-${placement.contactX * 100}%, -${placement.contactY * 100}%)` }} />}</Fragment>;
           })()}
-          <div className="wo-child-label"><strong>子 Agent 工位</strong></div>
-          {childCount > MAX_SIMULATED_CHILD_SEATS && <div className="wo-child-overflow" aria-label={`还有 ${childCount - MAX_SIMULATED_CHILD_SEATS} 个${live ? '子 Agent' : '模拟子 Actor'}，最多展示 ${MAX_SIMULATED_CHILD_SEATS} 个席位`}><b>+{childCount - MAX_SIMULATED_CHILD_SEATS}</b><span>{live ? '子 Agent' : '模拟子 Actor'}</span></div>}
+          {childCount > MAX_SIMULATED_CHILD_SEATS && <div className="wo-child-overflow" aria-label={`还有 ${childCount - MAX_SIMULATED_CHILD_SEATS} 个${live ? '子 Agent' : '模拟子 Actor'}，最多展示 ${MAX_SIMULATED_CHILD_SEATS} 个席位`}><b>+{childCount - MAX_SIMULATED_CHILD_SEATS}</b></div>}
 
           {fixedOfficeTables.map(table => {
             const tableOccupants = furnitureSeats.filter(seat => seat.tableId === table.id && !seat.empty);
@@ -173,19 +167,18 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
                 <path className="wo-shared-top" d="M0 100 Q0 84 18 84 H92 Q104 84 116 70 L166 17 Q182 0 200 0 H405 Q423 0 439 17 L489 70 Q501 84 513 84 H617 Q635 84 635 100 V150 Q635 192 595 192 H40 Q0 192 0 150 Z" />
                 <path className="wo-shared-front-rim" d="M1 150 Q1 192 40 192 H595 Q634 192 634 150" />
               </svg>
-              <div className={`wo-shared-project ${tableError ? 'wo-project-error' : ''}`} data-office-shared-project="true"><span>{table.private ? '办公室协作' : `协作桌 ${table.id.slice(-1)}`}</span><div><i /><i /><i /></div><b>{tableError ? '!' : tableWorking ? '↗' : '···'}</b></div>
+              <div className={`wo-shared-project ${tableError ? 'wo-project-error' : ''}`} data-office-shared-project="true"><div><i /><i /><i /></div><b>{tableError ? '!' : tableWorking ? '↗' : '···'}</b></div>
               <span className="wo-shared-notes" aria-hidden="true"><i /><i /><i /></span>
             </div>;
           })}
           {furnitureSeats.map(renderSeat)}
           <div className="wo-plant wo-plant-one" aria-hidden="true"><span>✦</span><i /></div><div className="wo-plant wo-plant-two" aria-hidden="true"><span>✦</span><i /></div>
-          <div className="wo-door-mat" aria-hidden="true">SHARED ENTRANCE<span>↑</span></div>
-          <div className="wo-floor-caption"><i />{floorLabel}<span>{floorStatus}</span></div>
-          <div className="wo-coffee-corner" aria-hidden="true"><span>☕</span><b>TAKE A BREATH</b><small>工作，也记得休息。</small></div>
-          {loading}
+          <div className="wo-door-mat" aria-hidden="true"><span>↑</span></div>
+          <div className="wo-coffee-corner" aria-hidden="true"><span>☕</span></div>
 
         </div>
       </div>
+    {loading}
     {children}
   </div>;
 }

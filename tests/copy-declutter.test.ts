@@ -17,6 +17,20 @@ test('decluttered views retain mode labels, accessible controls and missing-data
       assert.match(doc.body.textContent!, /模拟|合成/);
       assert.doesNotMatch(doc.body.textContent!, /同一间办公室，一起|看她，真的|人物更醒目|桌面收紧|先搭骨架|React \+ TypeScript|素材就绪前，不用/);
       assert.ok(doc.querySelector('h1'), `${name}: semantic page title retained`);
+      const world = doc.querySelector('.wo-world,.lc-world,.office-scene')!;
+      assert.ok(world, `${name}: scene exists`);
+      const sceneCopy = world.cloneNode(true) as Element;
+      // Layout selectors remain necessary controls, not decorative scene labels.
+      sceneCopy.querySelectorAll('.layout-picker').forEach(control => control.remove());
+      assert.doesNotMatch(sceneCopy.textContent!, /[\p{L}]/u, `${name}: scene contains symbols, not decorative prose`);
+      assert.equal(world.querySelectorAll('.wo-nameplate,.wo-shared-name,.wo-room-title,.wo-child-label,.wo-floor-caption,.lc-desk-name,.lc-scene-caption,.desk-role,.arrival-label').length, 0);
+      assert.equal(world.querySelectorAll('[role="status"]').length, 0, `${name}: real load warnings remain outside scene`);
+      assert.equal(doc.querySelectorAll('.wo-stage-summary h2,.lc-stage-summary h2').length, 0);
+      if (name === 'App') {
+        assert.match(doc.querySelector('.owner-desk .agent-seat')!.getAttribute('aria-label')!, /查看详情/);
+        assert.equal(doc.querySelector('.private-office')!.getAttribute('aria-label'), '自研 Agent 独立办公室');
+      }
+
       for (const button of doc.querySelectorAll('button')) {
         assert.ok((button.getAttribute('aria-label') || button.textContent)?.trim(), `${name}: accessible button name`);
       }

@@ -5,3 +5,6 @@
 .lc-scythe-rack{position:absolute;left:49%;top:52%;width:8%;height:30%;z-index:3;filter:drop-shadow(2px 4px 0 #241c31)}
 
 .lifecycle-heading{margin-bottom:12px}.lc-demo-badge{display:inline-flex}.lc-stage-summary h2{margin:0}
+
+.lc-stage-wrap > .lc-asset-pending{position:relative;left:auto;right:auto;top:auto;margin:16px}
+.lc-stage-wrap > .lc-asset-pending{font-size:14px}.lc-stage-wrap > .lc-asset-pending small{font-size:12px}

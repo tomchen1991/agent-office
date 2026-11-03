@@ -49,6 +49,13 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       await click('self');
       assert.ok(container.querySelector('.wo-private-door')); assert.ok(container.querySelector('.wo-parked-scythe'));
       assert.ok(container.querySelector('[data-office-actor="mystery"] .wo-unknown-persona'));
+      assert.doesNotMatch(container.querySelector('.wo-world')!.textContent!, /[\p{L}]/u);
+      assert.equal(container.querySelector('.wo-world')!.getAttribute('role'), 'group');
+      for (const button of container.querySelectorAll('.wo-seat-select')) {
+        assert.match(button.getAttribute('aria-label')!, /查看详情/);
+        assert.equal(button.textContent, '●');
+      }
+      assert.match(self()!.getAttribute('aria-label')!, /self/);
       assert.equal(container.querySelector('[data-office-actor="mystery"] .wo-sprite'), null);
       assert.match(container.querySelector('.live-request')?.textContent ?? '', /Only actual USER summary/);
       await step(12);

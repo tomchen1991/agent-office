@@ -15,9 +15,9 @@ test('office SSR renders accessible topology, bounded seats and truthful missing
     assert.match(html, /另有 2 个子 Agent 未展示/);
     assert.match(html, /团队负责人/);
     assert.match(html, /未提供用户请求/);
-    assert.match(html, /占位形象/);
+    assert.match(html, /class="avatar empty-avatar"/);
     const peer = renderToStaticMarkup(createElement(App, { topology: { ...demoTopology, team: {...demoTopology.team, layout: 'peer-table'} } }));
-    assert.match(peer, /共享协作桌/);
+    assert.match(peer, /class="shared-table"/);
     assert.doesNotMatch(peer, /class="leader-seat"/);
   } finally { await vite.close(); }
 });

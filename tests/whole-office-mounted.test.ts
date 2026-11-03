@@ -49,10 +49,12 @@ test('mounted whole office: all personas share full lifecycle, user pause surviv
   assert.equal(container.querySelectorAll('[data-office-actor]').length,7);
   const actors=[...container.querySelectorAll('[data-office-actor]')];
   for(const id of ['self','deepseek','chatgpt','grok','github-demo'])assert.ok(actors.some(actor=>actor.getAttribute('data-office-actor')===id),id);
-  assert.match(container.textContent!,/独立办公室/);assert.match(container.textContent!,/模拟|演示/);
+  assert.match(container.querySelector('.wo-private-door')!.getAttribute('aria-label')!,/独立办公室/);assert.match(container.textContent!,/模拟|演示/);
   assert.equal(container.querySelectorAll('[data-office-actor][data-office-seat-kind="simulated-child"]').length,2);
   assert.equal(container.querySelectorAll('[data-office-shared-project]').length,2);
   assert.equal(container.querySelectorAll('.wo-screen-work').length,7);
+  assert.doesNotMatch(container.querySelector('.wo-world')!.textContent!, /[\p{L}]/u);
+  assert.match(container.querySelector('[data-office-actor="self"]')!.getAttribute('aria-label')!, /工作中/);
   assert.equal(container.querySelectorAll('.wo-layout-picker').length,0);
   const initialWorld=container.querySelector('.wo-world') as HTMLElement;
   assert.equal(initialWorld.style.width,'');assert.equal(button('适应全景').getAttribute('aria-pressed'),'true');

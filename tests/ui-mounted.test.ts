@@ -72,12 +72,15 @@ test('mounted office interactions and hook cleanup', async t => {
     });
     await t.test('disconnect downgrades work status; reconnect and reduced-motion work', async () => {
       await click(button('工作中'));
-      assert.equal(container.querySelector('.owner-desk .agent-status')?.textContent, '工作中');
+      assert.ok(container.querySelector('.owner-desk .agent-status.working'));
+      assert.match(container.querySelector('.owner-desk .agent-seat')!.getAttribute('aria-label')!, /工作中/);
       await click(button('断开数据源'));
-      assert.equal(container.querySelector('.owner-desk .agent-status')?.textContent, '状态未知');
+      assert.ok(container.querySelector('.owner-desk .agent-status.unknown'));
+      assert.match(container.querySelector('.owner-desk .agent-seat')!.getAttribute('aria-label')!, /状态未知/);
       assert.equal(frames.size, 0);
       await click(button('连接数据源')); await step();
-      assert.equal(container.querySelector('.owner-desk .agent-status')?.textContent, '工作中');
+      assert.ok(container.querySelector('.owner-desk .agent-status.working'));
+      assert.match(container.querySelector('.owner-desk .agent-seat')!.getAttribute('aria-label')!, /工作中/);
       await act(async () => { reduced = true; mediaListeners.forEach(listener => listener()); });
       assert.equal(button('系统偏好：减少动态').disabled, true);
       await click(button('离场演示'));

@@ -32,6 +32,8 @@ test('mounted full demonstration: four independent selections, action frames, pa
   await click([...container.querySelectorAll('.lc-stage-nav button')].find(b=>b.textContent?.includes('工作中'))!);
   await act(async()=>pendingImages.splice(0).forEach(loaded=>loaded()));
   assert.equal(scene().getAttribute('data-demo-stage'),'work');assert.equal(frames.size,0);
+  assert.doesNotMatch(container.querySelector('.lc-world')!.textContent!, /[\p{L}]/u);
+  assert.match(container.querySelector('.lc-world')!.getAttribute('aria-label')!, /工作中/);
   autoLoad=true;await click(button('从头重新播放'));
   await step(3);const before=container.querySelector('[data-demo-frame]')?.getAttribute('data-demo-frame');await step(2);
   assert.notEqual(container.querySelector('[data-demo-frame]')?.getAttribute('data-demo-frame'),before);
