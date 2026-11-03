@@ -5,7 +5,11 @@ import { officeActorWidth, officeApproachPoint, pointAlongOfficeRoute } from './
 import type { OfficeSeat } from './wholeOfficeGeometry.ts';
 export type PersonalRole = 'self' | 'github';
 export type PersonalPhase = 'game' | 'rise' | 'out' | 'pickup' | 'scythe' | 'putdown' | 'back' | 'settle';
-export interface PersonalIdle { phase: PersonalPhase; elapsedMs: number; returnFrom?: number }
+export interface PersonalIdle {
+  phase: PersonalPhase; elapsedMs: number; returnFrom?: number;
+  /** Latched recall deadline in the existing scythe clock; survives freeze/reconcile. */
+  scytheReturnAtMs?: number;
+}
 export const PERSONAL_IDLE_DELAY_MS = 5000;
 export const PERSONAL_IDLE_DURATION_MS = 11000;
 export const personalDuration: Record<PersonalPhase, number> = { game: 2600, rise: 2000, out: 1200, pickup: 1000, scythe: 2600, putdown: 1000, back: 1200, settle: 2000 };
@@ -16,7 +20,16 @@ export function personalRouteProgress(action: PersonalIdle): number {
 }
 export function interruptPersonal(action: PersonalIdle): PersonalIdle | undefined {
   if (action.phase === 'game') return undefined;
-  if (action.phase === 'scythe') return { phase: 'putdown', elapsedMs: 0 };
+  if (action.phase === 'scythe') {
+    if (action.scytheReturnAtMs !== undefined) return action;
+    // At the initial grip we can reverse immediately. Once spinning, finish
+    // this revolution, show its zero angle, then restore the exact handoff grip.
+    if (action.elapsedMs < 100) return { phase: 'putdown', elapsedMs: 0 };
+    const scytheReturnAtMs = action.elapsedMs < 1700
+      ? 100 + Math.ceil((action.elapsedMs - 100) / 800) * 800 + 200
+      : action.elapsedMs < 1900 ? 1900 : personalDuration.scythe;
+    return { ...action, scytheReturnAtMs };
+  }
   if (action.phase === 'pickup') return { phase: 'putdown', elapsedMs: Math.max(0, 999 - action.elapsedMs) };
   if (action.phase === 'putdown' || action.phase === 'back' || action.phase === 'settle') return action;
   if (action.phase === 'rise') return { phase: 'settle', elapsedMs: Math.max(0, 2000 - action.elapsedMs) };
@@ -25,8 +38,9 @@ export function interruptPersonal(action: PersonalIdle): PersonalIdle | undefine
 export function advancePersonal(action: PersonalIdle, role: PersonalRole, deltaMs: number): PersonalIdle | undefined {
   let next = { ...action, elapsedMs: action.elapsedMs + deltaMs };
   const sequence: PersonalPhase[] = role === 'self' ? ['rise', 'out', 'pickup', 'scythe', 'putdown', 'back', 'settle'] : ['game', 'rise', 'out', 'back', 'settle'];
-  while (next.elapsedMs >= personalDuration[next.phase]) {
-    const elapsedMs = next.elapsedMs - personalDuration[next.phase];
+  const duration = (value: PersonalIdle) => value.phase === 'scythe' ? value.scytheReturnAtMs ?? personalDuration.scythe : personalDuration[value.phase];
+  while (next.elapsedMs >= duration(next)) {
+    const elapsedMs = next.elapsedMs - duration(next);
     const phase = sequence[sequence.indexOf(next.phase) + 1];
     if (!phase) return undefined;
     next = { phase, elapsedMs };
@@ -37,7 +51,8 @@ export function personalDemo(role: PersonalRole, elapsedMs: number): PersonalIdl
 export function personalPose(action: PersonalIdle): { stage: DemoStage; stageElapsedMs: number; progress: number; sheet: 'seated' | 'locomotion' | 'extra' | 'pickup'; frame: number; personal: PersonalIdle } {
   const base = { stageElapsedMs: action.elapsedMs, progress: 0, personal: action };
   if (action.phase === 'pickup' || action.phase === 'putdown') return { ...base, stage: 'slack', sheet: 'pickup', frame: pickupFrame(action) };
-  if (action.phase === 'game' || action.phase === 'scythe') return { ...base, stage: 'slack', sheet: 'extra', frame: Math.floor(action.elapsedMs / 325) % 4 };
+  if (action.phase === 'scythe') return { ...base, stage: 'slack', sheet: 'extra', frame: scytheFrame(action) };
+  if (action.phase === 'game') return { ...base, stage: 'slack', sheet: 'extra', frame: Math.floor(action.elapsedMs / 325) % 4 };
   if (action.phase === 'rise' || action.phase === 'settle') {
     const stage = action.phase === 'rise' ? 'stand' : 'sit';
     const pose = seatingPose(stage, action.elapsedMs);
@@ -81,4 +96,21 @@ export function personalAssets(character: DemoCharacter): string[] {
 }
 export function personalAssetsReady(character: DemoCharacter, loaded: readonly string[]): boolean {
   return Boolean(character.extra && (character.id !== 'self' || (character.pickup && character.parkedScythe))) && personalAssets(character).every(src => loaded.includes(src));
+}
+
+/** Two complete clockwise revolutions, a visible pose, then the pickup's exact grip.
+ * Frames 0..7 are authored weapon directions, 8 is the handoff, 9 is wink/V.
+ * Never rotate the whole actor with CSS or loop the old four-frame swing.
+ */
+export function scytheFrame(action: PersonalIdle): number {
+  const ms = action.elapsedMs;
+  if (action.scytheReturnAtMs !== undefined && action.scytheReturnAtMs <= 1900) {
+    if (ms >= action.scytheReturnAtMs - 100) return 8;
+    if (ms >= action.scytheReturnAtMs - 200) return 0;
+  }
+  if (ms < 100) return 8;
+  if (ms < 1700) return Math.floor((ms - 100) / 100) % 8;
+  if (ms < 1800) return 0;
+  if (ms < 1900 || ms >= 2400) return 8;
+  return 9;
 }

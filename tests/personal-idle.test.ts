@@ -10,7 +10,7 @@ const seated = (role: 'self' | 'github') => advanceLiveOffice(reconcileLiveOffic
 for (const role of ['self', 'github'] as const) {
   test(`${role}: bounded complete demo, extra action and stroll, seated at end`, () => {
     const phases = new Set<string>();
-    for (let ms = 0; ms < (role === 'self' ? 11000 : 9000); ms += 100) { const action = personalDemo(role, ms)!; phases.add(action.phase); assert.ok(personalPose(action).frame < 8); }
+    for (let ms = 0; ms < (role === 'self' ? 11000 : 9000); ms += 100) { const action = personalDemo(role, ms)!; phases.add(action.phase); const pose = personalPose(action), atlas = demoCharacters.find(item => item.id === role)![pose.sheet]!; assert.ok(pose.frame < atlas.columns * atlas.rows); }
     assert.ok(phases.has('out')); assert.ok(phases.has('back')); assert.ok(phases.has(role === 'self' ? 'scythe' : 'game')); assert.ok(phases.has('settle'));
     assert.equal(personalDemo(role, role === 'self' ? 11000 : 9000), undefined);
     const seat = fixedOfficeSeats().find(item => item.kind === (role === 'self' ? 'owner' : 'github'))!;
@@ -30,7 +30,7 @@ for (const role of ['self', 'github'] as const) {
         assert.equal(changed[0]?.status, status);
         if (status === 'unknown') { if (role === 'self') { assert.deepEqual(changed[0].personal, personal); assert.equal(changed[0].frozen, true); } else { assert.equal(changed[0].personal, undefined); assert.equal(liveOfficePose(changed[0]).sheet, 'seated'); } }
         else {
-          assert.notEqual(changed[0]?.personal?.phase, 'game'); assert.notEqual(changed[0]?.personal?.phase, 'scythe');
+          assert.notEqual(changed[0]?.personal?.phase, 'game'); if (changed[0]?.personal?.phase === 'scythe') assert.ok(changed[0].personal.scytheReturnAtMs !== undefined);
           changed = advanceLiveOffice(changed, 9000);
           assert.ok(!changed[0]?.personal);
           if (status === 'working') assert.equal(changed[0].phase, 'seated');

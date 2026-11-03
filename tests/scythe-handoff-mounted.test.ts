@@ -106,8 +106,10 @@ test('independent mounted scythe lifecycle: one prop, freeze, return, replacemen
     });
     await t.test('work interrupts held weapon through putdown and return before any work screen', async () => {
       await reset(); await reach('scythe'); await step(2); oneWeapon();
+      const before = visual();
       await emit([agent('working')]);
-      assert.equal(self().getAttribute('data-office-personal-phase'), 'putdown');
+      assert.deepEqual(visual(), before, 'recall keeps the current spin frame before finishing its revolution');
+      assert.equal(self().getAttribute('data-office-personal-phase'), 'scythe');
       assert.equal(visual().owner, 'actor');
       const phases = new Set<string>();
       for (let i = 0; i < 65 && self().getAttribute('data-office-phase') !== 'seated'; i++) {

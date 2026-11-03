@@ -22,7 +22,7 @@
 
 同一条 32.5 秒演示时间轴编排进场、坐下、工作、摸鱼、Error、起身和退场，实际动作发生在各自工位。复用已认可素材与固定脚点坐起修正，提供暂停、重播和阶段选择，遵循减少动态效果偏好。进退场在同一个四秒阶段内按席位错峰释放，避免实例同时挤在入口；整体场景使用座椅对应的物理地面脚点，单角色检查页暂保留原动作，阶段时长共用 32.5 秒时间轴。
 
-摸鱼阶段统一延长为 11 秒，其他阶段时长不变。主 Agent 起身、沿工位右侧地面走到放置点、取起镰刀把玩、放回后原路回座；GitHub Agent 先坐着玩掌机，再起身短逛并回座。其他角色沿用原摸鱼帧，所有角色同步进入 Error、起身及退场。额外动作使用独立图集，不替换其他三位角色素材。演示在摸鱼阶段入口锁定可用图集；中途完成加载或关闭减少动态效果都不会把角色突然移到路线中段，需等下次阶段或重播。
+摸鱼阶段统一延长为 11 秒，其他阶段时长不变。主 Agent 起身、沿工位右侧地面走到放置点、取起镰刀、完整转两圈后眨眼摆姿势、放回后原路回座；GitHub Agent 先坐着玩掌机，再起身短逛并回座。其他角色沿用原摸鱼帧，所有角色同步进入 Error、起身及退场。额外动作使用独立图集，不替换其他三位角色素材。演示在摸鱼阶段入口锁定可用图集；中途完成加载或关闭减少动态效果都不会把角色突然移到路线中段，需等下次阶段或重播。
 
 真实状态办公室只在 connected、fresh、明确 idle 且连续空闲 5 秒后启用这些空闲表现。它们不写入活动记录、不推断任务内容；工作、等待或停止到来时先放回镰刀并回座；unknown、过期或断连立即冻结主 Agent 当前姿势与道具归属，不继续玩耍，也不瞬移回座。身份、数据源或布局变化时只保留必要的中性视觉收尾，不将旧动作当作新实例的真实状态。额外图集加载失败不阻塞基本角色，暂停和减少动态效果继续有效。
 
@@ -39,3 +39,9 @@
 ### Scythe pickup and return
 
 Self now rises, walks to the visible registered scythe, pauses to take it (1 second), plays, replaces it (1 second), and walks back to sit. Shared slack is 11 seconds; GitHub's existing 9-second sequence is unchanged and rests for the remaining time. The stand remains visible throughout and exactly one weapon owner is exposed as `data-scythe-owner="stand"` or `"actor"`. Reduced-motion changes and pause preserve an admitted personal pose and ownership. Explicit seek/replay rebuilds the requested point in the demonstration timeline.
+
+## 镰刀两圈与定格动作
+
+主角色使用八个方向的实际图集，按上、右上、右、右下、下、左下、左、左上依次播放两遍，再回到朝上的握持位置、眨眼摆姿势，最后恢复与取放末帧完全一致的握姿。专属段仍为 2600ms，整体时间轴仍为 32.5s。
+
+工作中断会先完成当前一圈并收回原握姿，再走已有放回 / 回座流程；重复请求不会重置收尾。过期、断连、暂停与减少动态保持当前帧和唯一武器归属。图集方位形成完整旋转，但生成的手腕、轴长及衣褶仍有轻微帧间变化，不是骨骼级逐像素锁定动画。

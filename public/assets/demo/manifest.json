@@ -150,18 +150,76 @@
       "path": "assets/demo/self/extra.png",
       "character": "self",
       "sheet": "extra",
-      "action": "standing-scythe",
+      "action": "scythe-two-turns-pose",
       "width": 2048,
-      "height": 512,
+      "height": 1536,
       "cellWidth": 512,
       "cellHeight": 512,
       "columns": 4,
-      "rows": 1,
+      "rows": 3,
       "anchor": [
         300,
         470
       ],
-      "sha256": "912dae7e82f6a24759031c5243234f0f167763b545c754c3aa73a8dd356b11ba"
+      "sha256": "30d71fb555f44ecd100c3ca51d540035a1441d8704a89b5921fbeb151911dd68",
+      "frameRoles": [
+        "up",
+        "upper-right",
+        "right",
+        "lower-right",
+        "down",
+        "lower-left",
+        "left",
+        "upper-left",
+        "exact-pickup-grip",
+        "wink-v-pose",
+        "unused-transparent",
+        "unused-transparent"
+      ],
+      "sequence": [
+        {
+          "frame": 8,
+          "durationMs": 100
+        },
+        {
+          "frames": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "frameMs": 100
+        },
+        {
+          "frame": 0,
+          "durationMs": 100
+        },
+        {
+          "frame": 8,
+          "durationMs": 100
+        },
+        {
+          "frame": 9,
+          "durationMs": 500
+        },
+        {
+          "frame": 8,
+          "durationMs": 200
+        }
+      ],
+      "provenance": "Eight authored weapon directions played twice, followed by wink/V pose. Frame 8 exactly matches pickup frame 3. Generated directions have minor grip, shaft-length and outfit drift; initial/return grip changes lift/lower the weapon rather than pixel-perfect tweening. Cells 10/11 are transparent and never played. Transparent-cell cleanup removed distant background specks outside silhouette bounding rectangles with 12px padding; retained pixels and the exact pickup grip were unchanged."
     },
     {
       "path": "assets/demo/github/extra.png",

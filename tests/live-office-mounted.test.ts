@@ -124,7 +124,11 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       await step(140); assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
       assert.equal(sprite()?.getAttribute('data-office-sheet'), 'seated');
       await render(); await step(52); assert.equal(self()?.getAttribute('data-office-phase'), 'personal');
-      await emit([agent('self', 'working')]); await step(45);
+      await emit([agent('self', 'working')]);
+      // Atlas restoration can meet a spinning owner: finish its current turn
+      // and exact-grip settle before testing unrelated seated lifecycle states.
+      for (let i = 0; i < 60 && self()?.getAttribute('data-office-phase') !== 'seated'; i++) await step();
+      assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
     });
     await t.test('partial absence preserves uncertain seat without departure or old request; stale/disconnect stop work', async () => {
       await emit(snapshot.agents.filter(item => item.id !== 'self'), { identityCoverage: 'partial' });
