@@ -18,8 +18,8 @@ test('office privilege stays independent from explicitly configured team leader'
 test('private routes cross doorway before travelling inside and terminate at the calibrated chair approach',()=>{
  for(const layout of ['independent-desks','leader-desks','peer-table'] as const)for(const seat of wholeOfficeSeats(layout)){
   const route=officeRoute(seat),last=pointAlongOfficeRoute(route,1),first=pointAlongOfficeRoute(route,0);
-  assert.equal(first.x,760);assert.equal(first.y,1540);close(last.x,officeApproachPoint(seat).x);close(last.y,officeApproachPoint(seat).y);
-  if(seat.kind!=='team'){assert.ok(route.some(p=>p.x===660&&p.y===1400));assert.ok(route.some(p=>p.x===760&&p.y===1400));}
+  assert.equal(first.x,780);assert.equal(first.y,1050);close(last.x,officeApproachPoint(seat).x);close(last.y,officeApproachPoint(seat).y);
+  if(seat.kind!=='team'){assert.ok(route.some(p=>p.x===510&&p.y===990));assert.ok(route.some(p=>p.x===780&&p.y===990));}
   for(let t=0;t<=1;t+=.01){const p=pointAlongOfficeRoute(route,t);assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));}
  }
 });
@@ -67,14 +67,14 @@ test('staggered arrival ends in the exact planted pose used to start sitting',()
  }
 });
 
-test('fixed floor has 23 permanent empty seats, 4 shared tables, 11 individual desks, and wide aisles',()=>{
+test('fixed floor has 23 permanent empty seats, 4 shared tables, 11 individual desks, and compact usable aisles',()=>{
  const seats=fixedOfficeSeats(); assert.equal(seats.length,23); assert.equal(new Set(seats.map(s=>s.id)).size,23);
  assert.ok(seats.every(s=>s.empty)); assert.equal(seats.filter(s=>s.kind==='team').length,19);
  assert.equal(seats.filter(s=>!s.sharedTable).length,11); assert.equal(fixedOfficeTables.length,4);
  for(const table of fixedOfficeTables){assert.equal(seats.filter(s=>s.tableId===table.id).length,3);assert.ok(table.x+table.width<OFFICE_WORLD.width);}
  const desks=seats.filter(s=>s.id.startsWith('public-desk-'));
  assert.equal(desks.length,10);assert.equal(new Set(desks.map(s=>s.y)).size,2);
- for(let i=1;i<5;i++)assert.ok(desks[i].x-90*desks[i].scale-(desks[i-1].x+240*desks[i-1].scale)>50);
+ for(let i=1;i<5;i++)assert.ok(desks[i].x-90*desks[i].scale-(desks[i-1].x+240*desks[i-1].scale)>30);
  const demo=wholeOfficeSeats('independent-desks');assert.ok(demo.some(s=>s.kind==='team'&&s.sharedTable));assert.ok(demo.some(s=>s.kind==='team'&&!s.sharedTable));
 });
 
@@ -98,8 +98,8 @@ test('all 23 physical routes stay inside the world and cross the partition only 
   for(let index=1;index<route.length;index++){
    const a=route[index-1],b=route[index];
    assert.ok(a.x>=0&&a.x<=OFFICE_WORLD.width&&a.y>=0&&a.y<=OFFICE_WORLD.height);
-   if(Math.min(a.x,b.x)<700&&Math.max(a.x,b.x)>700){
-    assert.equal(a.y,1400);assert.equal(b.y,1400);
+   if(Math.min(a.x,b.x)<650&&Math.max(a.x,b.x)>650){
+    assert.equal(a.y,990);assert.equal(b.y,990);
    }
   }
   const character=demoCharacters.find(c=>c.id===seat.persona)!;
@@ -110,4 +110,20 @@ test('all 23 physical routes stay inside the world and cross the partition only 
  const timings=fixedOfficeSeats().map(officeTravelTiming);
  assert.equal(new Set(timings.map(t=>t.arrivalDelayMs)).size,23);
  assert.ok(timings.every(t=>t.exitDelayMs+t.exitTravelMs<=4000));
+});
+
+test('compact floor increases furniture density in the same fit viewport rather than relying on zoom',()=>{
+ assert.deepEqual(OFFICE_WORLD,{width:2250,height:1100});
+ const seats=fixedOfficeSeats(),owner=seats.find(s=>s.id==='self')!,desks=seats.filter(s=>s.id.startsWith('public-desk-'));
+ assert.equal(owner.scale,1.05);assert.ok(desks.every(s=>s.scale===.72));
+ assert.equal(desks[5].y-desks[0].y,250);assert.equal(desks[1].x-desks[0].x,270);
+ assert.equal(fixedOfficeTables[1].y,250);assert.equal(desks[0].y,600);
+ // Representative scene content box, excluding page padding and controls.
+ const viewport={width:1108,height:590};
+ const oldFit=Math.min(viewport.width/2400,viewport.height/1600);
+ const compactFit=Math.min(viewport.width/OFFICE_WORLD.width,viewport.height/OFFICE_WORLD.height);
+ assert.ok(compactFit/oldFit>1.3,'Unchanged public tables are at least 30% larger in this modeled content box');
+ assert.ok(.72*compactFit/(.65*oldFit)>1.45,'Independent desks and actors are at least 45% larger in this modeled content box');
+ assert.ok(OFFICE_WORLD.width*OFFICE_WORLD.height<2400*1600*.65,'Actual floor area shrinks by at least 35%');
+ for(let i=2;i<4;i++) assert.ok(fixedOfficeTables[i].x-(fixedOfficeTables[i-1].x+fixedOfficeTables[i-1].width)>=25);
 });

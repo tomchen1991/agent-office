@@ -9,7 +9,7 @@ import {DEMO_SPRITE_WIDTH_PERCENT} from '../src/demoSeating.ts';
 // Pillow RGBA alpha.getbbox() measured the four actual walking cells. Hashes bind
 // these opaque bounds to the unchanged approved PNGs, with no runtime dependency.
 const bounds=JSON.parse(readFileSync(new URL('./fixtures/walking-alpha-bounds.json',import.meta.url),'utf8')) as Record<string,{sha256:string;frames:number[][]}>;
-test('opaque walking pixels stay inside the expanded world for every seat, persona, frame and route direction',()=>{
+test('opaque walking pixels stay inside the compact world for every seat, persona, frame and route direction',()=>{
  let maximumRight=0;
  for(const character of demoCharacters){
   const atlas=character.locomotion, measured=bounds[character.id];
@@ -32,10 +32,17 @@ test('opaque walking pixels stay inside the expanded world for every seat, perso
      assert.ok(pixelLeft>=0&&pixelRight<=OFFICE_WORLD.width,`${context}: horizontal [${pixelLeft},${pixelRight}]`);
      assert.ok(pixelTop>=0&&pixelBottom<=OFFICE_WORLD.height,`${context}: vertical [${pixelTop},${pixelBottom}]`);
      maximumRight=Math.max(maximumRight,pixelRight);
+     // Below the open door (y775–1040), actors may cross the partition.
+     // Above it, the full opaque silhouette stays on its assigned side.
+     if((seat.kind==='owner'||seat.kind==='simulated-child')&&pixelTop<1040&&pixelBottom>120) assert.ok(pixelLeft>=49,`${context}: private pixels cross left wall: ${pixelLeft}`);
+     if(pixelTop<775&&pixelBottom>120){
+      if(seat.kind==='owner'||seat.kind==='simulated-child') { assert.ok(pixelRight<=650,`${context}: private pixels cross partition: ${pixelRight}`); }
+      else assert.ok(pixelLeft>=659,`${context}: public pixels cross partition: ${pixelLeft}`);
+     }
     }
    }
   }
  }
- // Third table was shifted left 24px, leaving 7.192px for worst-case DeepSeek.
+ // The compact third table retains a measured right margin for all PNG frames.
  assert.ok(OFFICE_WORLD.width-maximumRight>=7,`Right boundary margin ${OFFICE_WORLD.width-maximumRight}`);
 });

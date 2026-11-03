@@ -12,3 +12,12 @@ test('shared-table changes retain core sprite anchoring and furniture positionin
  assert.ok(actor?.body.includes('--contact-y'));assert.ok(actor?.body.includes('transform:translate'));
  assert.ok(rules.some(rule=>rule.selectors.includes('.wo-sprite')&&rule.body.includes('image-rendering:pixelated')));
 });
+
+test('compact architecture and fit aspect match the logical floor without a default zoom crop',()=>{
+ const css=readFileSync(new URL('../src/whole-office.css',import.meta.url),'utf8');
+ assert.ok(css.includes('aspect-ratio:2250/1100'));
+ assert.ok(css.includes('width:min(100%,159.5454545vh)'));
+ assert.ok(css.includes('.wo-fixed-world .wo-glass-wall{left:28.888889%;top:10.909091%;width:.4%;height:59.545455%;z-index:775'));
+ assert.ok(css.includes('.wo-fixed-world .wo-private-bottom{left:1.777778%;top:94.545455%;'));
+ assert.ok(!css.includes('aspect-ratio:2400/1600'));
+});
