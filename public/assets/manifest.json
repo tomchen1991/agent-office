@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "character": "self",
+  "design": "purple twin tails, soft Lolita dress, ornate moon-and-star scythe",
+  "status": "approved visual prototype; not production-ready pixel sprite",
+  "assets": [
+    {
+      "path": "assets/self-agent/standing-v2.png",
+      "kind": "approved-standing-reference",
+      "width": 1263,
+      "height": 1246,
+      "sha256": "373a1ce067bc60cc2af9d445854a95841c7836da02657afa5d735b8f0a5dc482"
+    },
+    {
+      "path": "assets/self-agent/idle-preview-v2.gif",
+      "kind": "approved-idle-preview",
+      "width": 480,
+      "height": 480,
+      "sha256": "bc91eb14d26b1cc5d3b34aed327e42b1f58c086d649cf14af71304dd4b36b5d0"
+    },
+    {
+      "path": "assets/self-agent/idle-frames-v2.png",
+      "kind": "idle-sprite-sheet-reference",
+      "width": 1280,
+      "height": 1280,
+      "sha256": "25fa8ea69f15e300e12693522a4acf086fbe5431dd696db498fc7e23af1bb46e"
+    }
+  ]
+}
