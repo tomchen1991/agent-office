@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DemoShell } from './DemoShell';
+import { PresenceOffice } from './PresenceOffice';
 import './style.css';
-createRoot(document.getElementById('root')!).render(<StrictMode><DemoShell /></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><PresenceOffice /></StrictMode>);

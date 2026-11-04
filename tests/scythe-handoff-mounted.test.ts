@@ -70,7 +70,7 @@ test('independent mounted scythe lifecycle: one prop, freeze, return, replacemen
   const { WholeOfficeScene } = await vite.ssrLoadModule('/src/WholeOfficeScene.tsx');
   const { fixedOfficeSeats } = await vite.ssrLoadModule('/src/wholeOfficeGeometry.ts');
   const { personalPose } = await vite.ssrLoadModule('/src/personalIdle.ts');
-  const render = async (finishImages = true) => { await act(async () => root.render(createElement(StrictMode, null, createElement(LiveOffice, { key: generation, adapterFactory: factory, wallClock: () => new Date(2026, 0, 1, 12), topology, characters })))); if (finishImages) await act(async () => images.splice(0).forEach(image => image.finish())); };
+  const render = async (finishImages = true) => { await act(async () => root.render(createElement(StrictMode, null, createElement(LiveOffice, { key: generation, adapterFactory: factory, wallClock: () => new Date(2026, 0, 1, 12), topology, characters })))); if (finishImages) { for (let i = 0; i < 40 && images.length; i++) await act(async () => images.splice(0).forEach(image => image.finish())); } };
   const emit = async (agents: readonly OfficeAgent[], phase: AdapterState['phase'] = 'connected', extra: Partial<OfficeSnapshot> = {}) => { snapshot = { ...snapshot, ...extra, agents }; await act(async () => listeners.forEach(fn => fn({ phase, snapshot, error: null }))); };
   const step = async (count = 1) => { for (let i = 0; i < count; i++) { now += 100; const jobs = [...frames.values()]; frames.clear(); await act(async () => { jobs.forEach(fn => fn(now)); timers.forEach(fn => fn()); }); } };
   const self = () => container.querySelector('[data-office-seat-kind="owner"][data-office-actor]')!;
@@ -158,6 +158,7 @@ test('independent mounted scythe lifecycle: one prop, freeze, return, replacemen
         assert.equal(self().getAttribute('data-office-status'), 'unknown');
         assert.equal(self().getAttribute('data-office-personal-phase'), 'putdown');
         assert.match(self().querySelector('.wo-sprite')?.getAttribute('style') ?? '', /self\/pickup/);
+        for (let i = 0; i < 40 && images.length; i++) await act(async () => images.splice(0).forEach(image => image.finish()));
         await step(50); oneWeapon(); assert.equal(visual().owner, 'stand');
         assert.equal(self().getAttribute('data-office-persona'), character);
       }
@@ -180,11 +181,16 @@ test('independent mounted scythe lifecycle: one prop, freeze, return, replacemen
     });
     await t.test('optional pickup arriving late cannot start an unready leisure action', async () => {
       reduced = false; generation++; snapshot = { ...snapshot, agents: [agent()] }; await render(false);
-      const delayed = images.filter(image => /pickup|parked/.test(image.src));
-      const ready = images.filter(image => !/pickup|parked/.test(image.src)); images.length = 0;
-      await act(async () => ready.forEach(image => image.finish())); await step(170);
+      const delayed: typeof images = [];
+      for (let i = 0; i < 40 && images.length; i++) {
+        const batch = images.splice(0);
+        delayed.push(...batch.filter(image => /pickup|parked/.test(image.src)));
+        await act(async () => batch.filter(image => !/pickup|parked/.test(image.src)).forEach(image => image.finish()));
+      }
+      await step(170);
       assert.equal(self().getAttribute('data-office-phase'), 'seated');
       await act(async () => delayed.forEach(image => image.finish()));
+      for (let i = 0; i < 40 && images.length; i++) await act(async () => images.splice(0).forEach(image => image.finish()));
       assert.equal(self().getAttribute('data-office-phase'), 'seated');
       await reach('pickup'); oneWeapon();
     });

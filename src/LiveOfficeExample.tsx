@@ -16,7 +16,12 @@ export function createContractExampleSource() {
       identity: { sourceId: 'contract-example', instanceId: id, collectorEpoch: `example-epoch-${epoch}` },
       status: id === 'self' || id === 'github' ? status : id === 'chatgpt' ? 'waiting' : id === 'grok' ? 'stopping' : 'idle',
       sourceFreshness: stale ? 'stale' : 'fresh', validForMs: 60_000, observedAt: receivedAt, source: 'contract-example / 合成 DTO',
-      latestUserRequest: id === 'self' ? { summary: '【合成 USER 请求】检查办公室里各个 Agent 的状态。', receivedAt, source: 'synthetic-user-fixture' } : null,
+      latestUserRequest: null,
+      task: id === 'self' || id === 'github'
+        ? { name: status === 'idle' ? null : id === 'self' ? '实现设置页面（模拟）' : '审查登录模块变更（模拟）', type: status === 'idle' ? null : id === 'self' ? 'chat' : 'review', startedAt: null, detail: status === 'waiting' ? '等待用户确认' : status === 'working' ? '正在处理' : null }
+        : { name: id === 'chatgpt' ? 'agent可视化（模拟协作组）' : id === 'grok' ? 'agent-office（模拟目录）' : null, type: null, startedAt: null, detail: id === 'chatgpt' ? '等待确认方案' : null },
+      provider: id === 'chatgpt' ? '示例提供商' : null,
+      model: id === 'chatgpt' ? '示例模型（非真实采集）' : null,
     }));
     return { phase: 'connected', error: null, snapshot: { agents, receivedAt, identityCoverage: omitted ? 'partial' : 'complete', coverage: omitted ? '合成覆盖不完整：缺失自研条目；本示例所有席位使用 follow-unique，无法证明 epoch 唯一，因此暂停全部自动绑定。缺失不等于离线。' : '合成完整快照，非真实采集' } };
   };

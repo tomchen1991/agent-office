@@ -11,6 +11,12 @@ export interface OfficeAgent {
   character: CharacterId;
   status: OfficeStatus;
   latestUserRequest: UserRequestSummary | null;
+  /** Presence display metadata; never interpreted as a user request or team identity. */
+  task?: { name: string | null; type: string | null; startedAt: string | null; detail: string | null };
+  repo?: string | null;
+  sourceLabel?: string | null;
+  provider?: string | null;
+  model?: string | null;
   identity?: AgentIdentity;
   observedAt: string | null;
   sourceFreshness?: 'fresh' | 'stale' | 'unknown';

@@ -7,15 +7,20 @@ export function useLiveOfficeMotion(targets: readonly LiveOfficeTarget[], option
   sourceKey: unknown; reducedMotion: boolean; paused: boolean; assetsReady: boolean;
   /** Synthetic previews may begin at a known seated pose; live callers omit this. */
   initialActors?: LiveOfficeMotionState;
+  /** First live snapshot is an observation of existing occupants, not a new arrival event. */
+  hydrateSeated?: boolean;
 }): LiveOfficeMotionState {
   const [stored, setStored] = useState<{ key: unknown; actors: LiveOfficeMotionState }>({ key: options.sourceKey, actors: options.initialActors ?? [] });
   const generation = useRef(0);
+  const hydrated = useRef<{ key: unknown; done: boolean }>({ key: options.sourceKey, done: false });
+  const hydrate = Boolean(options.hydrateSeated && (hydrated.current.key !== options.sourceKey || !hydrated.current.done) && targets.some(target => target.identityKey));
   const targetKey = JSON.stringify(targets);
   // Project new data synchronously, so an old work frame cannot leak through a source switch.
-  const actors = reconcileLiveOffice(stored.key === options.sourceKey ? stored.actors : (options.initialActors ?? stored.actors.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal').map(actor => ({ ...actor, visualOnly: true, frozen: true }))), targets, options.reducedMotion);
+  const actors = reconcileLiveOffice(stored.key === options.sourceKey ? stored.actors : (options.initialActors ?? stored.actors.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal').map(actor => ({ ...actor, visualOnly: true, frozen: true }))), targets, options.reducedMotion || hydrate);
   useEffect(() => {
-    setStored(previous => ({ key: options.sourceKey, actors: reconcileLiveOffice(previous.key === options.sourceKey ? previous.actors : (options.initialActors ?? previous.actors.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal').map(actor => ({ ...actor, visualOnly: true, frozen: true }))), JSON.parse(targetKey), options.reducedMotion) }));
-  }, [targetKey, options.sourceKey, options.reducedMotion]);
+    if (hydrate) hydrated.current = { key: options.sourceKey, done: true };
+    setStored(previous => ({ key: options.sourceKey, actors: reconcileLiveOffice(previous.key === options.sourceKey ? previous.actors : (options.initialActors ?? previous.actors.filter(actor => actor.personalRole === 'self' && actor.phase === 'personal').map(actor => ({ ...actor, visualOnly: true, frozen: true }))), JSON.parse(targetKey), options.reducedMotion || hydrate) }));
+  }, [targetKey, options.sourceKey, options.reducedMotion, hydrate]);
   const needsClock = liveOfficeNeedsClock(actors);
   useEffect(() => {
     const epoch = ++generation.current;

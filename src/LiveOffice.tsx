@@ -13,6 +13,8 @@ import { liveOfficeSeats } from './liveOfficeSeats';
 import { liveOfficePose, liveStatusLabels } from './liveOfficeMotion';
 import { useLiveOfficeMotion } from './useLiveOfficeMotion';
 import './live-office.css';
+import { AgentDialog } from './AgentDialog';
+import { demoAssetUrl } from './assetUrl';
 
 const systemWallClock = () => new Date();
 const emptySnapshot: OfficeSnapshot = { agents: [], receivedAt: '', identityCoverage: 'unknown' };
@@ -90,22 +92,6 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     const timer = window.setInterval(() => setNow(window.performance.now()), 250);
     return () => { media.removeEventListener('change', apply); window.clearInterval(timer); };
   }, []);
-  useEffect(() => {
-    let alive = true;
-    const loaded = new Set<string>(), failed = new Set<string>();
-    const required = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
-    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...personalAssets(character), ...(character.sleep ? [character.sleep.src] : [])]))];
-    setAssets({ key: characters, ready: sources.length === 0, failed: [], loaded: [] });
-    const images = sources.map(src => {
-      const image = new Image();
-      const publish = () => { if (alive) setAssets({ key: characters, ready: required.every(src => loaded.has(src)), failed: [...failed], loaded: [...loaded] }); };
-      image.onload = () => { loaded.add(src); failed.delete(src); publish(); };
-      image.onerror = () => { failed.add(src); publish(); };
-      image.src = `${import.meta.env.BASE_URL}${src}`;
-      return image;
-    });
-    return () => { alive = false; images.forEach(image => { image.onload = null; image.onerror = null; }); };
-  }, [characters, loadAttempt]);
 
   const state = received.key === sourceKey ? received.state : initialState;
   const elapsed = Math.max(0, now - received.at);
@@ -114,6 +100,36 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   validateTopology(topology);
   const snapshot = bound?.snapshot ?? state.snapshot;
   const observedAgents = snapshot?.agents ?? [];
+  const visiblePersonas = [...new Set(observedAgents.filter(agent => agent.sourceFreshness === 'fresh').map(agent => agent.character))].sort().join(',');
+  const assetCache = useRef(new Set<string>());
+  useEffect(() => {
+    let alive = true;
+    const failed = new Set<string>();
+    const selectedCharacters = characters.filter(character => visiblePersonas.split(',').includes(character.id));
+    const required = selectedCharacters.map(character => character.seated.src);
+    const publish = () => { if (alive) setAssets({ key: characters, ready: required.every(src => assetCache.current.has(src)), failed: [...failed], loaded: [...assetCache.current] }); };
+    const load = (src: string, priority: 'high' | 'low') => new Promise<void>(resolve => {
+      if (assetCache.current.has(src)) { resolve(); return; }
+      const image = new Image();
+      image.fetchPriority = priority;
+      image.onload = () => { assetCache.current.add(src); publish(); resolve(); };
+      image.onerror = () => { failed.add(src); publish(); resolve(); };
+      image.src = demoAssetUrl(src);
+    });
+    publish();
+    void Promise.all(required.map(src => load(src, 'high'))).then(async () => {
+      // No background animation atlas competes with first-paint seated artwork.
+      for (const character of selectedCharacters) {
+        if (!alive) return;
+        await load(character.locomotion.src, 'low');
+        for (const src of [...personalAssets(character), ...(character.sleep ? [character.sleep.src] : [])]) {
+          if (!alive) return;
+          await load(src, 'low');
+        }
+      }
+    });
+    return () => { alive = false; };
+  }, [characters, visiblePersonas, loadAttempt]);
   // Cache presentation only, never a request, status, or timestamp. Missing rows stay uncertain.
   const presentationCache = useRef<{ key: unknown; agents: Map<string, Pick<OfficeAgent, 'id' | 'name' | 'character'>> }>({ key: sourceKey, agents: new Map() });
   const presentation = new Map(received.key === sourceKey && presentationCache.current.key === sourceKey ? presentationCache.current.agents : []);
@@ -142,7 +158,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     return { nightRest, nightEligible, nightArtReady, nightArtKey, personalRole: !state.error && personalRole && characters.some(item => item.id === personalRole && personalAssetsReady(item, assets.loaded)) ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
   });
   const assetsReady = assets.key === characters && assets.ready;
-  const actors = useLiveOfficeMotion(targets, { sourceKey, reducedMotion, paused, assetsReady });
+  const actors = useLiveOfficeMotion(targets, { sourceKey, reducedMotion, paused, assetsReady: true, hydrateSeated: true });
   // An admitted pickup owns its loaded artwork as well as the physical prop.
   // Replacing/failing optional atlases cannot turn a held scythe into another pose.
   const retainedSelfArt = useRef<DemoCharacter | undefined>(characters.find(item => item.id === 'self'));
@@ -152,10 +168,10 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     ? [...characters.filter(item => item.id !== 'self'), retainedSelfArt.current] : characters;
   const retainedOwner = actors.find(actor => actor.visualOnly && actor.personalRole === 'self');
   const visualSeats = retainedOwner ? seats.map(seat => seat.kind === 'owner' ? { ...seat, id: retainedOwner.id, persona: 'self' as const, empty: false } : seat) : seats;
-  const selectedId = selected && ids.includes(selected) ? selected : topology.selfAgentId;
+  const selectedId = selected ?? topology.selfAgentId;
   const currentAgent = observedAgents.find(agent => agent.id === selectedId);
   const effectiveStatus = currentAgent ? displayStatus(currentAgent, elapsed, state.phase) : 'unknown';
-  const request = currentAgent?.latestUserRequest;
+  const task = currentAgent?.task;
   const leaderLabel = seats.find(seat => seat.isLeader)?.label ?? '未绑定';
   const activeWorking = targets.filter(target => target.status === 'working').length;
   const uncertain = targets.filter(target => target.status === 'unknown').length;
@@ -167,19 +183,26 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     {state.phase !== 'connected' && <p className="live-warning" role="status">数据源{phaseLabels[state.phase]}。未知状态不表示离线，也不会继续显示工作动作。</p>}
     {snapshot?.coverage && <p className="live-warning">覆盖范围：{snapshot.coverage}</p>}
     {bound && bound.warnings.length > 0 && <details className="live-binding-warnings"><summary>{bound.warnings.length} 个席位未能安全绑定</summary><ul>{bound.warnings.map(warning => <li key={warning.seatId}>{warning.seatId}：{warning.message}</li>)}</ul></details>}
-    <WholeOfficeScene layout={topology.team.layout} seats={visualSeats} characters={visualCharacters} canAnimate={assetsReady} reducedMotion={reducedMotion} childCount={topology.childAgentIds.length} live selectedId={selectedId} onSelect={setSelected} leaderLabel={leaderLabel} floorLabel={`${activeWorking} 个工作中`} floorStatus={uncertain ? `${uncertain} 个状态未知` : phaseLabels[state.phase]} working={activeWorking > 0} statusForSeat={seat => { const target = targets.find(item => item.id === seat.id); const retained = actors.find(item => item.id === seat.id)?.visualOnly; return { status: retained ? 'unknown' : target?.status ?? 'unknown', label: !retained && target?.identityKey ? liveStatusLabels[target.status] : '状态未知 · 未收到数据' }; }} poseForSeat={seat => {
+    <WholeOfficeScene layout={topology.team.layout} seats={visualSeats} characters={visualCharacters} canAnimate assetReady={src => assets.loaded.includes(src)} reducedMotion={reducedMotion} childCount={topology.childAgentIds.length} live selectedId={selectedId} onSelect={setSelected} leaderLabel={leaderLabel} floorLabel={`${activeWorking} 个工作中`} floorStatus={uncertain ? `${uncertain} 个状态未知` : phaseLabels[state.phase]} working={activeWorking > 0} screenForSeat={seat => {
+      const agent = observedAgents.find(item => item.id === seat.id);
+      const status = agent ? displayStatus(agent, elapsed, state.phase) : 'unknown';
+      const task = agent?.task?.name?.trim() || null;
+      const repository = agent?.repo?.trim() || null;
+      return task || repository ? { task, repository, stale: status === 'unknown' } : null;
+    }} statusForSeat={seat => { const target = targets.find(item => item.id === seat.id); const retained = actors.find(item => item.id === seat.id)?.visualOnly; return { status: retained ? 'unknown' : target?.status ?? 'unknown', label: !retained && target?.identityKey ? liveStatusLabels[target.status] : '状态未知 · 未收到数据' }; }} poseForSeat={seat => {
       const actor = actors.find(item => item.id === seat.id);
       return actor ? liveOfficePose(actor, reducedMotion) : null;
-    }} loading={!assetsReady && <div className="wo-loading" role="status"><strong>{assets.failed.length ? '部分动作素材加载失败' : '正在载入办公室动作素材…'}</strong>{assets.failed.length > 0 && <button onClick={() => setLoadAttempt(value => value + 1)}>重新加载素材</button>}</div>} />
+    }} loading={assets.failed.length > 0 && <button className="live-asset-retry" onClick={() => setLoadAttempt(value => value + 1)}>部分素材未载入，点击重试</button>} />
     {allocation.teamOverflowIds.length > 0 && <p className="live-warning">另有 {allocation.teamOverflowIds.length} 位成员未入座，可在下方查看。</p>}
-    <div className="live-details-layout"><nav className="live-agent-list" aria-label="选择 Agent 查看数据">{ids.map(id => <button key={id} aria-pressed={selectedId === id} onClick={() => setSelected(id)}>{presentation.get(id)?.name ?? id}</button>)}</nav>
+    {allocation.teamOverflowIds.length > 0 && <nav className="live-agent-list" aria-label="未入座 Agent">{allocation.teamOverflowIds.map(id => <button key={id} onClick={() => setSelected(id)}>{presentation.get(id)?.name ?? id}</button>)}</nav>}
+    {selected !== null && <AgentDialog onClose={() => setSelected(null)}>
       <section className="live-inspector" aria-labelledby="live-details-title"><div><h2 id="live-details-title">{currentAgent?.name ?? presentation.get(selectedId)?.name ?? selectedId}</h2></div><dl>
         <div><dt>当前显示状态</dt><dd data-live-current-status={effectiveStatus}>{liveStatusLabels[effectiveStatus]}</dd></div>
         <div><dt>来源报告状态</dt><dd>{currentAgent ? liveStatusLabels[currentAgent.status] : '未收到该 Agent 数据'}</dd></div>
-        <div><dt>数据来源</dt><dd>{currentAgent?.source || '未提供'}</dd></div>
+        <div><dt>数据来源</dt><dd>{currentAgent?.sourceLabel || currentAgent?.source || '未提供'}</dd></div>
         <div><dt>连接状态</dt><dd>{phaseLabels[state.phase]}</dd></div>
         <div><dt>状态新鲜度</dt><dd data-live-freshness>{currentAgent ? freshnessLabels[freshness(currentAgent, elapsed)] : '未知'}</dd></div>
         <div><dt>状态观测时间</dt><dd><time dateTime={currentAgent?.observedAt ?? undefined}>{timeLabel(currentAgent?.observedAt)}</time></dd></div>
-      </dl><div className="live-request"><h3>最近一次用户请求</h3><p>{request?.summary.trim() || '未提供用户请求摘要'}</p><span>请求时间：<time dateTime={request?.receivedAt}>{timeLabel(request?.receivedAt)}</time></span><span>摘要来源：{request?.source || '未提供'}</span></div></section></div>
+      </dl><div className="live-request">{task?.name?.trim() && <p>{task.name}</p>}{currentAgent?.repo && <span>仓库：{currentAgent.repo}</span>}{task?.type && <span>任务类型：{task.type}</span>}{task?.detail && <span>阶段／说明：{task.detail}</span>}{task?.startedAt && <span>开始时间：<time dateTime={task.startedAt}>{timeLabel(task.startedAt)}</time></span>}{(currentAgent?.provider || currentAgent?.model) && <span>选定模型：{[currentAgent.provider, currentAgent.model].filter(Boolean).join(' / ')}</span>}{effectiveStatus === 'unknown' && task?.name && <span>以上为最后观察信息，不代表当前仍在执行。</span>}</div></section></AgentDialog>}
   </section>;
 }
