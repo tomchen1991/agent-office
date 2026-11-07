@@ -1,8 +1,26 @@
 # Office production deployment
 
-## Latest update: public display and first-paint optimization
+## Latest release: presence stopping departure (2026-11-06)
 
-Owner explicitly requested removing viewer authentication. Current release `/opt/agent-office/releases/20261104T101830Z` serves both display and read-only DTO publicly; anyone with the URL can view task/repo information. Consumer credentials remain private. Old viewer-password files are no longer referenced; the authenticated deployment below is historical.
+- URL: https://office.falsita.cn
+- Release: `/opt/agent-office/releases/20261106T074922Z`; rollback: `/opt/agent-office/releases/20261105T020224Z`.
+- Backend-only release copied from the previous deployed release; only `server/presenceProxy.ts` replaced. Frontend assets, collector, Nginx and private credentials unchanged. Only `agent-office` restarted.
+- Presence `stopping` maps to `offline`; offline public seat bindings survive freshness expiry to allow existing stand/exit animation to finish. Live dedicated replacements take precedence over retained offline records. See [presence-departure.md](presence-departure.md).
+- 13 targeted tests and typecheck passed. Deployed source checksum matched local; deployed module mapping/binding probe passed. Service active and loopback API healthy. Public page/API returned 200 using curl; Python urllib received 403 from the public route.
+- Public verification observed 9 instances (8 idle, 1 working), no stopping/offline instance, so no real departure or browser visual acceptance claimed. Broader LiveOffice mounted tests were previously attempted and failed; no full-suite pass claimed.
+
+## Previous release: collaboration PI tables (2026-11-05)
+
+- URL: https://office.falsita.cn
+- Release: `/opt/agent-office/releases/20261105T020224Z`; rollback: `/opt/agent-office/releases/20261104T103035Z`.
+- Exact registered collaboration labels (including long-term PI) and reported group names now drive two separate three-seat tables. Further groups/extra members use independent seats; details retain group metadata.
+- Only `agent-office` restarted. No Nginx, consumer credentials, or collector configuration changes.
+- Production build/typecheck and 24 targeted tests passed. Public HTML, current hashed JS/CSS, presence API and representative WebP asset returned 200. API verified unique seating and no mixed collaboration groups at a table.
+- Observed three fresh groups, but no fresh long-term-labeled instance at verification. No browser visual acceptance or full historical suite pass claimed. See [presence-collaboration.md](presence-collaboration.md).
+
+## Previous update: public display and first-paint optimization
+
+Owner explicitly requested removing viewer authentication. That release `/opt/agent-office/releases/20261104T101830Z` served both display and read-only DTO publicly; anyone with the URL can view task/repo information. Consumer credentials remain private. Old viewer-password files are no longer referenced; the authenticated deployment below is historical.
 
 - Nginx Basic authentication removed; anonymous public page/API verified 200.
 - Asset cache: public, max-age=86400. HTML and live API remain no-store; gzip enabled for JS/CSS/JSON.

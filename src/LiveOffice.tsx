@@ -12,6 +12,8 @@ import { WholeOfficeScene } from './WholeOfficeScene';
 import { liveOfficeSeats } from './liveOfficeSeats';
 import { liveOfficePose, liveStatusLabels } from './liveOfficeMotion';
 import { useLiveOfficeMotion } from './useLiveOfficeMotion';
+import { detectModelSwitches } from './modelSwitch';
+import type { ModelSwitchMark, ModelSwitchObservation, ModelSwitchRecord } from './modelSwitch';
 import './live-office.css';
 import { AgentDialog } from './AgentDialog';
 import { demoAssetUrl } from './assetUrl';
@@ -52,6 +54,9 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const [reducedMotion, setReducedMotion] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [modelSwitches, setModelSwitches] = useState<Record<string, ModelSwitchRecord>>({});
+  const modelMarks = useRef<Map<string, ModelSwitchMark>>(new Map());
+  const modelToken = useRef(0);
   const [assets, setAssets] = useState<{ key: unknown; ready: boolean; failed: string[]; loaded: string[] }>({ key: characters, ready: false, failed: [], loaded: [] });
 
   useEffect(() => {
@@ -145,6 +150,21 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const ids = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds, ...(topology.githubAgentId === undefined ? [] : [topology.githubAgentId])];
   for (const id of presentation.keys()) if (!ids.includes(id)) presentation.delete(id);
   useEffect(() => { presentationCache.current = { key: sourceKey, agents: presentation }; }, [snapshot, sourceKey, topology]);
+  // Provider/model changes keep the same instance seated. Detect them against
+  // the displayed persona (explicit config may pin it) and let the scene cross-fade.
+  const modelObservations: ModelSwitchObservation[] = observedAgents.map(agent => {
+    const provider = agent.provider?.trim() || null;
+    const model = agent.model?.trim() || null;
+    const signature = provider && model ? `${provider} / ${model}` : provider ?? model;
+    return { id: agent.id, identityKey: identityKey(agent), model: signature, character: presentation.get(agent.id)?.character ?? agent.character };
+  });
+  const modelSignature = JSON.stringify(modelObservations);
+  useEffect(() => {
+    const scan = detectModelSwitches(modelMarks.current, modelObservations, { at: window.performance.now(), nextToken: () => ++modelToken.current });
+    modelMarks.current = scan.marks;
+    if (Object.keys(scan.changes).length > 0) setModelSwitches(previous => ({ ...previous, ...scan.changes }));
+  }, [modelSignature]);
+  const visibleModelSwitches: Record<string, ModelSwitchRecord> = reducedMotion ? {} : Object.fromEntries(Object.entries(modelSwitches).filter(([, item]) => now - item.at < 1900));
   const seats = liveOfficeSeats(topology, [...presentation.values()]);
   const allocation = liveOfficeSeatReport(topology);
   const nightTime = isNightRestTime(wallClock(), nightConfig);
@@ -175,7 +195,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const leaderLabel = seats.find(seat => seat.isLeader)?.label ?? '未绑定';
   const activeWorking = targets.filter(target => target.status === 'working').length;
   const uncertain = targets.filter(target => target.status === 'unknown').length;
-  return <section className="whole-office-demo live-office" aria-labelledby="live-office-title" data-live-office="true" data-office-layout="fixed-office" data-office-assets-ready={assetsReady} data-office-reduced-motion={reducedMotion}>
+  return <section className="whole-office-demo live-office" aria-labelledby="live-office-title" data-live-office="true" data-live-paused={paused} data-office-layout="fixed-office" data-office-assets-ready={assetsReady} data-office-reduced-motion={reducedMotion}>
     <h1 id="live-office-title" className="sr-only">状态办公室</h1>
     <div className="wo-toolbar"><div className="live-connection" role="status">{modeLabel} · {phaseLabels[state.phase]}</div><div className="live-actions"><button onClick={() => setEnabled(value => !value)}>{enabled ? '断开数据源' : '连接数据源'}</button><button onClick={() => { setEnabled(true); setRetry(value => value + 1); }}>重新连接</button><button disabled={reducedMotion} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{reducedMotion ? '系统偏好：减少动态' : paused ? '继续状态动画' : '暂停状态动画'}</button></div></div>
     <details className="live-night-settings"><summary>夜间休息 · {nightConfig.start}–{nightConfig.end} · {wallClockLabel}</summary><label><input aria-label="启用夜间空闲休息" type="checkbox" checked={nightConfig.enabled} onChange={event => setNightOverride({ ...nightConfig, enabled: event.target.checked })} />空闲时伏桌休息</label>{(['start', 'end'] as const).map(key => <label key={key}>{key === 'start' ? '开始' : '结束'}<input aria-label={key === 'start' ? '夜间休息开始时间' : '夜间休息结束时间'} type="time" value={nightConfig[key]} onChange={event => { try { setNightOverride(parseNightRestConfig({ ...nightConfig, [key]: event.target.value })); } catch { /* Keep the last valid window. */ } }} /></label>)}</details>
@@ -183,7 +203,16 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     {state.phase !== 'connected' && <p className="live-warning" role="status">数据源{phaseLabels[state.phase]}。未知状态不表示离线，也不会继续显示工作动作。</p>}
     {snapshot?.coverage && <p className="live-warning">覆盖范围：{snapshot.coverage}</p>}
     {bound && bound.warnings.length > 0 && <details className="live-binding-warnings"><summary>{bound.warnings.length} 个席位未能安全绑定</summary><ul>{bound.warnings.map(warning => <li key={warning.seatId}>{warning.seatId}：{warning.message}</li>)}</ul></details>}
-    <WholeOfficeScene layout={topology.team.layout} seats={visualSeats} characters={visualCharacters} canAnimate assetReady={src => assets.loaded.includes(src)} reducedMotion={reducedMotion} childCount={topology.childAgentIds.length} live selectedId={selectedId} onSelect={setSelected} leaderLabel={leaderLabel} floorLabel={`${activeWorking} 个工作中`} floorStatus={uncertain ? `${uncertain} 个状态未知` : phaseLabels[state.phase]} working={activeWorking > 0} screenForSeat={seat => {
+    <WholeOfficeScene layout={topology.team.layout} seats={visualSeats} characters={visualCharacters} canAnimate assetReady={src => assets.loaded.includes(src)} reducedMotion={reducedMotion} childCount={topology.childAgentIds.length} live selectedId={selectedId} onSelect={setSelected} leaderLabel={leaderLabel} floorLabel={`${activeWorking} 个工作中`} floorStatus={uncertain ? `${uncertain} 个状态未知` : phaseLabels[state.phase]} working={activeWorking > 0} modelSwitchForSeat={seat => {
+      const record = visibleModelSwitches[seat.id];
+      return record ? { key: String(record.token), fromPersona: record.fromCharacter, toCharacter: record.toCharacter } : null;
+    }} collaborationLabelForSeats={tableSeats => {
+      const members = tableSeats.map(seat => observedAgents.find(agent => agent.id === seat.id)).filter(agent => agent?.collaboration?.group);
+      const groups = [...new Set(members.map(agent => agent!.collaboration!.group))];
+      if (groups.length !== 1) return null;
+      const stale = members.some(agent => displayStatus(agent!, elapsed, state.phase) === 'unknown');
+      return `${groups[0]} · ${members.length} 位协作 PI${stale ? ' · 最后观察' : ''}`;
+    }} screenForSeat={seat => {
       const agent = observedAgents.find(item => item.id === seat.id);
       const status = agent ? displayStatus(agent, elapsed, state.phase) : 'unknown';
       const task = agent?.task?.name?.trim() || null;
@@ -200,9 +229,10 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
         <div><dt>当前显示状态</dt><dd data-live-current-status={effectiveStatus}>{liveStatusLabels[effectiveStatus]}</dd></div>
         <div><dt>来源报告状态</dt><dd>{currentAgent ? liveStatusLabels[currentAgent.status] : '未收到该 Agent 数据'}</dd></div>
         <div><dt>数据来源</dt><dd>{currentAgent?.sourceLabel || currentAgent?.source || '未提供'}</dd></div>
+        {currentAgent?.collaboration && <div><dt>协作 PI · 组名</dt><dd>{currentAgent.collaboration.group ?? '尚未上报分组'}</dd></div>}
         <div><dt>连接状态</dt><dd>{phaseLabels[state.phase]}</dd></div>
         <div><dt>状态新鲜度</dt><dd data-live-freshness>{currentAgent ? freshnessLabels[freshness(currentAgent, elapsed)] : '未知'}</dd></div>
         <div><dt>状态观测时间</dt><dd><time dateTime={currentAgent?.observedAt ?? undefined}>{timeLabel(currentAgent?.observedAt)}</time></dd></div>
-      </dl><div className="live-request">{task?.name?.trim() && <p>{task.name}</p>}{currentAgent?.repo && <span>仓库：{currentAgent.repo}</span>}{task?.type && <span>任务类型：{task.type}</span>}{task?.detail && <span>阶段／说明：{task.detail}</span>}{task?.startedAt && <span>开始时间：<time dateTime={task.startedAt}>{timeLabel(task.startedAt)}</time></span>}{(currentAgent?.provider || currentAgent?.model) && <span>选定模型：{[currentAgent.provider, currentAgent.model].filter(Boolean).join(' / ')}</span>}{effectiveStatus === 'unknown' && task?.name && <span>以上为最后观察信息，不代表当前仍在执行。</span>}</div></section></AgentDialog>}
+      </dl><div className="live-request">{task?.name?.trim() && <p>{task.name}</p>}{currentAgent?.repo && <span>仓库：{currentAgent.repo}</span>}{task?.type && <span>任务类型：{task.type}</span>}{task?.detail && <span>阶段／说明：{task.detail}</span>}{task?.startedAt && <span>开始时间：<time dateTime={task.startedAt}>{timeLabel(task.startedAt)}</time></span>}{(currentAgent?.provider || currentAgent?.model) && <span key={[currentAgent.provider ?? '', currentAgent.model ?? ''].join('\u0000')} className="live-model-value" data-live-model={[currentAgent.provider, currentAgent.model].filter(Boolean).join(' / ')} data-live-model-switching={visibleModelSwitches[selectedId] ? 'true' : undefined}>选定模型：{[currentAgent.provider, currentAgent.model].filter(Boolean).join(' / ')}</span>}{effectiveStatus === 'unknown' && task?.name && <span>以上为最后观察信息，不代表当前仍在执行。</span>}</div></section></AgentDialog>}
   </section>;
 }

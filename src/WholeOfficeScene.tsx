@@ -2,7 +2,7 @@ import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { CharacterId, OfficeStatus } from './core';
 import { demoCharacters } from './demoAssets';
-import type { DemoCharacter } from './demoAssets';
+import type { DemoAtlas, DemoCharacter } from './demoAssets';
 import { demoFrame } from './demoTimeline';
 import type { DemoStage } from './demoTimeline';
 import { fixedOfficeSeats, fixedOfficeTables, officeRegionCenters, MAX_SIMULATED_CHILD_SEATS, OFFICE_WORLD, OFFICE_ACTOR_RATIO, OFFICE_DESK, officeActorDepth, officeActorPlacement, officeLocalPoint } from './wholeOfficeGeometry';
@@ -29,6 +29,9 @@ export interface WholeOfficeSceneProps {
   loading?: ReactNode; children?: ReactNode;
   statusForSeat?: (seat: OfficeSceneSeat) => { status: OfficeStatus; label: string };
   sourceLabelForSeat?: (seat: OfficeSceneSeat) => string | null;
+  collaborationLabelForSeats?: (seats: readonly OfficeSceneSeat[]) => string | null;
+  /** A short display-only cue for a provider/model change on an already-seated instance. */
+  modelSwitchForSeat?: (seat: OfficeSceneSeat) => { key: string; fromPersona: CharacterId; toCharacter: CharacterId } | null;
   screenForSeat?: (seat: OfficeSceneSeat) => { task: string | null; repository: string | null; stale: boolean } | null;
 }
 import { demoAssetUrl as assetUrl } from './assetUrl';
@@ -46,13 +49,17 @@ const furniturePosition = (seat: OfficeSeat, x: number, y: number, width: number
   return { ...position(point.x, point.y, width * seat.scale, height * seat.scale, depth, seatAnchorY(seat)), '--seat-scale': seat.scale } as CSSProperties;
 };
 
+const modelSwitchAccent: Record<CharacterId, string> = {
+  self: '#d9b8ff', deepseek: '#8fd3ff', chatgpt: '#8ff0c3', grok: '#ffd28f', github: '#aebdff', unknown: '#c9ced8',
+};
+
 const COMFORTABLE_ZOOM = .65;
 type OfficeRegion = 'overview' | 'private' | 'public' | 'desks' | 'fit';
 const regionCenters = officeRegionCenters;
 
 /** Shared approved office presentation. The caller owns its clock and data semantics. */
 export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demoCharacters, canAnimate, reducedMotion, assetReady,
-  childCount, worldStage = 'live', floorLabel, floorStatus, live = false, onSelect, loading, children, statusForSeat, screenForSeat, sourceLabelForSeat }: WholeOfficeSceneProps) {
+  childCount, worldStage = 'live', floorLabel, floorStatus, live = false, onSelect, loading, children, statusForSeat, screenForSeat, sourceLabelForSeat, collaborationLabelForSeats, modelSwitchForSeat }: WholeOfficeSceneProps) {
   const [zoom, setZoom] = useState<number | null>(null);
   const [navigation, setNavigation] = useState<{ region: OfficeRegion; behavior: ScrollBehavior }>({ region: 'fit', behavior: 'auto' });
   const viewport = useRef<HTMLDivElement>(null);
@@ -104,6 +111,17 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
     const sheet = current?.sheet ?? defaultFrame.sheet;
     const frame = current?.frame ?? defaultFrame.frame;
     const atlas = calibration[sheet] ?? calibration.seated;
+    const modelSwitch = seat.empty || reducedMotion ? null : modelSwitchForSeat?.(seat) ?? null;
+    const swapCharacter = modelSwitch ? characters.find(item => item.id === modelSwitch.fromPersona) : undefined;
+    const swapSheet = swapCharacter && swapCharacter[sheet] ? sheet : 'seated' as const;
+    const swapAtlas = swapCharacter ? swapCharacter[swapSheet] ?? swapCharacter.seated : undefined;
+    const swapFrame = swapAtlas ? (swapSheet === sheet ? Math.min(frame, swapAtlas.columns * swapAtlas.rows - 1) : swapSheet === 'seated' ? 6 : 0) : 0;
+    const frameStyleFor = (source: DemoAtlas, sourceFrame: number): CSSProperties => ({
+      backgroundImage: `url("${assetUrl(source.src)}")`,
+      backgroundSize: `${source.columns * 100}% ${source.rows * 100}%`,
+      backgroundPosition: `${(source.columns === 1 ? 0 : sourceFrame % source.columns / (source.columns - 1) * 100)}% ${(source.rows === 1 ? 0 : Math.floor(sourceFrame / source.columns) / (source.rows - 1) * 100)}%`,
+      transform: placement.mirrored ? 'scaleX(-1)' : undefined,
+    });
     const shared = Boolean(seat.sharedTable);
     const surfaceDepth = shared ? fixedOfficeTables.find(table => table.id === seat.tableId)!.depth : seat.y + (calibration.locomotion.anchor.y - calibration.seated.anchor.y) * placement.width + 4;
     const facingClass = seat.mirrored ? 'wo-seat-mirrored' : '';
@@ -112,17 +130,12 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
       '--contact-x': `${placement.contactX * 100}%`, '--contact-y': `${placement.contactY * 100}%`,
       '--sprite-ratio': `${atlas.cellWidth} / ${atlas.cellHeight}`, opacity: placement.opacity,
     } as CSSProperties;
-    const frameStyle: CSSProperties = {
-      backgroundImage: `url("${assetUrl(atlas.src)}")`,
-      backgroundSize: `${atlas.columns * 100}% ${atlas.rows * 100}%`,
-      backgroundPosition: `${(atlas.columns === 1 ? 0 : frame % atlas.columns / (atlas.columns - 1) * 100)}% ${(atlas.rows === 1 ? 0 : Math.floor(frame / atlas.columns) / (atlas.rows - 1) * 100)}%`,
-      transform: placement.mirrored ? 'scaleX(-1)' : undefined,
-    };
+    const frameStyle = frameStyleFor(atlas, frame);
     return <Fragment key={seat.id}>
       <div data-office-seat={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} className={`wo-chair wo-${seat.kind} ${facingClass}`} style={furniturePosition({ ...seat, scale: seat.scale * OFFICE_ACTOR_RATIO, persona: calibration.id }, 625, 262.2, 110, 142.5, seat.y - 5)} aria-hidden="true"><span className="wo-chair-back" /><span className="wo-chair-seat" /><span className="wo-chair-leg" /></div>
       {!shared && <div className={`wo-desk-back wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.backX, 376.2, OFFICE_DESK.backWidth, 57, seat.y - 10)} aria-hidden="true" />}
       <div className={`wo-monitor ${facingClass} ${working ? 'wo-screen-work' : ''} ${error ? 'wo-screen-error' : ''}`} style={furniturePosition({ ...seat, persona: calibration.id }, 770, 267.9, shared ? 105 : 120, shared ? 110 : 119.7, shared ? surfaceDepth + 1 : surfaceDepth - 1)} aria-hidden={screen ? undefined : true} title={screen ? `${screen.stale ? '最后观察（状态未知）\n' : ''}${[screen.task, screen.repository].filter(Boolean).join('\n')}` : undefined} onClick={screen ? () => onSelect?.(seat.id) : undefined}><div className={`wo-screen ${screen ? 'wo-screen-content' : ''}`}>{screen ? <>{screen.stale && <span className="wo-screen-caption">最后观察</span>}{screen.task && <span className="wo-screen-task">{screen.task}</span>}{screen.repository && <span className="wo-screen-repository">{screen.repository}</span>}</> : <><strong>{seat.empty ? '○' : error ? '!' : working ? '>_' : !live && stage === 'slack' ? '☕' : indication?.status === 'stopping' ? 'Ⅱ' : indication?.status === 'unknown' ? '?' : '···'}</strong>{[0, 1, 2].map(index => <i key={index} style={{ width: `${working ? 28 + (workBeat * 13 + index * 19) % 60 : 50 - index * 10}%` }} />)}{working && !live && <b style={{ width: `${progress * 100}%` }} />}</>}</div><span className="wo-monitor-neck" /></div>
-      {!seat.empty && (canAnimate || (seat.kind === 'owner' && personal)) && (!assetReady || !character || assetReady(atlas.src)) && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-personal-phase={current.personal?.phase} data-scythe-owner={seat.kind === 'owner' && seat.persona === 'self' && actorHasScythe(personal) ? 'actor' : undefined} data-scythe-state={seat.kind === 'owner' ? scytheOwnership(personal) : undefined} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role={live ? 'button' : 'img'} tabIndex={live ? 0 : undefined} onClick={live ? () => onSelect?.(seat.id) : undefined} onKeyDown={live ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect?.(seat.id); } } : undefined} aria-haspopup={live ? 'dialog' : undefined} aria-label={`${seat.label}，${seat.role}，${current.label}${live ? '，查看详情' : ''}`}>{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona" aria-label="身份未映射"><b aria-hidden="true">?</b></div>}</div>}
+      {!seat.empty && (canAnimate || (seat.kind === 'owner' && personal)) && (!assetReady || !character || assetReady(atlas.src)) && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-personal-phase={current.personal?.phase} data-scythe-owner={seat.kind === 'owner' && seat.persona === 'self' && actorHasScythe(personal) ? 'actor' : undefined} data-scythe-state={seat.kind === 'owner' ? scytheOwnership(personal) : undefined} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role={live ? 'button' : 'img'} tabIndex={live ? 0 : undefined} onClick={live ? () => onSelect?.(seat.id) : undefined} onKeyDown={live ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect?.(seat.id); } } : undefined} aria-haspopup={live ? 'dialog' : undefined} aria-label={`${seat.label}，${seat.role}，${current.label}${live ? '，查看详情' : ''}`}>{modelSwitch ? <div key={modelSwitch.key} className="wo-sprite-stack" data-office-model-switch="true" data-office-model-from={modelSwitch.fromPersona} data-office-model-to={modelSwitch.toCharacter}><div className="wo-model-layer wo-model-layer-in">{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} data-office-sprite="current" /> : <div className="wo-unknown-persona" aria-label="身份未映射"><b aria-hidden="true">?</b></div>}</div>{swapAtlas && modelSwitch.fromPersona !== seat.persona && <div className="wo-model-layer wo-model-layer-out"><div className="wo-sprite" style={frameStyleFor(swapAtlas, swapFrame)} data-office-sheet={swapSheet} data-office-frame={swapFrame} data-office-sprite="previous" /></div>}<div className="wo-model-swap" style={{ '--model-swap-accent': modelSwitchAccent[seat.persona] } as CSSProperties} aria-hidden="true"><span className="wo-model-swap-ring" /><span className="wo-model-swap-scan" /><span className="wo-model-swap-particles">{Array.from({ length: 7 }, (_, index) => <i key={index} style={{ '--i': index } as CSSProperties} />)}</span></div></div> : character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona" aria-label="身份未映射"><b aria-hidden="true">?</b></div>}</div>}
       {!shared && <div className={`wo-desk-front wo-${seat.kind} wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.frontX, 376.2, OFFICE_DESK.frontWidth, 119.7, surfaceDepth)} data-office-leader={seat.isLeader || undefined} data-office-desk={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} data-office-seat-kind={seat.kind}>
         <span className="wo-desk-top" /><span className="wo-desk-leg wo-left" /><span className="wo-desk-leg wo-right" />
       </div>}
@@ -177,6 +190,7 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
                 <path className="wo-shared-front-rim" d="M1 150 Q1 192 40 192 H595 Q634 192 634 150" />
               </svg>
               <div className={`wo-shared-project ${tableError ? 'wo-project-error' : ''}`} data-office-shared-project="true"><div><i /><i /><i /></div><b>{tableError ? '!' : tableWorking ? '↗' : '···'}</b></div>
+              {collaborationLabelForSeats?.(tableOccupants) && <div className="wo-live-collaboration-label">{collaborationLabelForSeats(tableOccupants)}</div>}
               <span className="wo-shared-notes" aria-hidden="true"><i /><i /><i /></span>
             </div>;
           })}

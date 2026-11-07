@@ -49,6 +49,17 @@ The live controller does not call the demo reducer or replay a demo lifecycle. R
 
 A single cancellable RAF drives transitions and actual active/idle cycles. Pausing freezes the exact current pose and position; it does not teleport to a reduced-motion endpoint. System reduced-motion preference settles transitions without animation. Freshness continues on a separate monotonic timer while animation is paused. Phase-only repeats of the same snapshot do not renew its freshness. Adapter callbacks are generation-guarded, and subscriptions, asset handlers, timers, media listeners, and RAF handles are released on unmount/reconnect.
 
+## Provider/model switch cue
+
+The consumer treats a provider/model change as display metadata on the **same identity**. A cue is admitted only when `sourceId + instanceId + collectorEpoch` is unchanged and two observations both report a non-null model signature that differs. The first observation, missing model data, an epoch replacement, a reused ID, or a missing poll never fabricates a switch.
+
+- The seat and DOM actor ID stay put. The previous persona dissolves upward while the new persona rematerializes, with an accent ring, scan line, and particles around the actor.
+- A same-provider model change still pulses the cue without inventing a persona change; there is no extra text badge over the character.
+- The inspector's `选定模型` line re-enters when the reported model changes. The cue itself is decorative, so the model text remains the accessible source.
+- Reduced motion skips the overlay and updates the persona immediately. The `暂停状态动画` control pauses the cue's CSS animations as well.
+
+`tests/model-switch.test.ts` covers detection truthfulness and `tests/model-switch-mounted.test.ts` mounts the live office to verify the cross-fade, model-only cue, automatic expiry, and reduced-motion fallback.
+
 ## Topology and inspection
 
 - Self-office privilege and team leadership are separate explicit concepts.

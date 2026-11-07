@@ -17,27 +17,73 @@ export function providerCharacter(provider: unknown): CharacterId | undefined {
   return undefined;
 }
 
-/** Dedicated personas follow the unique fresh instance; retained stale records never take public seats. */
+/** Presence stopping is treated as instance offline; other adapters keep their own semantics. */
+export function presenceStatus(status: OfficeAgent['status']): OfficeAgent['status'] {
+  return status === 'stopping' ? 'offline' : status;
+}
+
+/** Dedicated personas prefer live instances; offline bindings survive expiry to finish departure. */
 export function presenceTopology(agents: readonly OfficeAgent[]): OfficeTopology {
   const uniqueFresh = (character: CharacterId) => {
-    const candidates = agents.filter(a => a.character === character && a.sourceFreshness === 'fresh');
+    const candidates = agents.filter(a => a.character === character && a.sourceFreshness === 'fresh' && a.status !== 'offline');
     if (candidates.length === 1) return candidates[0].id;
     const retained = agents.filter(a => a.character === character);
     return candidates.length === 0 && retained.length === 1 ? retained[0].id : undefined;
   };
   const owner = uniqueFresh('self') ?? '__unbound_owner__';
   const github = uniqueFresh('github');
-  return { selfAgentId: owner, childAgentIds: [], ...(github ? { githubAgentId: github } : {}), team: { layout: 'independent-desks', memberIds: agents.filter(a => a.character !== 'self' && a.character !== 'github' && a.sourceFreshness === 'fresh').map(a => a.id).sort() } };
+  return { selfAgentId: owner, childAgentIds: [], ...(github ? { githubAgentId: github } : {}), team: { layout: 'independent-desks', memberIds: agents.filter(a => a.character !== 'self' && a.character !== 'github' && (a.sourceFreshness === 'fresh' || a.status === 'offline')).map(a => a.id).sort() } };
 }
 
-/** Keep surviving instances in place; newcomers fill holes instead of shifting a sorted list. */
+/** Exact labels from pi-monitor's registered publisher contract, not fuzzy name matching.
+ * Idle snapshots clear task_type, but retain this label and the registered group name.
+ */
+export function presenceCollaboration(data: { member_name: string; task_type?: unknown; task_name?: unknown }, kind?: string): OfficeAgent['collaboration'] {
+  const registered = ['DeckZ 协作 PI', 'DeckZ 长线协作 PI', 'Desk 协作 PI'].includes(data.member_name);
+  if (kind !== 'pi-collaboration' && !registered && data.task_type !== 'coding_collaboration') return undefined;
+  return { group: typeof data.task_name === 'string' && data.task_name.trim() ? data.task_name.trim() : null };
+}
+
+/** Keep surviving instances in place; explicitly reported groups own separate tables. */
 export function createPresenceSeatAllocator() {
   const seats = new Map<string, PublicOfficeSeatId>();
-  return (topology: OfficeTopology): OfficeTopology => {
+  const tables = new Map<string, number>();
+  return (topology: OfficeTopology, agents: readonly OfficeAgent[] = []): OfficeTopology => {
     const members = new Set(topology.team.memberIds);
     for (const id of seats.keys()) if (!members.has(id)) seats.delete(id);
+    const groups = new Map<string, string[]>();
+    for (const agent of agents) {
+      const group = agent.collaboration?.group;
+      if (!members.has(agent.id) || !group) continue;
+      const ids = groups.get(group) ?? [];
+      ids.push(agent.id); groups.set(group, ids);
+    }
+    for (const group of tables.keys()) if (!groups.has(group)) tables.delete(group);
+    for (const group of [...groups.keys()].sort()) {
+      if (!tables.has(group)) {
+        const table = [1, 2].find(n => ![...tables.values()].includes(n));
+        if (table) tables.set(group, table);
+      }
+    }
+    const desired = new Map<string, PublicOfficeSeatId>();
+    const reserved = new Set<PublicOfficeSeatId>();
+    for (const [group, table] of tables) {
+      const slots = PUBLIC_TABLE_SEAT_IDS.filter(id => id.startsWith(`public-table-${table}-`));
+      slots.forEach(id => reserved.add(id));
+      const ids = groups.get(group)!;
+      // Preserve members' positions within their table across polling and restarts.
+      for (const id of ids) {
+        const previous = seats.get(id);
+        if (previous && slots.includes(previous)) { desired.set(id, previous); slots.splice(slots.indexOf(previous), 1); }
+      }
+      for (const id of ids.sort()) if (!desired.has(id) && slots.length) desired.set(id, slots.shift()!);
+    }
+    for (const [id, seat] of seats) {
+      if ((reserved.has(seat) && desired.get(id) !== seat) || (desired.has(id) && desired.get(id) !== seat)) seats.delete(id);
+    }
+    for (const [id, seat] of desired) seats.set(id, seat);
     const used = new Set(seats.values());
-    const free = [...PUBLIC_DESK_IDS, ...PUBLIC_TABLE_SEAT_IDS].filter(id => !used.has(id));
+    const free = [...PUBLIC_DESK_IDS, ...PUBLIC_TABLE_SEAT_IDS].filter(id => !used.has(id) && !reserved.has(id));
     for (const id of topology.team.memberIds) {
       if (seats.has(id)) continue;
       const seat = free.shift();
@@ -90,18 +136,19 @@ export function createPresenceHandler(options: { hosts: readonly string[]; origi
           const d = row.data;
           if (!d || typeof row.sourceId !== 'string' || typeof row.instanceId !== 'string' || d.instance_id !== row.instanceId || typeof d.member_name !== 'string' || !['idle','working','waiting','stopping','unknown'].includes(row.status) || !['fresh','stale'].includes(row.freshness) || !Number.isFinite(row.ageMs) || row.ageMs < 0) throw new Error('contract');
           const text = (v: unknown): string | null => { if (v == null) return null; if (typeof v !== 'string' || v.length > 1024) throw new Error('contract'); return v; };
-          // Explicit local mapping only, never parse member names or task titles.
+          // Persona mappings remain explicit; registered collaboration labels affect grouping only.
           const kind = config.sourceKinds?.[row.sourceId];
           const mapped = config.instanceCharacters?.[JSON.stringify([row.sourceId, row.instanceId])] ?? config.sourceCharacters?.[row.sourceId] ?? (kind === 'auto-fix' ? 'github' : kind === 'self' ? 'self' : undefined) ?? providerCharacter(d.provider);
           const character: CharacterId = ['self','github','deepseek','chatgpt','grok'].includes(mapped) ? mapped : 'unknown';
-          return { id: JSON.stringify([row.sourceId, row.instanceId]), identity: { sourceId: row.sourceId, instanceId: row.instanceId, collectorEpoch: body.processId }, name: d.member_name, character, status: row.status,
+          return { id: JSON.stringify([row.sourceId, row.instanceId]), identity: { sourceId: row.sourceId, instanceId: row.instanceId, collectorEpoch: body.processId }, name: d.member_name, character, status: presenceStatus(row.status),
             source: row.sourceId, sourceLabel: text(config.sourceLabels?.[row.sourceId]), observedAt: text(row.receivedAt), sourceFreshness: row.freshness,
             validForMs: Math.max(1, (row.staleAfterMs ?? body.staleAfterMs) - row.ageMs), latestUserRequest: null,
+            collaboration: presenceCollaboration(d, kind),
             task: { name: text(d.task_name), type: text(d.task_type), startedAt: text(d.task_started_at), detail: text(d.status_detail) }, provider: text(d.provider), model: text(d.model), repo: text(d.repo) };
         });
         if (new Set(agents.map(a => a.id)).size !== agents.length) throw new Error('duplicate');
-        const topology = allocateSeats(presenceTopology(agents));
-        res.end(JSON.stringify({ topology, snapshot: { agents, receivedAt: new Date().toISOString(), identityCoverage: 'complete', coverage: `${agents.length} 个授权范围内保留实例；无父子关系。空列表不代表全部退出。未配置类别的实例显示未知外观。` } }));
+        const topology = allocateSeats(presenceTopology(agents), agents);
+        res.end(JSON.stringify({ topology, snapshot: { agents, receivedAt: new Date().toISOString(), identityCoverage: 'complete', coverage: `${agents.length} 个授权范围内保留实例；协作按上报组名展示，不代表父子关系。空列表不代表全部退出。未配置类别的实例显示未知外观。` } }));
       } catch { fail(502, '无法读取可信 presence 状态，请检查连接或契约'); } finally { busy = false; }
     };
 }
