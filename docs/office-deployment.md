@@ -1,6 +1,14 @@
 # Office production deployment
 
-## Latest release: presence stopping departure (2026-11-06)
+## Latest release: model switch animation (2026-11-07)
+
+- URL: https://office.falsita.cn
+- Release: `/opt/agent-office/releases/20261107T095532Z`; rollback: `/opt/agent-office/releases/20261106T074922Z`.
+- Full frontend and source release. A provider/model change on the same presence identity now cross-fades the displayed persona with an accent ring, scan line, and particles; no text badge is rendered over the character. Same-provider model changes pulse without inventing a persona change. The release also contains the collaboration-table and stopping-departure code from the previous backend deployments.
+- Build/typecheck passed. Targeted model-switch detection/mounted, live-motion, hydration, night-rest, scythe handoff, collaboration, proxy, and whole-office tests passed. The known `tests/live-office-mounted.test.ts` failures were reproduced on clean `HEAD`; no full-suite pass is claimed.
+- Only `agent-office` was restarted. Public HTML, current hashed JS/CSS, API, and WebP assets returned 200; loopback `/health` and presence API returned 200. The deployed CSS/JS contain the model-switch rules and markup. A local headless-Chrome frame check confirmed the cross-fade; live model switching was not triggered through production presence during verification.
+
+## Previous release: presence stopping departure (2026-11-06)
 
 - URL: https://office.falsita.cn
 - Release: `/opt/agent-office/releases/20261106T074922Z`; rollback: `/opt/agent-office/releases/20261105T020224Z`.
