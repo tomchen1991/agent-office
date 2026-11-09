@@ -16,6 +16,7 @@
 - 明确 `offline` 时屏幕立即恢复空闲占位，不等6秒离场动画或记录TTL；保留工位、离场动画和详情中的历史记录。
 - 普通idle仍可显示来源保留的任务范围；stale/断连仅标记“最后观察”，不冒充明确退出。
 - 新鲜在线观察到达时恢复屏幕内容；减少动态效果退出及后续离线保活也不会重新显示旧任务。
-- 本次仅本地修复，尚未部署。构建及18项针对性测试通过；新增挂载回归在修复前稳定失败、修复后通过。
+- 已在用户授权下提交/推送main并部署：修复提交 `81d1f3d`，版本 `/opt/agent-office/releases/20261109T102354Z-monitor`。构建及32项针对性测试通过；新增挂载回归在修复前稳定失败、修复后通过。
+- 本次仅原子切换前端，无应用重启或Nginx变更。线上Chrome基础链路检查通过；当时无离线保留实例，未人为触发真实退出，具体复位场景以合成挂载回归为证。详见 [部署记录](office-deployment.md)。
 
 验证：`node --test tests/presence-monitor-mounted.test.ts tests/presence-proxy.test.ts tests/presence-collaboration-mounted.test.ts tests/live-office-motion.test.ts`。

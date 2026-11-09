@@ -12,7 +12,20 @@
 - Backup/audit: `/srv/backups/agent-office-tls.NnkBTA` holds original office vhost, pre-change vhost checksums, application PID evidence and private ACME logs. Original shared Origin CA files and other domains' certificates retained.
 - Rollback: restore that office vhost, `nginx -t`, reload Nginx only. Do not remove shared Origin CA files or change collect/other vhosts; if permanently reverting, separately adjust office's acme install hook to match intended operations. The failed first attempt exercised configuration restoration, not future certificate-renewal failure handling.
 
-## Latest application release: presence WebSocket (2026-11-09)
+## Latest application release: offline monitor reset (2026-11-09)
+
+- User explicitly authorized commit, push and deployment after reviewing the fix. Main commits: `a1d0299` records previously deployed ACME TLS; `81d1f3d` fixes offline monitor reset and adds mounted regression tests. Both pushed before activation.
+- New release: `/opt/agent-office/releases/20261109T102354Z-monitor`; rollback: `/opt/agent-office/releases/20261109T084727Z-ws`.
+- Archive SHA256: `eb6d31731c785351b87b8654ab67fe6536797bfe5e82c7e6561c236ea1e45c76` (committed source plus built dist, no credentials/node_modules). Production dependencies installed in the new directory.
+- Explicit offline records no longer supply task/repo text to monitors, even while retained upstream. Computers return to idle on the exit notification, without waiting for the 6-second departure animation or 10-minute cache retention. Inspector history and uncertain last observations remain available.
+- Local build/typecheck and 32 targeted tests passed. New mounted regression was verified to fail before the fix and pass after; covers immediate reset, completed departure, later stale offline heartbeats, restored live state, reduced motion, and retained unknown/inspector history. VPS production-dependency backend checks: 15 passed. No claim that the previously failing full historical suite now passes.
+- Verified every server source file, src/core.ts and package/lock are identical between releases. Atomically switched current for Nginx static delivery only: **no application restart, no Nginx reload or config edits**, no collector operations. Existing office PID **3335717** unchanged. All live vhost and private office config checksums unchanged, including ACME certificate paths.
+- The running backend still has the old identical server code loaded from the retained old release. Keep that directory while the process uses it; the next normal service restart will load the new current path. No restart was needed for this frontend-only fix.
+- Public HTML/current JS `index-BGgHGw5H.js`/CSS returned 200, TLS verify 0. Real headless Chrome ran 21 seconds with one WSS connection, initial/heartbeat updates, 11 rendered actors/sprites, no alert/exception/failed application request, and zero old HTTP polls. Counts are observations, not inventory guarantees.
+- No retained offline instance was visible during the production Chrome check (0 applicable monitors). Thus production basic connectivity/rendering is verified; the specific reset behavior is covered by synthetic mounted regression, not a deliberately triggered real agent exit. No production state was written or source enabled to create a test case.
+- Backup/audit: `/opt/agent-office/deployment-backups/20261109T102354Z-monitor` records previous release, config checksums, unchanged process PID. Rollback is an atomic current symlink switch to the previous release; do not alter TLS/collector/config or restart the unchanged backend merely to roll back static assets.
+
+## Previous application release: presence WebSocket (2026-11-09)
 
 - URL: https://office.falsita.cn
 - Source commit: `49abb0623636a027d1e8945d55183fbc1e51c3be` on main, pushed before deployment.
