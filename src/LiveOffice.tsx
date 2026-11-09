@@ -215,6 +215,9 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     }} screenForSeat={seat => {
       const agent = observedAgents.find(item => item.id === seat.id);
       const status = agent ? displayStatus(agent, elapsed, state.phase) : 'unknown';
+      // Retained offline rows are history, not an occupied computer. Clear on explicit
+      // exit without waiting for the departure animation or collector retention TTL.
+      if (agent?.status === 'offline') return null;
       const task = agent?.task?.name?.trim() || null;
       const repository = agent?.repo?.trim() || null;
       return task || repository ? { task, repository, stale: status === 'unknown' } : null;
