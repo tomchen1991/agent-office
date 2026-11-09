@@ -1,6 +1,18 @@
 # Office production deployment
 
-## Latest release: presence WebSocket (2026-11-09)
+## Latest infrastructure update: public ACME TLS (2026-11-09)
+
+- User authorized office TLS maintenance via acme.sh, explicitly after collect TLS migration completed. Waited for the collector owner to confirm no remaining ACME/Nginx work before changing office.
+- Replaced office's shared Cloudflare Origin CA certificate with an independent Let's Encrypt ECC ec-256 certificate for `office.falsita.cn`, using existing root `/root/.acme.sh/acme.sh` v3.1.5 and `dns_cf` DNS-01. Existing private account configuration reused in place, never printed/copied; no DNS proxy mode, account credentials, HTTP redirects or application settings changed.
+- Installed files: `/etc/nginx/ssl/office.falsita.cn/{fullchain.pem,key.pem}`, root:root 0600, parent root:root 0700. Certificate expires **2027-02-07 09:00:16 UTC**; acme.sh recorded next renewal **2027-01-07 18:57:13 UTC**.
+- Existing root cron retained: daily at server-local 03:17, `/root/.acme.sh/acme.sh --cron --home /root/.acme.sh > /var/log/acme.sh.cron.log 2>&1`. Per-domain install paths and `nginx -t && systemctl reload nginx` hook saved by `--install-cert`. Future renewal not forced or simulated; configuration and current install/reload verified.
+- Changed only office's two certificate directives and explanatory comment; all other vhost hashes checked unchanged. Nginx syntax test/reload passed, office PID stayed **3335717**, no application/collector restart. Repository Nginx template updated to avoid restoring Origin CA paths on future releases.
+- Initial probe immediately after reload failed certificate verification and automatically restored the prior office vhost. Installed chain verified against the system trust store and key matched; a subsequent bounded post-reload wait succeeded. TLS verification was never disabled.
+- External HTTPS both forced directly to `124.220.74.235` and via normal DNS: 200, certificate verify 0. Direct and normal-DNS office WSS upgrades: 101, trusted certificate for office.falsita.cn, Let's Encrypt issuer YE2. Existing collect public readiness remained 200 with TLS verify 0.
+- Backup/audit: `/srv/backups/agent-office-tls.NnkBTA` holds original office vhost, pre-change vhost checksums, application PID evidence and private ACME logs. Original shared Origin CA files and other domains' certificates retained.
+- Rollback: restore that office vhost, `nginx -t`, reload Nginx only. Do not remove shared Origin CA files or change collect/other vhosts; if permanently reverting, separately adjust office's acme install hook to match intended operations. The failed first attempt exercised configuration restoration, not future certificate-renewal failure handling.
+
+## Latest application release: presence WebSocket (2026-11-09)
 
 - URL: https://office.falsita.cn
 - Source commit: `49abb0623636a027d1e8945d55183fbc1e51c3be` on main, pushed before deployment.
