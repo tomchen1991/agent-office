@@ -6,6 +6,7 @@ import { Readable } from 'node:stream';
 import type { Plugin } from 'vite';
 import type { CharacterId, OfficeAgent, OfficeTopology, PublicOfficeSeatId } from '../src/core.ts';
 import { PUBLIC_DESK_IDS, PUBLIC_TABLE_SEAT_IDS } from '../src/core.ts';
+import { attachPresenceStream } from './presenceStreamServer.ts';
 
 /** Appearance only: never infer source identity, seats, or collaboration from provider. */
 export function providerCharacter(provider: unknown): CharacterId | undefined {
@@ -130,7 +131,13 @@ export function createPresenceHandler(options: { hosts: readonly string[]; origi
         const decoder = new TextDecoder();
         while (true) { const { value, done } = await reader.read(); if (done) break; bytes += value.byteLength; if (bytes > 1048576) { await reader.cancel(); throw new Error('limit'); } raw += decoder.decode(value, { stream: true }); }
         raw += decoder.decode();
-        const body = JSON.parse(raw);
+        res.end(JSON.stringify(normalizePresence(JSON.parse(raw), config, allocateSeats)));
+      } catch { fail(502, '无法读取可信 presence 状态，请检查连接或契约'); } finally { busy = false; }
+    };
+}
+
+/** Shared HTTP/WS normalization; only this allowlisted DTO crosses into the browser. */
+export function normalizePresence(body: any, config: any, allocateSeats = createPresenceSeatAllocator()) {
         if (body.version !== 1 || body.persistence !== 'memory' || body.complete !== true || typeof body.processId !== 'string' || !Array.isArray(body.instances) || body.instances.length > 128 || !Number.isFinite(body.staleAfterMs)) throw new Error('contract');
         const agents: OfficeAgent[] = body.instances.map((row: any) => {
           const d = row.data;
@@ -148,13 +155,15 @@ export function createPresenceHandler(options: { hosts: readonly string[]; origi
         });
         if (new Set(agents.map(a => a.id)).size !== agents.length) throw new Error('duplicate');
         const topology = allocateSeats(presenceTopology(agents), agents);
-        res.end(JSON.stringify({ topology, snapshot: { agents, receivedAt: new Date().toISOString(), identityCoverage: 'complete', coverage: `${agents.length} 个授权范围内保留实例；协作按上报组名展示，不代表父子关系。空列表不代表全部退出。未配置类别的实例显示未知外观。` } }));
-      } catch { fail(502, '无法读取可信 presence 状态，请检查连接或契约'); } finally { busy = false; }
-    };
+        return { topology, snapshot: { agents, receivedAt: new Date().toISOString(), identityCoverage: 'complete' as const, coverage: `${agents.length} 个授权范围内保留实例；协作按上报组名展示，不代表父子关系。空列表不代表全部退出。未配置类别的实例显示未知外观。` } };
 }
 
 export function presenceProxy(): Plugin {
   return { name: 'private-presence-backend', configureServer(server) {
     server.middlewares.use('/api/office/presence', createPresenceHandler());
+    if (server.httpServer) {
+      const close = attachPresenceStream(server.httpServer, { hosts: ['127.0.0.1:5188', 'localhost:5188'], origins: ['http://127.0.0.1:5188', 'http://localhost:5188'] });
+      server.httpServer.once('close', close);
+    }
   } };
 }
