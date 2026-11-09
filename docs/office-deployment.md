@@ -1,6 +1,31 @@
 # Office production deployment
 
-## Latest release: model switch animation (2026-11-07)
+## Latest release: presence WebSocket (2026-11-09)
+
+- URL: https://office.falsita.cn
+- Source commit: `49abb0623636a027d1e8945d55183fbc1e51c3be` on main, pushed before deployment.
+- Release: `/opt/agent-office/releases/20261109T084727Z-ws`; rollback: `/opt/agent-office/releases/20261107T095532Z`.
+- Archive SHA256: `cf61f2ce00548051f57bbe4cb7d3b62f8da9f48641246a70fb7fab2b9e9db121` (committed source plus locally built dist, no credentials/node_modules).
+- User authorized commit/push to main, then real integration after collector deployment, then office deployment only on success. Collector was confirmed at `/opt/collect-service/studio-releases/presence-ws-reviewed.89UuOD` before and after this office deployment; this task did not restart or modify it.
+- Replaced browser 5-second HTTP polling with same-origin WS; one authorized upstream shared by viewers, full snapshots on change/15-second heartbeat, 35-second application watchdog. See [presence-websocket.md](presence-websocket.md).
+
+### Tests before activation
+
+- Local build/typecheck and 22 targeted tests passed; production-dependency install plus 15 backend targeted tests passed on VPS. No full historical suite pass claimed (earlier full run had 7 failures, documented in the WS implementation note).
+- Using the existing office consumer config without printing payloads/credentials, public collector WSS delivered initial and heartbeat with continuous sequence/stable processId for 17 seconds.
+- Candidate served only on VPS loopback:5199 as the existing unprivileged agent-office user, accessed through a temporary SSH tunnel. Real headless Chrome received initial/heartbeat and change frames, rendered CSS sprites, had no alert/runtime exception/failed request, and issued zero old presence HTTP polls. Final candidate run observed 14 actors; this is not an inventory guarantee.
+- Temporary browser harness initially asserted canvas rendering, but this scene uses CSS sprites; the harness was corrected without changing application code. Early harness cleanup attempts timed out; final runs cleaned up Chrome and returned successfully. Candidate process/tunnel were stopped before production activation; loopback:5199 was absent afterwards.
+
+### Activation and production verification
+
+- Installed production dependencies in the new release; atomically changed current, restarted only agent-office, added only the exact office WS Nginx location, ran nginx -t and reloaded Nginx. Before changing the vhost, the script verified all other live Nginx contents matched the existing template.
+- Backups: `/opt/agent-office/deployment-backups/20261109T084727Z-ws` contains original office vhost, previous release path and config checksum. Existing private consumer config checksum unchanged. Other services, collector settings and credentials untouched.
+- Public HTML/current JS/CSS returned 200. Production headless Chrome received initial/change/heartbeat via exactly one WSS connection, had no office alerts or runtime exceptions, and sent zero old presence HTTP requests over 21 seconds. Rendered actor/sprite count varied with live observations (14 earlier, 1 in final run); no state was written or source enabled to manufacture a scenario.
+- Cloudflare injected `static.cloudflareinsights.com` script was blocked by the existing self-only CSP. Initial strict network check reported this as a failure; final check reports it separately, with zero failed application requests. CSP/Cloudflare settings were not loosened.
+- Missing/foreign WS Origin rejected 403; legacy HTTP read 200; service active, loopback health ok, only 127.0.0.1:5188 listening. No production agent change was triggered deliberately; actual observed change frames plus synthetic regression cover the update path, not all possible transitions or long-term reliability.
+- Rollback: restore current to the previous release, restore the saved office vhost, restart agent-office, nginx -t then reload. Do not modify collector/database/private config. Rollback path retained, not exercised.
+
+## Previous release: model switch animation (2026-11-07)
 
 - URL: https://office.falsita.cn
 - Release: `/opt/agent-office/releases/20261107T095532Z`; rollback: `/opt/agent-office/releases/20261106T074922Z`.

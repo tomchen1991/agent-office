@@ -1,4 +1,6 @@
-# Presence WebSocket 消费（本地实现，未部署）
+# Presence WebSocket 消费
+
+已于2026-11-09在完成上游及候选浏览器联调后部署。版本、验证与回退见 [office-deployment.md](office-deployment.md)。
 
 ## 链路
 
@@ -35,7 +37,7 @@ HTTP只读接口保留兼容，页面不降级轮询。旧Node/Electron `/v1/sta
 
 ## 发布边界与验证
 
-生产Nginx已增加WS Upgrade配置候选及75秒read timeout；仅修改文件，**未部署、重启或公网联调**。采集服务也尚未部署新接口，当前线上不能据此认定可用。需要另行授权部署两端与Nginx，并验收WSS/Cloudflare两段链路。
+在用户明确授权后，已部署WS Upgrade及75秒read timeout配置，并完成公网collector WSS、候选代理/Chrome及生产办公室Chrome只读验证。仅重启agent-office；不修改采集服务、真实凭证或来源开关。生产Chrome验证无旧HTTP轮询、收到初始/变化/保活、无应用异常；Cloudflare额外注入的统计脚本被既有CSP拦截，单独记录、不放宽策略。详细证据与限制见部署记录。
 
 - `npm run typecheck`、`npm run build`：通过。
 - `node --test tests/presence-stream-server.test.ts tests/presence-office-mounted.test.ts tests/presence-proxy.test.ts`：22项通过，使用合成token和临时loopback；覆盖共享上游、缓存年龄、空集替换、序列校验、授权失败、浏览器恢复和旧消息隔离。
