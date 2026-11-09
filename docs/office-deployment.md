@@ -12,7 +12,16 @@
 - Backup/audit: `/srv/backups/agent-office-tls.NnkBTA` holds original office vhost, pre-change vhost checksums, application PID evidence and private ACME logs. Original shared Origin CA files and other domains' certificates retained.
 - Rollback: restore that office vhost, `nginx -t`, reload Nginx only. Do not remove shared Origin CA files or change collect/other vhosts; if permanently reverting, separately adjust office's acme install hook to match intended operations. The failed first attempt exercised configuration restoration, not future certificate-renewal failure handling.
 
-## Latest application release: offline monitor reset (2026-11-09)
+## Latest application release: offline monitor empty circle (2026-11-09)
+
+- Source `4e6edef05477219aff04dc04c2c9d09f84de1d79` was already committed and pushed; user requested checking and completing the missed deployment. Offline occupied monitors now show `○`, while idle and unknown retain their distinct symbols.
+- Release: `/opt/agent-office/releases/20261109T104111Z-empty-circle`; rollback: `/opt/agent-office/releases/20261109T102354Z-monitor`. Source commit is recorded in release `SOURCE_COMMIT`.
+- Mounted regression: 4 tests passed; TypeScript and production build passed. Public HTML references `index-C8S9QNQe.js`; public JS/CSS/presence API returned 200 with TLS verification 0. No production browser visual acceptance or full-suite pass claimed.
+- Server sources, core and package/lock verified identical before switching static files. No application restart, Nginx reload/config change, or collector operation. Existing office PID and all vhost/private consumer config hashes unchanged.
+- Archive SHA256: `e0e44171df7c5a68cccb7c6a77d721a73a62bf5322f55dda14e479df4c48bbd1`. Removed macOS AppleDouble archive sidecars before activation. First activation probe caught restrictive staging-root permissions and automatically restored the previous symlink; normalized release ownership/root permissions and successfully repeated activation.
+- Backup/audit: `/opt/agent-office/deployment-backups/20261109T104111Z-empty-circle`. Dependencies link to the previous release; retain it (also still used by the unchanged running backend). Rollback is an atomic current symlink switch without restarting the backend.
+
+## Previous application release: offline monitor reset (2026-11-09)
 
 - User explicitly authorized commit, push and deployment after reviewing the fix. Main commits: `a1d0299` records previously deployed ACME TLS; `81d1f3d` fixes offline monitor reset and adds mounted regression tests. Both pushed before activation.
 - New release: `/opt/agent-office/releases/20261109T102354Z-monitor`; rollback: `/opt/agent-office/releases/20261109T084727Z-ws`.
