@@ -44,11 +44,12 @@ test('presence monitors clear retained exit metadata without erasing uncertain o
   };
   const monitor = () => container.querySelector('.wo-monitor')!;
   const actor = () => container.querySelector('[data-office-actor="agent"]');
-  const assertIdle = () => {
+  const assertIdle = (symbol = '○') => {
     assert.equal(Boolean(monitor().querySelector('.wo-screen-content')), false);
     assert.equal(Boolean(monitor().querySelector('.wo-screen-task, .wo-screen-repository')), false);
     assert.equal(monitor().getAttribute('title'), null);
     assert.equal(monitor().classList.contains('wo-screen-work'), false);
+    assert.equal(monitor().querySelector('.wo-screen strong')?.textContent, symbol);
   };
   try {
     const { LiveOffice } = await vite.ssrLoadModule('/src/LiveOffice.tsx');
@@ -72,6 +73,10 @@ test('presence monitors clear retained exit metadata without erasing uncertain o
       await publish([agent({ task: { name: 'New work', type: null, startedAt: null, detail: null }, repo: 'new-repo' })]);
       assert.match(monitor().textContent ?? '', /New work/);
       assert.doesNotMatch(monitor().textContent ?? '', /Retained work/);
+      await publish([agent({ status: 'idle', task: undefined, repo: null })]);
+      assert.equal(monitor().querySelector('.wo-screen strong')?.textContent, '···');
+      await publish([agent({ status: 'unknown', task: undefined, repo: null })]);
+      assert.equal(monitor().querySelector('.wo-screen strong')?.textContent, '?');
       await publish([agent({ status: 'idle' })]);
       assert.match(monitor().textContent ?? '', /Retained work/);
       await publish([agent({ sourceFreshness: 'stale' })]);
@@ -88,7 +93,7 @@ test('presence monitors clear retained exit metadata without erasing uncertain o
       assert.equal(actor(), null);
       assertIdle();
       await publish([]);
-      assertIdle();
+      assertIdle('?');
     });
   } finally {
     await act(async () => root.unmount());
