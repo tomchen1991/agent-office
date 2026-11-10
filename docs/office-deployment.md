@@ -12,7 +12,20 @@
 - Backup/audit: `/srv/backups/agent-office-tls.NnkBTA` holds original office vhost, pre-change vhost checksums, application PID evidence and private ACME logs. Original shared Origin CA files and other domains' certificates retained.
 - Rollback: restore that office vhost, `nginx -t`, reload Nginx only. Do not remove shared Origin CA files or change collect/other vhosts; if permanently reverting, separately adjust office's acme install hook to match intended operations. The failed first attempt exercised configuration restoration, not future certificate-renewal failure handling.
 
-## Latest application release: offline monitor empty circle (2026-11-09)
+## Latest application release: compact rooms and overflow actors (2026-11-10)
+
+- User authorized committing, pushing and deploying the reviewed office presentation. Application source `326920d` was pushed to main before activation. DevOps / hotspot backend identity wiring remains deferred; no new interface or private mapping was added.
+- Release: `/opt/agent-office/releases/20261110T103000Z-office-layout`; rollback: `/opt/agent-office/releases/20261109T104111Z-empty-circle`. Full source commit is recorded in `SOURCE_COMMIT`.
+- Includes 20-seat stacked rooms, unified door geometry, visible framed windows, equal-scale responsive floor, removal of geometric placeholder plants, and overflow child/team actors. Overflow idle uses walking artwork; working remains a standing fallback until tablet artwork is supplied.
+- Local `npm run check`: **262 tests passed**, asset integrity passed, TypeScript and production build passed. The npm test command now explicitly uses development mode so React mounted tests work when the parent terminal exports production mode. VPS production dependencies installed with lifecycle scripts disabled; **15 backend tests passed** before activation.
+- Archive SHA256: `d83b4e79a58b2517493bbe086b750f6a9a56f035f94e54139d2669951df12504`. Release permissions normalized and readability checked as both the service and Nginx users. Dependencies installed within the release, not linked to a previous release.
+- Atomically switched current and restarted **only agent-office**. No Nginx reload, TLS/config changes or collector operations. All Nginx vhost and private office consumer configuration checksums remained unchanged. Health and presence read endpoints succeeded after restart; an initial health retry during startup was expected and recovered.
+- Public HTTPS HTML referenced `index-Do_2Aykm.js`; JS, `index-BFKfWknL.css`, DevOps and hotspot seated WebP samples returned 200 with byte hashes matching local build. Certificate verification remained enabled.
+- Public WSS delivered initial, change and heartbeat snapshots with continuous sequence (1–7 during observation) and complete identity coverage. Observed 12 retained instances; this is not an inventory guarantee. No raw task payloads or credentials were printed, and no upstream state was written to manufacture a test case.
+- Browser production visual acceptance was not performed in this deployment. Screenshot-driven local refinements and automated tests do not guarantee every sprite/door occlusion or extreme overflow case.
+- Backup/audit: `/opt/agent-office/deployment-backups/20261110T103000Z-office-layout`. Activation had an error trap to restore the previous symlink and restart agent-office; rollback was not required. To revert, atomically restore the rollback release and restart only agent-office; leave Nginx, TLS and collector unchanged.
+
+## Previous application release: offline monitor empty circle (2026-11-09)
 
 - Source `4e6edef05477219aff04dc04c2c9d09f84de1d79` was already committed and pushed; user requested checking and completing the missed deployment. Offline occupied monitors now show `○`, while idle and unknown retain their distinct symbols.
 - Release: `/opt/agent-office/releases/20261109T104111Z-empty-circle`; rollback: `/opt/agent-office/releases/20261109T102354Z-monitor`. Source commit is recorded in release `SOURCE_COMMIT`.
