@@ -56,17 +56,17 @@ test('reduced motion settles at actual neutral/work status and drops explicit de
   }
 });
 
-test('explicit topology uses the approved geometry, isolates self privileges, caps children, and never infers persona', () => {
+test('explicit topology uses public child seats, isolates self privileges, and never infers persona', () => {
   const topology: OfficeTopology = { selfAgentId: 'owner', childAgentIds: ['c1', 'c2', 'c3', 'c4', 'c5'], team: { layout: 'leader-desks', memberIds: ['a', 'b', 'c'], leaderId: 'b' } };
   const agents: OfficeAgent[] = [{ id: 'a', name: 'host-chatgpt', character: 'unknown', status: 'working', source: 'host', observedAt: null, latestUserRequest: null }];
   const seats = liveOfficeSeats(topology, agents);
-  assert.equal(seats.filter(seat => seat.kind === 'simulated-child').length, 2);
+  assert.equal(seats.filter(seat => topology.childAgentIds.includes(seat.id)).length, 5);
   assert.equal(seats.find(seat => seat.kind === 'owner')?.id, 'owner');
   assert.equal(seats.find(seat => seat.isLeader)?.id, 'b');
-  assert.equal(seats.length, 22);
+  assert.equal(seats.length, 20);
   assert.equal(seats.find(seat => seat.id === 'b')?.geometryId, 'public-desk-2');
   assert.equal(seats.find(seat => seat.id === 'a')?.persona, 'unknown');
   const peer = liveOfficeSeats({ ...topology, team: { layout: 'peer-table', memberIds: ['a', 'b', 'c'] } }, agents);
-  assert.ok(peer.filter(seat => seat.kind === 'team' && !seat.empty).every(seat => seat.sharedTable));
+  assert.ok(peer.filter(seat => topology.team.memberIds.includes(seat.id)).every(seat => seat.sharedTable));
   assert.equal(peer.find(seat => seat.id === 'c')?.mirrored, true);
 });

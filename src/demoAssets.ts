@@ -4,7 +4,7 @@ export interface DemoAtlas {
 }
 export interface DemoCharacter {
   id: 'self'|'deepseek'|'chatgpt'|'grok'|'github'|'devops'|'hotspot'; label:string; ready:boolean;
-  locomotion:DemoAtlas; seated:DemoAtlas; extra?:DemoAtlas; pickup?:DemoAtlas; parkedScythe?:DemoAtlas; sleep?:DemoAtlas;
+  locomotion:DemoAtlas; seated:DemoAtlas; extra?:DemoAtlas; pickup?:DemoAtlas; parkedScythe?:DemoAtlas; sleep?:DemoAtlas; tablet?:DemoAtlas;
 }
 /** Each identity receives its own inspected action frames; never substitute another character. */
 export const demoCharacters:readonly DemoCharacter[]=[

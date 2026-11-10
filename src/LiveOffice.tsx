@@ -18,6 +18,7 @@ import { detectModelSwitches } from './modelSwitch';
 import type { ModelSwitchMark, ModelSwitchObservation, ModelSwitchRecord } from './modelSwitch';
 import './live-office.css';
 import { AgentDialog } from './AgentDialog';
+import { OverflowAgents } from './OverflowAgents';
 import { demoAssetUrl } from './assetUrl';
 
 const systemWallClock = () => new Date();
@@ -129,7 +130,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
       for (const character of selectedCharacters) {
         if (!alive) return;
         await load(character.locomotion.src, 'low');
-        for (const src of [...personalAssets(character), ...(character.sleep ? [character.sleep.src] : [])]) {
+        for (const src of [...personalAssets(character), ...(character.sleep ? [character.sleep.src] : []), ...(character.tablet ? [character.tablet.src] : [])]) {
           if (!alive) return;
           await load(src, 'low');
         }
@@ -169,6 +170,12 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const visibleModelSwitches: Record<string, ModelSwitchRecord> = reducedMotion ? {} : Object.fromEntries(Object.entries(modelSwitches).filter(([, item]) => now - item.at < 1900));
   const seats = liveOfficeSeats(topology, [...presentation.values()]);
   const allocation = liveOfficeSeatReport(topology);
+  const overflowTargets = [...allocation.childOverflowIds, ...allocation.teamOverflowIds].flatMap(id => {
+    const agent = observedAgents.find(item => item.id === id);
+    if (!agent || agent.status === 'offline') return [];
+    return [{ id, identityKey: identityKey(agent), name: agent.name,
+      persona: residentPersona(id, agent.character, topology), status: displayStatus(agent, elapsed, state.phase) }];
+  });
   const nightTime = isNightRestTime(wallClock(), nightConfig);
   const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
@@ -227,9 +234,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     }} statusForSeat={seat => { const target = targets.find(item => item.id === seat.id); const retained = actors.find(item => item.id === seat.id)?.visualOnly; return { status: retained ? 'unknown' : target?.status ?? 'unknown', label: !retained && target?.identityKey ? liveStatusLabels[target.status] : '状态未知 · 未收到数据' }; }} poseForSeat={seat => {
       const actor = actors.find(item => item.id === seat.id);
       return actor ? liveOfficePose(actor, reducedMotion) : null;
-    }} loading={assets.failed.length > 0 && <button className="live-asset-retry" onClick={() => setLoadAttempt(value => value + 1)}>部分素材未载入，点击重试</button>} />
-    {allocation.teamOverflowIds.length > 0 && <p className="live-warning">另有 {allocation.teamOverflowIds.length} 位成员未入座，可在下方查看。</p>}
-    {allocation.teamOverflowIds.length > 0 && <nav className="live-agent-list" aria-label="未入座 Agent">{allocation.teamOverflowIds.map(id => <button key={id} onClick={() => setSelected(id)}>{presentation.get(id)?.name ?? id}</button>)}</nav>}
+    }} worldChildren={<OverflowAgents targets={overflowTargets} characters={characters} paused={paused} reducedMotion={reducedMotion} sourceKey={sourceKey} assetReady={src => assets.loaded.includes(src)} onSelect={setSelected} />} loading={assets.failed.length > 0 && <button className="live-asset-retry" onClick={() => setLoadAttempt(value => value + 1)}>部分素材未载入，点击重试</button>} />
     {selected !== null && <AgentDialog onClose={() => setSelected(null)}>
       <section className="live-inspector" aria-labelledby="live-details-title"><div><h2 id="live-details-title">{currentAgent?.name ?? presentation.get(selectedId)?.name ?? selectedId}</h2></div><dl>
         <div><dt>当前显示状态</dt><dd data-live-current-status={effectiveStatus}>{liveStatusLabels[effectiveStatus]}</dd></div>

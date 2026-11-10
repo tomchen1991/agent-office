@@ -6,7 +6,7 @@ import { demoCharacters } from './demoAssets';
 import type { DemoAtlas, DemoCharacter } from './demoAssets';
 import { demoFrame } from './demoTimeline';
 import type { DemoStage } from './demoTimeline';
-import { fixedOfficeSeats, fixedOfficeTables, officeRegionCenters, MAX_SIMULATED_CHILD_SEATS, OFFICE_WORLD, OFFICE_ACTOR_RATIO, OFFICE_DESK, officeActorDepth, officeActorPlacement, officeLocalPoint } from './wholeOfficeGeometry';
+import { fixedOfficeSeats, fixedOfficeTables, officeRegionCenters, OFFICE_WORLD, OFFICE_ROOMS, OFFICE_ACTOR_RATIO, OFFICE_DESK, officeActorDepth, officeActorPlacement, officeLocalPoint } from './wholeOfficeGeometry';
 import type { OfficeLayout, OfficeSeat } from './wholeOfficeGeometry';
 import './whole-office.css';
 import './monitor-content.css';
@@ -30,7 +30,7 @@ export interface WholeOfficeSceneProps {
   childCount: number; worldStage?: string; floorLabel: string; floorStatus: string;
   working?: boolean; error?: boolean; leaderLabel?: string;
   live?: boolean; selectedId?: string; onSelect?: (id: string) => void;
-  loading?: ReactNode; children?: ReactNode;
+  loading?: ReactNode; children?: ReactNode; worldChildren?: ReactNode;
   statusForSeat?: (seat: OfficeSceneSeat) => { status: OfficeStatus; label: string };
   sourceLabelForSeat?: (seat: OfficeSceneSeat) => string | null;
   collaborationLabelForSeats?: (seats: readonly OfficeSceneSeat[]) => string | null;
@@ -63,7 +63,7 @@ const regionCenters = officeRegionCenters;
 
 /** Shared approved office presentation. The caller owns its clock and data semantics. */
 export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demoCharacters, canAnimate, reducedMotion, assetReady,
-  childCount, worldStage = 'live', floorLabel, floorStatus, live = false, onSelect, loading, children, statusForSeat, screenForSeat, sourceLabelForSeat, collaborationLabelForSeats, modelSwitchForSeat }: WholeOfficeSceneProps) {
+  childCount, worldStage = 'live', floorLabel, floorStatus, live = false, onSelect, loading, children, worldChildren, statusForSeat, screenForSeat, sourceLabelForSeat, collaborationLabelForSeats, modelSwitchForSeat }: WholeOfficeSceneProps) {
   const [zoom, setZoom] = useState<number | null>(null);
   const [navigation, setNavigation] = useState<{ region: OfficeRegion; behavior: ScrollBehavior }>({ region: 'fit', behavior: 'auto' });
   const viewport = useRef<HTMLDivElement>(null);
@@ -83,8 +83,9 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
     let left = 0, top = navigation.region === 'overview' ? 100 : 0;
     if (navigation.region !== 'overview' && navigation.region !== 'fit') {
       const center = regionCenters[navigation.region];
-      left = center.x / OFFICE_WORLD.width * width - port.clientWidth / 2;
-      top = center.y / OFFICE_WORLD.height * height - port.clientHeight / 2;
+      const portBounds = port.getBoundingClientRect();
+      left = (bounds.left ?? 0) - (portBounds.left ?? 0) + port.scrollLeft + center.x / OFFICE_WORLD.width * width - port.clientWidth / 2;
+      top = (bounds.top ?? 0) - (portBounds.top ?? 0) + port.scrollTop + center.y / OFFICE_WORLD.height * height - port.clientHeight / 2;
     }
     port.scrollTo({ left: Math.max(0, Math.min(maxLeft, left)), top: Math.max(0, Math.min(maxTop, top)),
       behavior: navigation.behavior });
@@ -153,18 +154,24 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
   return <div className="wo-scene-card">
       <div className="wo-view-controls"><div><button onClick={() => setZoom(value => { const current = value ?? visibleScale(); return Math.min(current, Math.max(.025, current * .8)); })} aria-label="缩小办公室">−</button><button onClick={() => setZoom(value => Math.min(1.5, (value ?? visibleScale()) / .8))} aria-label="放大办公室">＋</button><button onClick={() => navigate('overview')} aria-pressed={zoom === COMFORTABLE_ZOOM}>舒适近景</button><button onClick={() => navigate('fit')} aria-pressed={zoom === null}>适应全景</button><button onClick={() => setZoom(1)} aria-pressed={zoom === 1}>100%</button><button onClick={() => viewport.current?.scrollBy({ left: -320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向左平移">←</button><button onClick={() => viewport.current?.scrollBy({ left: 320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向右平移">→</button><button onClick={() => viewport.current?.scrollBy({ top: -260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向上平移">↑</button><button onClick={() => viewport.current?.scrollBy({ top: 260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向下平移">↓</button></div></div>
       {<div className="wo-region-controls" role="group" aria-label="跳转办公区域"><button onClick={() => navigate('private')}>主办公室</button><button onClick={() => navigate('public')}>公共协作桌</button><button onClick={() => navigate('desks')}>独立工位</button><button onClick={() => navigate('devops')}>DevOps 办公室</button></div>}
-      <div ref={viewport} className="wo-viewport" tabIndex={0} role="region" aria-label="办公室可滚动全景，默认紧凑全景，完整保留 22 席，可缩放及横向纵向滚动">
+      <div ref={viewport} className="wo-viewport" tabIndex={0} role="region" aria-label="办公室可滚动全景，默认紧凑全景，共 20 席，子 Agent 使用公共工位，可缩放及横向纵向滚动">
         <div ref={world} className={`wo-world wo-fixed-world wo-stage-${worldStage}`} role="group" aria-label={`${floorLabel}，${floorStatus}`} style={zoom === null ? undefined : { width: OFFICE_WORLD.width * zoom }}>
-          <div className="wo-back-wall" aria-hidden="true"><div className="wo-window wo-window-private"><i /><i /><i /><i /></div><div className="wo-window wo-window-team"><i /><i /><i /><i /></div></div>
+          <div className="wo-back-wall" aria-hidden="true" />
           <div className="wo-floor" aria-hidden="true" />
-          <div className="wo-private-floor" aria-hidden="true" />
           <div className="wo-team-rug" aria-hidden="true" />
-          <div className="wo-private-border wo-private-top" aria-hidden="true" /><div className="wo-private-border wo-private-left" aria-hidden="true" /><div className="wo-private-border wo-private-bottom" aria-hidden="true" />
-          <div className="wo-glass-wall" aria-hidden="true"><i /><i /><i /></div>
-          <div className="wo-private-door" aria-label="独立办公室的敞开门口"></div>
+          {Object.entries(OFFICE_ROOMS).map(([id, room]) => <section key={id} className={`wo-room wo-room-${id}`} style={position(room.x, room.y, room.width, room.height, 20)} aria-label={id === 'main' ? '主 Agent 独立办公室' : 'DevOps 独立办公室，Auto-fix 与 DevOps 同室'}>
+            <div className="wo-room-backdrop" aria-hidden="true" />
+            <i className="wo-room-wall wo-room-wall-top" aria-hidden="true" /><i className="wo-room-wall wo-room-wall-left" aria-hidden="true" /><i className="wo-room-wall wo-room-wall-bottom" aria-hidden="true" />
+            <i className="wo-room-wall wo-room-wall-right" style={{ top: 0, height: `${(room.doorTop - room.y) / room.height * 100}%` }} aria-hidden="true" />
+            {room.doorBottom < room.y + room.height && <i className="wo-room-wall wo-room-wall-right" style={{ top: `${(room.doorBottom - room.y) / room.height * 100}%`, bottom: 0 }} aria-hidden="true" />}
+            <div className={`wo-room-door ${id === 'main' ? 'wo-private-door' : 'wo-ops-door'}`} style={{ top: `${(room.doorTop - room.y) / room.height * 100}%`, height: `${(room.doorBottom - room.doorTop) / room.height * 100}%` }} aria-label={`${id === 'main' ? '主 Agent 独立办公室' : 'DevOps 办公室'}的敞开门洞`}><i /><i /><span /></div>
+          </section>)}
+          {[
+            { id: 'main-left', x: 90, width: 230 }, { id: 'main-right', x: 390, width: 230 },
+            { id: 'public-left', x: 920, width: 280 }, { id: 'public-center', x: 1360, width: 280 }, { id: 'public-right', x: 1820, width: 280 },
+          ].map(window => <div key={window.id} className="wo-room-window" data-office-window={window.id} style={position(window.x, 135, window.width, 64, 23)} aria-hidden="true"><span /><span /><i /></div>)}
           <div className="wo-owner-rug" aria-hidden="true" />
-          <section className="wo-devops-room" style={position(1730, 120, 790, 490, 22)} aria-label="DevOps 独立办公室，Auto-fix 与 DevOps 同室"><span className="wo-devops-room-title">DEVOPS / 运维办公室</span><i className="wo-ops-left-wall"/><i className="wo-ops-right-wall"/><i className="wo-ops-bottom-wall"/><span className="wo-ops-door" aria-label="DevOps 办公室敞开门口" /></section>
-          <div className="wo-devops-wall-screen" style={position(1755, 155, 740, 145, 100)}><DevopsMonitor compact /></div>
+          <div className="wo-devops-wall-screen" style={position(70, 585, 600, 110, 100)}><DevopsMonitor compact /></div>
           {(() => {
             const owner = furnitureSeats.find(seat => seat.kind === 'owner')!;
             const self = characters.find(character => character.id === 'self');
@@ -180,7 +187,6 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
               alt="停放在取放点的星月镰刀" style={{ ...position(placement.x, placement.y, placement.width, undefined, placement.y + 1, seatAnchorY(owner)),
                 transform: `translate(-${placement.contactX * 100}%, -${placement.contactY * 100}%)` }} />}</Fragment>;
           })()}
-          {childCount > MAX_SIMULATED_CHILD_SEATS && <div className="wo-child-overflow" aria-label={`还有 ${childCount - MAX_SIMULATED_CHILD_SEATS} 个${live ? '子 Agent' : '模拟子 Actor'}，最多展示 ${MAX_SIMULATED_CHILD_SEATS} 个席位`}><b>+{childCount - MAX_SIMULATED_CHILD_SEATS}</b></div>}
 
           {fixedOfficeTables.map(table => {
             const tableOccupants = furnitureSeats.filter(seat => seat.tableId === table.id && !seat.empty);
@@ -202,7 +208,7 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
             </div>;
           })}
           {furnitureSeats.map(renderSeat)}
-          <div className="wo-plant wo-plant-one" aria-hidden="true"><span>✦</span><i /></div><div className="wo-plant wo-plant-two" aria-hidden="true"><span>✦</span><i /></div>
+          {worldChildren}
           <div className="wo-door-mat" aria-hidden="true"><span>↑</span></div>
           <div className="wo-coffee-corner" aria-hidden="true"><span>☕</span></div>
 

@@ -55,13 +55,12 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
     await render();
     await t.test('same spatial office, correct identities and latest request without fabricated summaries', async () => {
       assert.equal(listeners.size, 1); assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="team"]').length, 10);
-      assert.equal(container.querySelectorAll('[data-office-actor][data-office-seat-kind="simulated-child"]').length, 2);
-      assert.match(container.querySelector('.wo-child-overflow')?.textContent ?? '', /\+3/);
+      assert.equal(container.querySelectorAll('[data-office-actor][data-office-seat-kind="simulated-child"]').length, 0);
+      assert.equal(container.querySelector('.wo-child-overflow'), null);
       assert.equal(container.querySelector('[data-office-seat="self-child-3"]'), null);
-      assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="simulated-child"]').length, 2);
-      // Child overflow is counted, but the current UI exposes no child-overflow inspector.
+      assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="simulated-child"]').length, 0);
       assert.equal(container.querySelector('.live-inspector'), null);
-      assert.equal(container.querySelector('[data-office-actor="child-3"]'), null);
+      assert.ok(container.querySelector('[data-office-actor="child-3"]'), 'children use available public seats');
       await selectAgent('self');
       assert.ok(container.querySelector('.wo-private-door')); assert.ok(container.querySelector('.wo-parked-scythe'));
       assert.ok(container.querySelector('[data-office-actor="mystery"] .wo-unknown-persona'));

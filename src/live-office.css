@@ -17,6 +17,8 @@
 @keyframes wo-model-materialize{0%{opacity:0;transform:translateY(.9cqw) scale(.94);filter:blur(3px) brightness(2.2)}42%{opacity:1;filter:blur(0) brightness(1.55)}100%{opacity:1;transform:none;filter:none}}
 @keyframes wo-model-dissolve{0%{opacity:1;transform:none;filter:brightness(1.7)}55%{opacity:.5;transform:translateY(-.45cqw) scale(1.015);filter:blur(1px) brightness(2.4)}100%{opacity:0;transform:translateY(-1.7cqw) scale(.9);filter:blur(4px) brightness(2.6)}}
 @keyframes wo-model-ring{0%{opacity:0;transform:scale(.55) rotate(-20deg)}16%{opacity:.95}58%{opacity:.55;transform:scale(1.03) rotate(8deg)}100%{opacity:0;transform:scale(1.2) rotate(18deg)}}
+.wo-overflow-actor{pointer-events:auto;cursor:pointer}
+.wo-overflow-actor:focus-visible{outline:2px solid #e0c2f5;outline-offset:2px}
 @keyframes wo-model-spin{to{transform:rotate(360deg)}}
 @keyframes wo-model-scan{0%{top:8%;opacity:0}14%{opacity:1}82%{opacity:.65}100%{top:88%;opacity:0}}
 @keyframes wo-model-particle{0%{opacity:0;transform:translateY(0) scale(.4) rotate(0)}18%{opacity:1}100%{opacity:0;transform:translateY(-5.8cqw) scale(1.2) rotate(45deg)}}

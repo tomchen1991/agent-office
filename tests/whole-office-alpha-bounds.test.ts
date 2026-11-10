@@ -32,17 +32,18 @@ test('opaque walking pixels stay inside the compact world for every seat, person
      assert.ok(pixelLeft>=0&&pixelRight<=OFFICE_WORLD.width,`${context}: horizontal [${pixelLeft},${pixelRight}]`);
      assert.ok(pixelTop>=0&&pixelBottom<=OFFICE_WORLD.height,`${context}: vertical [${pixelTop},${pixelBottom}]`);
      maximumRight=Math.max(maximumRight,pixelRight);
-     // Below the open door (y700–1000), actors may cross the partition.
-     // Above it, the full opaque silhouette stays on its assigned side.
-     if((seat.kind==='owner'||seat.kind==='simulated-child')&&pixelTop<1000&&pixelBottom>120) assert.ok(pixelLeft>=49,`${context}: private pixels cross left wall: ${pixelLeft}`);
-     if(pixelTop<700&&pixelBottom>120){
-      if(seat.kind==='owner'||seat.kind==='simulated-child') { assert.ok(pixelRight<=650,`${context}: private pixels cross partition: ${pixelRight}`); }
-      else assert.ok(pixelLeft>=659,`${context}: public pixels cross partition: ${pixelLeft}`);
+     // The previous full-height partition no longer exists. Two stacked rooms
+     // have separate doorways; test their ground-plane crossings below, not an
+     // obsolete x650/y700 silhouette split. Sprite/wall occlusion needs browser QA.
+     if(['owner','github','devops'].includes(seat.kind)) assert.ok(pixelLeft>=40,`${context}: room actor crosses left world wall`);
+     if(Math.min(from.x,to.x)<700&&Math.max(from.x,to.x)>700){
+      const doorY=seat.kind==='owner'?470:750;
+      assert.equal(from.y,doorY);assert.equal(to.y,doorY);
      }
     }
    }
   }
  }
- // The compact third table retains a measured right margin for all PNG frames.
+ // The rightmost public desks retain a measured world margin for all PNG frames.
  assert.ok(OFFICE_WORLD.width-maximumRight>=7,`Right boundary margin ${OFFICE_WORLD.width-maximumRight}`);
 });

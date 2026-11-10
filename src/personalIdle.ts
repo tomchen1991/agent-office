@@ -64,7 +64,9 @@ export function personalPose(action: PersonalIdle): { stage: DemoStage; stageEla
 export function personalRoute(seat: OfficeSeat, character: DemoCharacter) {
   const home = officeApproachPoint(seat, character);
   if (seat.kind === 'owner') return [home, { x: seat.x + 245, y: home.y }, { x: seat.x + 245, y: seat.y + 190 }];
-  const sideX = seat.x - 80;
+  // The repair desk now lives beside the left exterior wall. Keep the full
+  // walking silhouette inside the room, not just the feet at the old x110 turn.
+  const sideX = seat.kind === 'github' ? Math.max(165, seat.x - 80) : seat.x - 80;
   return [home, { x: sideX, y: home.y }, { x: sideX, y: seat.y - (seat.kind === 'github' ? 0 : 60) }];
 }
 export function personalPlacement(seat: OfficeSeat, character: DemoCharacter, action: PersonalIdle) {

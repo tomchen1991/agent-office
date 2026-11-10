@@ -15,7 +15,7 @@ for (const role of ['self', 'github'] as const) {
     assert.equal(personalDemo(role, role === 'self' ? 11000 : 9000), undefined);
     const seat = fixedOfficeSeats().find(item => item.kind === (role === 'self' ? 'owner' : 'github'))!;
     const route = personalRoute(seat, demoCharacters.find(item => item.id === role)!);
-    for (const point of route) { assert.ok(point.x > 100 && point.x < OFFICE_WORLD.width - 100); assert.ok(point.y > 200 && point.y < 550); }
+    for (const point of route) { assert.ok(point.x > 100 && point.x < OFFICE_WORLD.width - 100); assert.ok(point.y > (role === 'self' ? 200 : 550) && point.y < (role === 'self' ? 550 : 1000)); }
     assert.ok(Math.hypot(route.at(-1)!.x-route[0].x, route.at(-1)!.y-route[0].y) < 300);
   });
   test(`${role}: only five seconds continuous idle enables leisure; latest state wins`, () => {
@@ -81,7 +81,7 @@ test('new exact alpha assets and every walking frame stay within world and priva
         const left = point.x+((mirrored ? 512-x1 : x0)/512-a)*width;
         const right = point.x+((mirrored ? 512-x0 : x1)/512-a)*width;
         const top = point.y+(y0/512-atlas.anchor.y)*width, bottom=point.y+(y1/512-atlas.anchor.y)*width;
-        assert.ok(left >= (role === 'self' ? 49 : 659) && right <= (role === 'self' ? 650 : OFFICE_WORLD.width));
+        assert.ok(left >= 49 && right <= 690, `${role}: personal action stays inside its left-hand room`);
         assert.ok(top >= 0 && bottom <= OFFICE_WORLD.height);
       }
     }

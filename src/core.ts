@@ -91,13 +91,12 @@ export interface OfficeSeatReport {
   childOverflowIds: readonly string[];
   teamOverflowIds: readonly string[];
 }
-/** Legacy layout is an allocation preference only; all 20 physical seats always exist. */
+/** Children share public furniture; no private desks are permanently reserved. */
 export function liveOfficeSeatReport(topology: OfficeTopology): OfficeSeatReport {
   validateTopology(topology);
   const assignments: Record<string, string> = Object.create(null);
   assignments[topology.selfAgentId] = 'self';
   if (topology.githubAgentId !== undefined) assignments[topology.githubAgentId] = 'github-desk';
-  topology.childAgentIds.slice(0, MAX_VISIBLE_CHILD_AGENTS).forEach((id, index) => { assignments[id] = `self-child-${index + 1}`; });
   const explicit = topology.team.seatAssignments ?? {};
   const used = new Set(Object.values(explicit));
   const preferred = topology.team.layout === 'peer-table'
@@ -110,5 +109,12 @@ export function liveOfficeSeatReport(topology: OfficeTopology): OfficeSeatReport
     if (position) assignments[id] = position;
     else teamOverflowIds.push(id);
   }
-  return { assignments, childOverflowIds: topology.childAgentIds.slice(MAX_VISIBLE_CHILD_AGENTS), teamOverflowIds };
+  const childOverflowIds: string[] = [];
+  const childSeats = [...PUBLIC_TABLE_SEAT_IDS, ...PUBLIC_DESK_IDS].filter(seat => !Object.values(assignments).includes(seat));
+  for (const id of topology.childAgentIds) {
+    const seat = childSeats.shift();
+    if (seat) assignments[id] = seat;
+    else childOverflowIds.push(id);
+  }
+  return { assignments, childOverflowIds, teamOverflowIds };
 }

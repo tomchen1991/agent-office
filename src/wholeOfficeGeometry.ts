@@ -9,8 +9,13 @@ import { DEMO_SPRITE_WIDTH_PERCENT, SEATED_CONTACT_Y, seatingPlacement, seatingP
 export const OFFICE_ACTOR_RATIO = 1.25;
 export const officeActorWidth = (seat: OfficeSeat) => DEMO_SPRITE_WIDTH_PERCENT * 10 * seat.scale * OFFICE_ACTOR_RATIO;
 export const OFFICE_DESK = { backX: 610, backWidth: 277, frontX: 600, frontWidth: 297 } as const;
-export const OFFICE_WORLD = { width: 2550, height: 1050 } as const;
-export const officeRegionCenters = { private: { x: 325, y: 520 }, public: { x: 1420, y: 320 }, desks: { x: 1520, y: 800 }, devops: { x: 2110, y: 380 } } as const;
+export const OFFICE_WORLD = { width: 2250, height: 1050 } as const;
+/** Shared geometry for visible partitions and route door centers. */
+export const OFFICE_ROOMS = {
+  main: { x: 40, y: 120, width: 660, height: 400, doorTop: 420, doorBottom: 520, doorCenter: 470 },
+  devops: { x: 40, y: 550, width: 660, height: 450, doorTop: 700, doorBottom: 800, doorCenter: 750 },
+} as const;
+export const officeRegionCenters = { private: { x: 370, y: 320 }, public: { x: 1420, y: 320 }, desks: { x: 1520, y: 700 }, devops: { x: 370, y: 780 } } as const;
 export const MAX_SIMULATED_CHILD_SEATS = MAX_VISIBLE_CHILD_AGENTS;
 export const SIMULATED_CHILD_COUNT = 5;
 export type OfficeLayout = 'independent-desks' | 'leader-desks' | 'peer-table';
@@ -41,10 +46,6 @@ export const fixedOfficeTables: readonly OfficeTable[] = [
 /** All furniture exists even when no agent is connected. No template is an actor. */
 export function fixedOfficeSeats(): OfficeSeat[] {
   const seats: OfficeSeat[] = [{ id: 'self', geometryId: 'self', persona: 'self', label: '主工位', kind: 'owner', residentRole: 'main', role: '独立办公室 · 大工位', x: 250, y: 340, scale: 1.1, empty: true }];
-  for (let index = 0; index < MAX_SIMULATED_CHILD_SEATS; index++) {
-    const id = `self-child-${index + 1}`;
-    seats.push({ id, geometryId: id, persona: 'self', label: `子工位 ${index + 1}`, kind: 'simulated-child', role: '子 Agent 独立工位', x: 250, y: 600 + index * 235, scale: .756, empty: true });
-  }
   for (const table of fixedOfficeTables) {
     const offsets = [{ x: 40, y: 89 }, { x: 240, y: 6 }, { x: 580, y: 89, mirrored: true }];
     offsets.forEach((offset, index) => {
@@ -54,11 +55,11 @@ export function fixedOfficeSeats(): OfficeSeat[] {
   }
   for (let index = 0; index < 10; index++) {
     const id = `public-desk-${index + 1}`;
-    seats.push({ id, geometryId: id, persona: 'self', label: `工位 ${String(index + 1).padStart(2, '0')}`, kind: 'team', role: '公共独立工位', x: 910 + index % 5 * 270, y: 650 + Math.floor(index / 5) * 235, scale: .756, empty: true });
+    seats.push({ id, geometryId: id, persona: 'self', label: `工位 ${String(index + 1).padStart(2, '0')}`, kind: 'team', role: '公共独立工位', x: 910 + index % 5 * 270, y: 570 + Math.floor(index / 5) * 225, scale: .756, empty: true });
   }
-  seats.push({ id: 'github-desk', geometryId: 'github-desk', persona: 'unknown', label: 'Auto-fix', kind: 'github', residentRole: 'auto-fix', role: '自动修复 · DevOps 办公室', x: 1850, y: 460, scale: .95, empty: true });
-  seats.push({ id: 'devops-desk', geometryId: 'devops-desk', persona: 'unknown', label: 'DevOps', kind: 'devops', residentRole: 'devops', role: '服务运维 · DevOps 办公室', x: 2220, y: 460, scale: .95, empty: true });
-  seats.push({ id: 'hotspot-desk', geometryId: 'hotspot-desk', persona: 'unknown', label: '热点追踪', kind: 'hotspot', residentRole: 'hotspot', role: '热点追踪 · 公共办公室', x: 2280, y: 840, scale: .9, empty: true });
+  seats.push({ id: 'github-desk', geometryId: 'github-desk', persona: 'unknown', label: 'Auto-fix', kind: 'github', residentRole: 'auto-fix', role: '自动修复 · DevOps 办公室', x: 190, y: 820, scale: .8, empty: true });
+  seats.push({ id: 'devops-desk', geometryId: 'devops-desk', persona: 'unknown', label: 'DevOps', kind: 'devops', residentRole: 'devops', role: '服务运维 · DevOps 办公室', x: 475, y: 820, scale: .8, empty: true });
+  seats.push({ id: 'hotspot-desk', geometryId: 'hotspot-desk', persona: 'unknown', label: '热点追踪', kind: 'hotspot', residentRole: 'hotspot', role: '热点追踪 · 公共办公室', x: 1840, y: 300, scale: .9, empty: true });
   return seats;
 }
 /** Compatibility demo occupants. Layout is a collaboration mode, not a floor replacement. */
@@ -66,7 +67,7 @@ export function wholeOfficeSeats(layout: OfficeLayout, childCount = SIMULATED_CH
   const templates = fixedOfficeSeats();
   const occupied = (geometryId: string, id: string, persona: DemoCharacter['id'], label: string, role: string): OfficeSeat => ({ ...templates.find(seat => seat.id === geometryId)!, id, persona, label, role, empty: false });
   return [occupied('devops-desk', 'devops-demo', 'devops', 'DevOps · 模拟', '服务运维 · 模拟角色'), occupied('hotspot-desk', 'hotspot-demo', 'hotspot', '热点追踪 · 模拟', '热点追踪 · 模拟角色'), ...(includeGithub ? [occupied('github-desk', 'github-demo', 'github', 'GitHub Agent · 模拟', '修复 / 审核 · 专属大桌')] : []), occupied('self', 'self', 'self', '自研 Agent', '独立办公室 · 专属席位'),
-    ...Array.from({ length: Math.min(MAX_SIMULATED_CHILD_SEATS, Math.max(0, Math.floor(childCount))) }, (_, index) => occupied(`self-child-${index + 1}`, `self-child-${index + 1}`, 'self', `模拟子 Actor ${index + 1}`, '自研外观派生 · 演示实例')),
+    ...Array.from({ length: Math.min(MAX_SIMULATED_CHILD_SEATS, Math.max(0, Math.floor(childCount))) }, (_, index) => occupied(`public-table-2-seat-${index + 1}`, `self-child-${index + 1}`, 'self', `模拟子 Actor ${index + 1}`, '公共协作席 · 演示实例')),
     ...(['deepseek', 'chatgpt', 'grok'] as const).map((id, index) => occupied(layout === 'independent-desks' && index > 0 ? `public-desk-${index}` : `public-table-1-seat-${index + 1}`, id, id, id === 'chatgpt' ? 'ChatGPT' : id === 'deepseek' ? 'DeepSeek' : 'Grok', layout === 'leader-desks' && id === 'chatgpt' ? '任务负责人 · 演示指定' : '同级协作'))];
 }
 /** Transform calibrated source pixels, not differently registered body landmarks. */
@@ -89,17 +90,24 @@ export function officeTravelTiming(seat: OfficeSeat) {
 export function officeRoute(seat: OfficeSeat, character?: DemoCharacter): OfficePoint[] {
   const end = officeApproachPoint(seat, character);
   const entry = [{ x: 780, y: 1010 }, { x: 780, y: 980 }];
-  // Both residents enter the DevOps room through its bottom-left doorway.
-  if (seat.kind === 'github' || seat.kind === 'devops') return [...entry, { x: 840, y: 980 }, { x: 840, y: 600 }, { x: 1738, y: 600 }, { x: 1738, y: 340 }, { x: seat.x - 80, y: 340 }, { x: seat.x - 80, y: end.y }, end];
-  if (seat.kind === 'hotspot') return [...entry, { x: 780, y: 1020 }, { x: 2180, y: 1020 }, { x: 2180, y: 740 }, { x: seat.x - 80, y: 740 }, { x: seat.x - 80, y: end.y }, end];
+  // Left rooms have separate open doorways on their right-hand side.
+  if (seat.kind === 'github' || seat.kind === 'devops') {
+    const y = OFFICE_ROOMS.devops.doorCenter;
+    return [...entry, { x: 750, y: 980 }, { x: 750, y }, { x: 690, y }, { x: end.x, y }, end];
+  }
+  if (seat.kind === 'owner') {
+    const y = OFFICE_ROOMS.main.doorCenter;
+    return [...entry, { x: 750, y: 980 }, { x: 750, y }, { x: 690, y }, { x: 550, y }, { x: 550, y: 280 }, { x: end.x, y: 280 }, end];
+  }
+  if (seat.kind === 'hotspot') return [...entry, { x: 780, y: 520 }, { x: 1710, y: 520 }, { x: 1710, y: end.y }, end];
   if (seat.sharedTable) {
     const table = fixedOfficeTables.find(item => item.id === seat.tableId)!;
     const perimeterX = seat.mirrored ? table.x + table.width + 12 : seat.x - (table.private ? 0 : 25);
     const aisleY = table.y - 70;
     return [...entry, ...(table.private ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: perimeterX, y: aisleY }, { x: perimeterX, y: end.y }, end];
   }
-  const privateSeat = seat.kind === 'owner' || seat.kind === 'simulated-child';
-  const aisleY = seat.y - (privateSeat ? 60 : seat.y === 650 ? 40 : 100);
+  const privateSeat = seat.kind === 'simulated-child';
+  const aisleY = seat.y - (privateSeat ? 60 : seat.y === 570 ? 55 : 100);
   return [...entry, ...(privateSeat ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: seat.x - (privateSeat ? 30 : 80), y: aisleY }, { x: seat.x - (privateSeat ? 30 : 80), y: end.y }, end];
 }
 export function pointAlongOfficeRoute(route: readonly OfficePoint[], progress: number): OfficePoint & { movingLeft: boolean } {

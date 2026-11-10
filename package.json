@@ -12,7 +12,7 @@
     "build": "tsc --noEmit && vite build && node scripts/build-webp.ts",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/*.test.ts",
+    "test": "NODE_ENV=development node --test tests/*.test.ts",
     "verify:assets": "node scripts/verify-assets.ts",
     "check": "npm run test && npm run verify:assets && npm run build"
   },
