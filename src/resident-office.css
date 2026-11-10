@@ -28,7 +28,6 @@
 .wo-fixed-world .wo-window-private{left:4%;width:22%}
 .wo-fixed-world .wo-window-team{left:38%;width:54%}
 .wo-fixed-world .wo-door-mat{left:32%;width:5%}
-.wo-fixed-world .wo-coffee-corner{left:80%;top:93%}
 
 /* Floor-plan partitions: actual open gaps, not skewed decorative doors.
    Geometry is supplied by OFFICE_ROOMS, shared with walking routes. */

@@ -23,8 +23,10 @@ test('windows live on visible wall band; doors no longer render obsolete skewed 
   const source = readFileSync(new URL('../src/WholeOfficeScene.tsx', import.meta.url), 'utf8');
   assert.match(source, /Object\.entries\(OFFICE_ROOMS\)/);
   assert.match(source, /data-office-window/);
-  assert.match(source, /position\(window\.x, 135, window\.width, 64, 23\)/);
+  assert.match(source, /position\(window\.x, 135, window\.width, 64, 23, 135\)/);
   assert.doesNotMatch(source, /className="wo-glass-wall"/);
   assert.doesNotMatch(source, /className="wo-window wo-window-private"/);
   assert.doesNotMatch(source, /DEVOPS \/ 运维办公室/);
+  assert.doesNotMatch(source, /wo-coffee-corner|<span>☕<\/span>/);
+  assert.match(source, /position\(70, 585, 600, 110, 100, 585\)/);
 });

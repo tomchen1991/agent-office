@@ -21,8 +21,10 @@ test('compact architecture and fit aspect match the logical floor without a defa
  assert.ok(resident.includes('.wo-room .wo-room-door{position:absolute;left:auto;right:-.65cqw;width:1.65cqw;transform:none;border:0'));
  assert.ok(resident.includes('.wo-room-window{position:absolute;display:grid;grid-template-columns:1fr 1fr'));
  const display=readFileSync(new URL('../src/display-only.css',import.meta.url),'utf8');
- assert.ok(display.includes('width:min(100vw,241.935484dvh);height:auto;aspect-ratio:2250/1050'));
- assert.ok(!display.includes('height:112.903226dvh'));
- assert.ok(display.includes('width:1100px;left:0;top:0;transform:translateY(-11.428571%)'));
+ assert.ok(display.includes('width:100%;min-width:1100px;height:max(112.903226dvh,46.666667vw,513.333334px);aspect-ratio:auto'));
+ assert.ok(display.includes('left:0;top:0;transform:translateY(-11.428571%)'));
+ assert.ok(display.includes('max-height:none;overflow:auto'));
+ assert.ok(!display.includes('width:min(100vw'));
+ assert.ok(!display.includes('translate(-50%'));
  assert.ok(!css.includes('aspect-ratio:2400/1600'));
 });

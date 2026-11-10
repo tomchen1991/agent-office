@@ -169,9 +169,9 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
           {[
             { id: 'main-left', x: 90, width: 230 }, { id: 'main-right', x: 390, width: 230 },
             { id: 'public-left', x: 920, width: 280 }, { id: 'public-center', x: 1360, width: 280 }, { id: 'public-right', x: 1820, width: 280 },
-          ].map(window => <div key={window.id} className="wo-room-window" data-office-window={window.id} style={position(window.x, 135, window.width, 64, 23)} aria-hidden="true"><span /><span /><i /></div>)}
+          ].map(window => <div key={window.id} className="wo-room-window" data-office-window={window.id} style={position(window.x, 135, window.width, 64, 23, 135)} aria-hidden="true"><span /><span /><i /></div>)}
           <div className="wo-owner-rug" aria-hidden="true" />
-          <div className="wo-devops-wall-screen" style={position(70, 585, 600, 110, 100)}><DevopsMonitor compact /></div>
+          <div className="wo-devops-wall-screen" style={position(70, 585, 600, 110, 100, 585)}><DevopsMonitor compact /></div>
           {(() => {
             const owner = furnitureSeats.find(seat => seat.kind === 'owner')!;
             const self = characters.find(character => character.id === 'self');
@@ -210,7 +210,6 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
           {furnitureSeats.map(renderSeat)}
           {worldChildren}
           <div className="wo-door-mat" aria-hidden="true"><span>↑</span></div>
-          <div className="wo-coffee-corner" aria-hidden="true"><span>☕</span></div>
 
         </div>
       </div>
