@@ -1,3 +1,4 @@
+import { assertOperationalSceneCopy } from './scene-copy-assertions.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
@@ -19,10 +20,7 @@ test('decluttered views retain mode labels, accessible controls and missing-data
       assert.ok(doc.querySelector('h1'), `${name}: semantic page title retained`);
       const world = doc.querySelector('.wo-world,.lc-world,.office-scene')!;
       assert.ok(world, `${name}: scene exists`);
-      const sceneCopy = world.cloneNode(true) as Element;
-      // Layout selectors remain necessary controls, not decorative scene labels.
-      sceneCopy.querySelectorAll('.layout-picker').forEach(control => control.remove());
-      assert.doesNotMatch(sceneCopy.textContent!, /[\p{L}]/u, `${name}: scene contains symbols, not decorative prose`);
+      assertOperationalSceneCopy(world);
       assert.equal(world.querySelectorAll('.wo-nameplate,.wo-shared-name,.wo-room-title,.wo-child-label,.wo-floor-caption,.lc-desk-name,.lc-scene-caption,.desk-role,.arrival-label').length, 0);
       assert.equal(world.querySelectorAll('[role="status"]').length, 0, `${name}: real load warnings remain outside scene`);
       assert.equal(doc.querySelectorAll('.wo-stage-summary h2,.lc-stage-summary h2').length, 0);
@@ -43,7 +41,11 @@ test('decluttered views retain mode labels, accessible controls and missing-data
         assert.match(doc.querySelector('[role="status"]')!.textContent!, /载入|素材/);
         assert.equal(doc.querySelectorAll('.wo-footnote,.lc-footnote').length, 0);
       }
-      if (name === 'LiveOfficeExample' || name === 'App') {
+      if (name === 'LiveOfficeExample') {
+        assert.equal(doc.querySelector('.live-inspector'), null, 'live details open only on explicit selection');
+        assert.match(doc.body.textContent!, /状态未知|身份覆盖不完整/);
+      }
+      if (name === 'App') {
         assert.match(doc.body.textContent!, /数据来源/);
         assert.match(doc.body.textContent!, /状态新鲜度/);
         assert.match(doc.body.textContent!, /未提供用户请求/);
@@ -53,6 +55,6 @@ test('decluttered views retain mode labels, accessible controls and missing-data
       if (name === 'LiveOfficeExample') assert.match(doc.body.textContent!, /合成测试 · 未连接实际主机/);
     }
     const shell = await render('DemoShell');
-    assert.deepEqual([...shell.querySelectorAll('.view-switcher button')].map(button => button.textContent), ['办公室', '状态测试', '角色动作', '数据详情']);
+    assert.deepEqual([...shell.querySelectorAll('.view-switcher button')].map(button => button.textContent), ['实时办公室', '办公室', '状态测试', '角色动作', '数据详情']);
   } finally { await vite.close(); }
 });

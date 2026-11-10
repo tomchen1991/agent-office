@@ -1,0 +1,18 @@
+/* Resident identities are encoded in furniture, independently of model artwork. */
+.wo-resident-desk{--resident-light:#d5b3e9;--resident-mid:#9c73b1;--resident-dark:#634c7d}
+.wo-resident-desk.wo-desk-auto-fix{--resident-light:#dfae92;--resident-mid:#aa6e6e;--resident-dark:#624859}
+.wo-resident-desk.wo-desk-devops{--resident-light:#acd1d4;--resident-mid:#6799a7;--resident-dark:#385869}
+.wo-resident-desk.wo-desk-hotspot{--resident-light:#f1d095;--resident-mid:#b79b6a;--resident-dark:#75634b}
+.wo-desk-front.wo-resident-desk{background:linear-gradient(var(--resident-dark) 0 65%,transparent 65%);border-color:var(--resident-light);box-shadow:0 -2px 0 var(--resident-dark)}
+.wo-resident-desk .wo-desk-top{background:var(--resident-mid);border-color:var(--resident-light)}
+.wo-resident-desk .wo-desk-leg{background:var(--resident-dark);border-color:var(--resident-mid)}
+.wo-resident-name{position:absolute;top:13%;left:7%;width:85%;display:flex;align-items:center;justify-content:space-between;color:var(--resident-light);font-size:.65cqw;line-height:1.2;letter-spacing:.025em}
+.wo-resident-name b{font-weight:650}.wo-resident-name i{font-style:normal;font-size:1.1cqw;opacity:.8}
+.wo-resident-accessory{position:absolute;pointer-events:none}.wo-resident-prop{display:block;width:100%;height:100%;filter:drop-shadow(1px 2px 0 #16162c55);shape-rendering:crispEdges}
+.wo-devops-room{position:absolute;background:repeating-linear-gradient(0deg,transparent 0,transparent 30px,#b6d4d40c 31px,#b6d4d40c 32px),#334f5cbd;border-top:.27cqw solid #8daebd;box-shadow:inset 0 .5cqw 1.2cqw #142f4055}
+.wo-devops-room-title{position:absolute;top:.25cqw;left:1cqw;font-size:.6cqw;letter-spacing:.15em;color:#d1e3e6}
+.wo-devops-room>i{position:absolute;background:linear-gradient(90deg,#b0ced899,#587686);box-shadow:2px 2px 0 #25374688}
+.wo-ops-left-wall{top:0;left:0;width:.24cqw;height:89%}.wo-ops-right-wall{top:0;right:0;width:.32cqw;height:100%}.wo-ops-bottom-wall{bottom:0;left:18%;height:.27cqw;width:82%}
+.wo-ops-door{position:absolute;bottom:0;left:0;width:18%;height:10%;border-bottom:.14cqw dashed #b9d3d5aa;border-left:.15cqw solid #b9d3d5aa;transform:skewY(-12deg);transform-origin:bottom left}
+.wo-devops-wall-screen{position:absolute;container-type:inline-size;border:.3cqw solid #243444;box-shadow:0 .3cqw 0 #172837,0 0 .7cqw #192c3f99;border-radius:.25cqw;overflow:visible;background:#132731}
+.wo-devops-wall-screen>.devops-monitor{width:100%;height:100%}

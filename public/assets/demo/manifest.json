@@ -307,6 +307,108 @@
       "columns": 4,
       "rows": 2,
       "sha256": "3e9469634e23f02aa9377c39c8b94d78bf5236081ba8575c1a6d8ca7771784af"
+    },
+    {
+      "path": "assets/demo/devops/locomotion.png",
+      "character": "devops",
+      "sheet": "locomotion",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        300,
+        470
+      ],
+      "sha256": "aa2f86689660aead361f9be580e1be4f232b7f2ad1f22d174c4928f3824460be",
+      "provenance": "Approved DevOps/hotspot generated action prototype; mechanically registered source atlas copied byte-for-byte. Faces, hair and skirt folds retain small generated pose variations."
+    },
+    {
+      "path": "assets/demo/devops/seated.png",
+      "character": "devops",
+      "sheet": "seated",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        250,
+        355
+      ],
+      "sha256": "c7d7eb26c7a2bc819f6be9284502d0e9d5fa2890a4f5a42de4dc2481d49e3332",
+      "provenance": "Approved DevOps/hotspot generated action prototype; mechanically registered source atlas copied byte-for-byte. Faces, hair and skirt folds retain small generated pose variations."
+    },
+    {
+      "path": "assets/demo/devops/sleep.png",
+      "character": "devops",
+      "sheet": "sleep",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        250,
+        355
+      ],
+      "sha256": "77c4dd59fc488d6f0ed6dd49ebadcdb14616a5fe6703f1e76d5e574582d4d145",
+      "provenance": "Approved DevOps/hotspot generated action prototype; mechanically registered source atlas copied byte-for-byte. Faces, hair and skirt folds retain small generated pose variations."
+    },
+    {
+      "path": "assets/demo/hotspot/locomotion.png",
+      "character": "hotspot",
+      "sheet": "locomotion",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        300,
+        470
+      ],
+      "sha256": "551ec40c59d3b2fbfbdb8e35820abdcb59faa676e31575be8860e3d4800cc676",
+      "provenance": "Approved DevOps/hotspot generated action prototype; mechanically registered source atlas copied byte-for-byte. Faces, hair and skirt folds retain small generated pose variations."
+    },
+    {
+      "path": "assets/demo/hotspot/seated.png",
+      "character": "hotspot",
+      "sheet": "seated",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        250,
+        355
+      ],
+      "sha256": "eb56faff61b131e461a3cee25b41dd6c5802be4f95ab7f26dd9a664d35cee092",
+      "provenance": "Approved DevOps/hotspot generated action prototype; mechanically registered source atlas copied byte-for-byte. Faces, hair and skirt folds retain small generated pose variations."
+    },
+    {
+      "path": "assets/demo/hotspot/sleep.png",
+      "character": "hotspot",
+      "sheet": "sleep",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": [
+        250,
+        355
+      ],
+      "sha256": "071a16de6d142ec1ce0d8c799e000f86f9f14374f730f66cbe4f6ffcccce1a01",
+      "provenance": "Approved DevOps/hotspot generated action prototype; mechanically registered source atlas copied byte-for-byte. Faces, hair and skirt folds retain small generated pose variations."
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeStatus } from './core';
-import type { OfficeConfig } from './config';
+import type { ResidentOfficeConfig as OfficeConfig } from './residentLayout';
 import { LiveOffice } from './LiveOffice';
 import { liveStatusLabels } from './liveOfficeMotion';
 
@@ -10,15 +10,15 @@ export function createContractExampleSource() {
   const subscribers = new Set<(state: AdapterState) => void>();
   const snapshot = (): AdapterState => {
     const receivedAt = new Date().toISOString();
-    const personas = ['self', 'deepseek', 'chatgpt', 'grok', 'child-1', 'child-2', 'child-3', 'child-4', 'child-5', 'github'];
+    const personas = ['self', 'deepseek', 'chatgpt', 'grok', 'child-1', 'child-2', 'child-3', 'child-4', 'child-5', 'github', 'devops', 'hotspot'];
     const agents: OfficeAgent[] = personas.filter(id => !(omitted && id === 'self')).map(id => ({
       id: `synthetic:${id}:${epoch}`, name: id, character: 'unknown',
       identity: { sourceId: 'contract-example', instanceId: id, collectorEpoch: `example-epoch-${epoch}` },
-      status: id === 'self' || id === 'github' ? status : id === 'chatgpt' ? 'waiting' : id === 'grok' ? 'stopping' : 'idle',
+      status: ['self', 'github', 'devops', 'hotspot'].includes(id) ? status : id === 'chatgpt' ? 'waiting' : id === 'grok' ? 'stopping' : 'idle',
       sourceFreshness: stale ? 'stale' : 'fresh', validForMs: 60_000, observedAt: receivedAt, source: 'contract-example / 合成 DTO',
       latestUserRequest: null,
-      task: id === 'self' || id === 'github'
-        ? { name: status === 'idle' ? null : id === 'self' ? '实现设置页面（模拟）' : '审查登录模块变更（模拟）', type: status === 'idle' ? null : id === 'self' ? 'chat' : 'review', startedAt: null, detail: status === 'waiting' ? '等待用户确认' : status === 'working' ? '正在处理' : null }
+      task: ['self', 'github', 'devops', 'hotspot'].includes(id)
+        ? { name: status === 'idle' ? null : id === 'self' ? '实现设置页面（模拟）' : id === 'github' ? '审查登录模块变更（模拟）' : id === 'devops' ? '检查服务清单（模拟）' : '整理资讯候选（模拟）', type: status === 'idle' ? null : id === 'self' ? 'chat' : 'review', startedAt: null, detail: status === 'waiting' ? '等待用户确认' : status === 'working' ? '正在处理' : null }
         : { name: id === 'chatgpt' ? 'agent可视化（模拟协作组）' : id === 'grok' ? 'agent-office（模拟目录）' : null, type: null, startedAt: null, detail: id === 'chatgpt' ? '等待确认方案' : null },
       provider: id === 'chatgpt' ? '示例提供商' : null,
       model: id === 'chatgpt' ? '示例模型（非真实采集）' : null,
@@ -45,10 +45,10 @@ export function createContractExampleSource() {
   };
 }
 export function contractExampleConfig(layout: OfficeConfig['office']['team']['layout']): OfficeConfig {
-  const names = ['自研 Agent', 'DeepSeek', 'ChatGPT', 'Grok', '子 Agent 1', '子 Agent 2', '子 Agent 3', '子 Agent 4', '子 Agent 5', 'Auto-fix'];
-  const ids = ['self', 'deepseek', 'chatgpt', 'grok', 'child-1', 'child-2', 'child-3', 'child-4', 'child-5', 'github'];
-  return { version: 1, seats: ids.map((id, index) => ({ id, name: names[index], character: id === 'github' ? 'github' : index < 4 ? (['self', 'deepseek', 'chatgpt', 'grok'] as const)[index] : 'self', selector: { sourceId: 'contract-example', instanceId: id, epoch: { policy: 'follow-unique' } } })),
-    office: { selfSeatId: 'self', childSeatIds: ids.slice(4, 9), githubSeatId: 'github', team: { layout, memberSeatIds: ids.slice(1, 4), seatAssignments: { deepseek: 'public-table-1-seat-1', chatgpt: 'public-desk-1', grok: 'public-desk-2' }, ...(layout === 'leader-desks' ? { leaderSeatId: 'chatgpt' } : {}) } } };
+  const names = ['自研 Agent', 'DeepSeek', 'ChatGPT', 'Grok', '子 Agent 1', '子 Agent 2', '子 Agent 3', '子 Agent 4', '子 Agent 5', 'Auto-fix', 'DevOps', '热点追踪'];
+  const ids = ['self', 'deepseek', 'chatgpt', 'grok', 'child-1', 'child-2', 'child-3', 'child-4', 'child-5', 'github', 'devops', 'hotspot'];
+  return { version: 1, seats: ids.map((id, index) => ({ id, name: names[index], character: id === 'devops' || id === 'hotspot' ? 'unknown' : id === 'github' ? 'github' : index < 4 ? (['self', 'deepseek', 'chatgpt', 'grok'] as const)[index] : 'self', selector: { sourceId: 'contract-example', instanceId: id, epoch: { policy: 'follow-unique' } } })),
+    office: { selfSeatId: 'self', childSeatIds: ids.slice(4, 9), githubSeatId: 'github', devopsSeatId: 'devops', hotspotSeatId: 'hotspot', team: { layout, memberSeatIds: ids.slice(1, 4), seatAssignments: { deepseek: 'public-table-1-seat-1', chatgpt: 'public-desk-1', grok: 'public-desk-2' }, ...(layout === 'leader-desks' ? { leaderSeatId: 'chatgpt' } : {}) } } };
 }
 
 export function LiveOfficeExample() {
@@ -62,7 +62,7 @@ export function LiveOfficeExample() {
   const officeConfig = useMemo(() => contractExampleConfig(layout), [layout]);
   return <>
     <section className="live-example-controls" aria-label="规范化合约模拟控件"><h2>合成测试 · 未连接实际主机</h2>
-      <div className="live-actions" role="group" aria-label="模拟自研 Agent 和 Auto-fix 状态">{(['working', 'idle', 'waiting', 'stopping', 'offline', 'unknown'] as const).map(value => <button key={value} aria-pressed={status === value && !missing && !stale} onClick={() => { source.setStatus(value); setStatus(value); setMissing(false); setStale(false); }}>{liveStatusLabels[value]}</button>)}</div>
+      <div className="live-actions" role="group" aria-label="模拟四位常驻 Agent 状态">{(['working', 'idle', 'waiting', 'stopping', 'offline', 'unknown'] as const).map(value => <button key={value} aria-pressed={status === value && !missing && !stale} onClick={() => { source.setStatus(value); setStatus(value); setMissing(false); setStale(false); }}>{liveStatusLabels[value]}</button>)}</div>
       <div className="live-actions"><button aria-pressed={missing} onClick={() => { source.setMissing(!missing); setMissing(!missing); }}>{missing ? '恢复完整快照' : '模拟局部缺失'}</button><button aria-pressed={stale} onClick={() => { source.setStale(!stale); setStale(!stale); }}>{stale ? '恢复新鲜状态' : '模拟状态过期'}</button><button onClick={() => source.replaceEpoch()}>替换 collector epoch</button><button onClick={() => { source.refresh(); setStale(false); }}>刷新合成快照</button></div>
       <label>时钟<select aria-label="合成场景时钟" value={clock} onChange={event => setClock(event.target.value as typeof clock)}><option value="local">本机时间</option><option value="day">模拟白天 12:00</option><option value="night">模拟夜间 23:00</option></select></label>
       {missing && <p role="status">快照不完整，已暂停自动绑定；恢复完整快照后重试。</p>}

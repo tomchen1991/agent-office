@@ -13,7 +13,7 @@ export interface LiveOfficeTarget {
   seatKey: string;
   status: OfficeStatus;
   personalRole?: PersonalRole;
-  /** Only dedicated self/github, fresh connected explicit idle, loaded own sleep art. */
+  /** Only explicitly assigned resident desks, fresh connected explicit idle, loaded own sleep art. */
   nightEligible?: boolean;
   /** Night suppresses daytime leisure even if optional sleep artwork is unavailable. */
   nightRest?: boolean;

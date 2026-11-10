@@ -1,19 +1,24 @@
+import { assertOperationalSceneCopy } from './scene-copy-assertions.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import { JSDOM } from 'jsdom';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeSnapshot, OfficeTopology } from '../src/core.ts';
-import type { OfficeConfig } from '../src/config.ts';
+import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeSnapshot } from '../src/core.ts';
+import type { ResidentOfficeTopology as OfficeTopology, ResidentOfficeConfig as OfficeConfig } from '../src/residentLayout.ts';
 
 test('mounted live office follows normalized DTOs in the shared room and cancels every interrupted lifecycle', async t => {
   const vite = await createServer({ server: { middlewareMode: true, watch: null, hmr: false }, appType: 'custom' });
   const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost/', pretendToBeVisual: true });
-  const original = Object.fromEntries(['window', 'document', 'HTMLElement', 'Image', 'IS_REACT_ACT_ENVIRONMENT'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const original = Object.fromEntries(['window', 'document', 'HTMLElement', 'Image', 'fetch', 'IS_REACT_ACT_ENVIRONMENT'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  let networkRequests = 0;
+  Object.defineProperty(globalThis, 'fetch', { configurable: true, writable: true, value: async () => { networkRequests++; throw new Error('Synthetic office must not request a network service'); } });
   const pending: (() => void)[] = [];
   class LoadedImage { onload: (() => void) | null = null; onerror: (() => void) | null = null; set src(value: string) { pending.push(() => value.includes('missing-extra') ? this.onerror?.() : this.onload?.()); } }
   for (const [key, value] of Object.entries({ window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, Image: LoadedImage, IS_REACT_ACT_ENVIRONMENT: true })) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+  dom.window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  dom.window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   let now = 0, handle = 0, reduced = false, disposed = 0;
   const frames = new Map<number, FrameRequestCallback>(), timers = new Map<number, () => void>(), media = new Set<() => void>();
   Object.defineProperty(dom.window.performance, 'now', { value: () => now });
@@ -32,9 +37,20 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
   const emit = async (agents: readonly OfficeAgent[], extra: Partial<OfficeSnapshot> = {}, phase: AdapterState['phase'] = 'connected') => { snapshot = { ...snapshot, ...extra, agents }; await act(async () => listeners.forEach(listener => listener({ phase, error: null, snapshot }))); };
   const self = () => container.querySelector('[data-office-actor="self"]');
   const sprite = () => self()?.querySelector('[data-office-frame]');
-  const click = async (label: string) => { const button = [...container.querySelectorAll('button')].find(item => item.textContent === label); assert.ok(button, label); await act(async () => button.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))); };
+  const click = async (label: string) => { const button = [...container.querySelectorAll('button,[role="button"]')].find(item => item.textContent === label || item.getAttribute('aria-label')?.startsWith(`${label}，`)); assert.ok(button, label); await act(async () => button.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))); };
   const step = async (count = 1) => { for (let index = 0; index < count; index++) { now += 100; const callbacks = [...frames.values()]; frames.clear(); await act(async () => { callbacks.forEach(callback => callback(now)); timers.forEach(callback => callback()); }); } };
-  const render = async (props: Record<string, unknown> = {}) => { const { LiveOffice } = await vite.ssrLoadModule('/src/LiveOffice.tsx'); await act(async () => root.render(createElement(StrictMode, null, createElement(LiveOffice, { adapterFactory: factory, topology, modeLabel: 'Synthetic contract test', wallClock: () => new Date(2026, 0, 1, 12), ...props })))); await act(async () => pending.splice(0).forEach(callback => callback())); };
+  // Hold the mounted component identity stable across prop changes. Re-loading an SSR
+  // module during Vite dependency optimization can return a new component and reset selection.
+  const { LiveOffice } = await vite.ssrLoadModule('/src/LiveOffice.tsx');
+  const selectAgent = async (name: string) => {
+    const close = container.querySelector('.agent-dialog-close');
+    if (close) await act(async () => close.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })));
+    assert.equal(container.querySelector('.agent-dialog'), null);
+    await click(name);
+    assert.equal(container.querySelector('.agent-dialog')?.hasAttribute('open'), true);
+    assert.equal(container.querySelector('#live-details-title')?.textContent, name);
+  };
+  const render = async (props: Record<string, unknown> = {}) => { await act(async () => root.render(createElement(StrictMode, null, createElement(LiveOffice, { adapterFactory: factory, topology, modeLabel: 'Synthetic contract test', wallClock: () => new Date(2026, 0, 1, 12), ...props })))); for (let i = 0; i < 40 && pending.length; i++) await act(async () => pending.splice(0).forEach(callback => callback())); };
   try {
     await render();
     await t.test('same spatial office, correct identities and latest request without fabricated summaries', async () => {
@@ -43,13 +59,13 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       assert.match(container.querySelector('.wo-child-overflow')?.textContent ?? '', /\+3/);
       assert.equal(container.querySelector('[data-office-seat="self-child-3"]'), null);
       assert.equal(container.querySelectorAll('[data-office-desk][data-office-seat-kind="simulated-child"]').length, 2);
-      await click('child-3');
-      assert.equal(container.querySelector('#live-details-title')?.textContent, 'child-3');
+      // Child overflow is counted, but the current UI exposes no child-overflow inspector.
+      assert.equal(container.querySelector('.live-inspector'), null);
       assert.equal(container.querySelector('[data-office-actor="child-3"]'), null);
-      await click('self');
+      await selectAgent('self');
       assert.ok(container.querySelector('.wo-private-door')); assert.ok(container.querySelector('.wo-parked-scythe'));
       assert.ok(container.querySelector('[data-office-actor="mystery"] .wo-unknown-persona'));
-      assert.doesNotMatch(container.querySelector('.wo-world')!.textContent!, /[\p{L}]/u);
+      assertOperationalSceneCopy(container.querySelector('.wo-world')!);
       assert.equal(container.querySelector('.wo-world')!.getAttribute('role'), 'group');
       for (const button of container.querySelectorAll('.wo-seat-select')) {
         assert.match(button.getAttribute('aria-label')!, /查看详情/);
@@ -57,7 +73,17 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       }
       assert.match(self()!.getAttribute('aria-label')!, /self/);
       assert.equal(container.querySelector('[data-office-actor="mystery"] .wo-sprite'), null);
-      assert.match(container.querySelector('.live-request')?.textContent ?? '', /Only actual USER summary/);
+      assert.equal(container.querySelector('#live-details-title')?.textContent, 'self');
+      assert.equal(container.querySelector('[data-live-current-status]')?.getAttribute('data-live-current-status'), 'working');
+      assert.doesNotMatch(container.querySelector('.live-request')?.textContent ?? '', /Only actual USER summary/);
+      // Initial retained instances hydrate seated; a later explicit return follows arrival.
+      assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
+      const activeAgents = snapshot.agents;
+      await emit(activeAgents.map(item => item.id === 'self' ? { ...item, status: 'offline' } : item));
+      await step(62);
+      assert.equal(self(), null);
+      await emit(activeAgents);
+      assert.equal(self()?.getAttribute('data-office-phase'), 'arrival');
       await step(12);
       const arrivalStyle = self()?.getAttribute('style'), arrivalFrame = sprite()?.getAttribute('data-office-frame');
       await click('暂停状态动画'); await step(8);
@@ -80,7 +106,7 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
         assert.ok((status === 'working' ? ['0', '1'] : ['6', '7']).includes(sprite()?.getAttribute('data-office-frame') ?? ''));
         assert.equal(container.querySelectorAll('.wo-screen-error,.wo-error-bubble').length, 0);
       }
-      assert.match(container.querySelector('.live-request')?.textContent ?? '', /未提供用户请求摘要/);
+      assert.equal(container.querySelector('.live-request')?.textContent, '', 'absent task data must not invent activity or a request');
       assert.doesNotMatch(container.querySelector('.live-request')?.textContent ?? '', /Only actual USER summary/);
     });
     await t.test('both personal idle actors animate only fresh idle, cancel during pause, and return before work', async () => {
@@ -131,6 +157,8 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       assert.equal(self()?.getAttribute('data-office-phase'), 'seated');
     });
     await t.test('partial absence preserves uncertain seat without departure or old request; stale/disconnect stop work', async () => {
+      await selectAgent('self');
+      assert.equal(container.querySelector('[data-live-freshness]')?.textContent, '新鲜');
       await emit(snapshot.agents.filter(item => item.id !== 'self'), { identityCoverage: 'partial' });
       assert.equal(self()?.getAttribute('data-office-phase'), 'seated'); assert.equal(self()?.getAttribute('data-office-status'), 'unknown');
       assert.equal(sprite()?.getAttribute('data-office-frame'), '6');
@@ -138,7 +166,9 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       await click('暂停状态动画'); assert.equal(frames.size, 0);
       now += 91_000; await act(async () => timers.forEach(callback => callback()));
       assert.equal(self()?.getAttribute('data-office-status'), 'unknown'); assert.equal(sprite()?.getAttribute('data-office-frame'), '6');
-      assert.match(container.querySelector('[data-live-freshness]')?.textContent ?? '', /已过期/);
+      assert.equal(container.querySelector('.agent-dialog')?.hasAttribute('open'), true, 'freshness updates must not close the inspector');
+      assert.equal(container.querySelector('#live-details-title')?.textContent, 'self');
+      assert.equal(container.querySelector('[data-live-freshness]')?.textContent, '已过期');
       // A phase-only repeat of the identical snapshot must not refresh its lifetime.
       await act(async () => listeners.forEach(listener => listener({ phase: 'connected', error: null, snapshot })));
       assert.equal(self()?.getAttribute('data-office-status'), 'unknown');
@@ -148,6 +178,7 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       await emit(snapshot.agents); assert.equal(self()?.getAttribute('data-office-status'), 'working');
     });
     await t.test('offline alone uses neutral stand/exit, return and epoch changes cannot leave ghosts', async () => {
+      await selectAgent('self');
       await emit(snapshot.agents.map(item => item.id === 'self' ? { ...item, status: 'offline' } : item));
       assert.equal(self()?.getAttribute('data-office-phase'), 'stand'); assert.equal(sprite()?.getAttribute('data-office-frame'), '6');
       await step(62); assert.equal(self(), null); assert.match(container.querySelector('[data-live-current-status]')?.textContent ?? '', /离线/);
@@ -169,17 +200,43 @@ test('mounted live office follows normalized DTOs in the shared room and cancels
       const actor = () => container.querySelector('[data-office-actor="repair"]');
       assert.equal(actor()?.getAttribute('data-office-persona'), 'github');
       assert.equal(actor()?.getAttribute('data-office-seat-kind'), 'github');
-      const select = container.querySelector('button[aria-label^="GitHub fixture，"]')!;
+      const select = container.querySelector('[role="button"][aria-label^="GitHub fixture，"]')!;
       await act(async () => select.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })));
       assert.match(container.querySelector('.live-inspector')?.textContent ?? '', /GitHub fixture/);
       const config: OfficeConfig = { version: 1, seats: ['self','repair'].map(id => ({ id, name: id === 'repair' ? 'Configured GitHub' : 'Owner', character: id === 'repair' ? 'github' : 'self', selector: { sourceId: 'test', instanceId: id, epoch: { policy: 'follow-unique' } } })), office: { selfSeatId: 'self', githubSeatId: 'repair', childSeatIds: [], team: { layout: 'peer-table', memberSeatIds: [] } } };
       await render({ topology: undefined, officeConfig: config });
       assert.equal(actor()?.getAttribute('data-office-persona'), 'github');
+      await click('Configured GitHub');
       assert.match(container.querySelector('.live-inspector')?.textContent ?? '', /Configured GitHub/);
       await emit([agent('self'), { ...github, sourceFreshness: 'stale' }]);
       assert.equal(actor()?.getAttribute('data-office-status'), 'unknown');
       await emit([agent('self')]);assert.equal(actor(), null);
       assert.match(container.textContent ?? '', /没有匹配实例/);
+    });
+    await t.test('four resident desks keep identities and inspector access independent of artwork', async () => {
+      const residents = [agent('self'), agent('repair', 'waiting', { character: 'chatgpt' }), agent('ops', 'working', { character: 'grok' }), agent('news', 'idle', { character: 'deepseek' })];
+      const residentTopology: OfficeTopology = { selfAgentId: 'self', githubAgentId: 'repair', devopsAgentId: 'ops', hotspotAgentId: 'news', childAgentIds: [], team: { layout: 'independent-desks', memberIds: [] } };
+      await emit(residents, { identityCoverage: 'complete' });
+      await render({ topology: residentTopology });
+      for (const [id, kind, persona] of [['self', 'owner', 'self'], ['repair', 'github', 'chatgpt'], ['ops', 'devops', 'devops'], ['news', 'hotspot', 'hotspot']]) {
+        const actor = container.querySelector(`[data-office-actor="${id}"]`)!;
+        assert.equal(actor.getAttribute('data-office-seat-kind'), kind);
+        assert.equal(actor.getAttribute('data-office-persona'), persona);
+        await click(id);
+        assert.equal(container.querySelector('#live-details-title')?.textContent, id);
+      }
+      const config: OfficeConfig = { version: 1, seats: residents.map(a => ({ id: a.id, name: `Configured ${a.id}`, character: a.character, selector: { sourceId: 'test', instanceId: a.id, epoch: { policy: 'follow-unique' } } })), office: { selfSeatId: 'self', githubSeatId: 'repair', devopsSeatId: 'ops', hotspotSeatId: 'news', childSeatIds: [], team: { layout: 'independent-desks', memberSeatIds: [] } } };
+      await render({ topology: undefined, officeConfig: config });
+      await click('Configured ops');
+      assert.equal(container.querySelector('#live-details-title')?.textContent, 'Configured ops');
+      assert.equal(container.querySelector('[data-live-current-status]')?.getAttribute('data-live-current-status'), 'working');
+      await emit([agent('self')]);
+      assert.equal(container.querySelector('[data-office-actor="ops"]'), null);
+      assert.equal(container.querySelector('[data-office-actor="news"]'), null);
+      for (const desk of ['github-desk', 'devops-desk', 'hotspot-desk']) assert.ok(container.querySelector(`[data-office-desk="${desk}"]`), 'unbound resident furniture persists');
+      assert.equal(container.querySelectorAll('.wo-resident-name').length, 4);
+      assert.match(container.querySelector('.devops-monitor')?.textContent ?? '', /未连接服务数据源/);
+      assert.equal(networkRequests, 0, 'synthetic LiveOffice never fetches monitoring data');
     });
     await t.test('config rebinding follows unique epochs, partial binding stays empty, stale callback ignored and teardown clean', async () => {
       const late = [...listeners][0];
@@ -208,15 +265,17 @@ test('contract demo partial coverage is explicit and does not shuffle other agen
  const vite=await createServer({server:{middlewareMode:true,watch:null,hmr:false},appType:'custom'});
  try{
   const {createContractExampleSource,contractExampleConfig}=await vite.ssrLoadModule('/src/LiveOfficeExample.tsx');
-  const {bindOffice}=await import('../src/binding.ts');
+  const {bindResidentOffice:bindOffice}=await import('../src/residentLayout.ts');
   const source=createContractExampleSource(),adapter:OfficeAdapter=source.adapterFactory();
   let latest:AdapterState|undefined;const stop=adapter.subscribe(state=>{latest=state;});adapter.connect();
   const before=new Map(latest!.snapshot!.agents.map(agent=>[agent.identity!.instanceId,agent.status]));
   source.setMissing(true);const partial=latest!.snapshot!;
   assert.equal(partial.identityCoverage,'partial');assert.ok(!partial.agents.some(agent=>agent.identity!.instanceId==='self'));
   for(const agent of partial.agents)assert.equal(agent.status,before.get(agent.identity!.instanceId));
-  const result=bindOffice(contractExampleConfig('independent-desks'),partial);assert.equal(result.warnings.length,10);assert.equal(result.snapshot.agents.length,0);assert.match(partial.coverage!,/暂停全部自动绑定/);
+  const result=bindOffice(contractExampleConfig('independent-desks'),partial);assert.equal(result.warnings.length,12);assert.equal(result.snapshot.agents.length,0);assert.match(partial.coverage!,/暂停全部自动绑定/);
   source.setMissing(false);assert.equal(bindOffice(contractExampleConfig('independent-desks'),latest!.snapshot!).warnings.length,0);
+  const bound=bindOffice(contractExampleConfig('independent-desks'),latest!.snapshot!);assert.ok(bound.topology.devopsAgentId);assert.ok(bound.topology.hotspotAgentId);
+  source.setStatus('idle');for(const id of ['self','github','devops','hotspot'])assert.equal(latest!.snapshot!.agents.find(agent=>agent.identity!.instanceId===id)?.status,'idle');
   stop();adapter.dispose();
  }finally{await vite.close();}
 });

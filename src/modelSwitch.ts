@@ -1,4 +1,4 @@
-import type { CharacterId } from './core.ts';
+import type { OfficePersona } from './residentVisuals.ts';
 
 /** Display-only observation used to detect a provider/model change on one instance. */
 export interface ModelSwitchObservation {
@@ -8,19 +8,19 @@ export interface ModelSwitchObservation {
   /** Combined provider/model signature. Null means the source reported no model identity. */
   model: string | null;
   /** Currently displayed persona, which may come from explicit configuration. */
-  character: CharacterId;
+  character: OfficePersona;
 }
 
 export interface ModelSwitchMark {
   identityKey: string | null;
   model: string | null;
-  character: CharacterId;
+  character: OfficePersona;
 }
 
 export interface ModelSwitchRecord {
   token: number;
-  fromCharacter: CharacterId;
-  toCharacter: CharacterId;
+  fromCharacter: OfficePersona;
+  toCharacter: OfficePersona;
   fromModel: string;
   toModel: string;
   at: number;

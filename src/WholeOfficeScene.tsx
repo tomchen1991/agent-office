@@ -1,6 +1,7 @@
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { CharacterId, OfficeStatus } from './core';
+import type { OfficeStatus } from './core';
+import type { OfficePersona } from './residentVisuals';
 import { demoCharacters } from './demoAssets';
 import type { DemoAtlas, DemoCharacter } from './demoAssets';
 import { demoFrame } from './demoTimeline';
@@ -9,10 +10,13 @@ import { fixedOfficeSeats, fixedOfficeTables, officeRegionCenters, MAX_SIMULATED
 import type { OfficeLayout, OfficeSeat } from './wholeOfficeGeometry';
 import './whole-office.css';
 import './monitor-content.css';
+import './resident-office.css';
+import { ResidentDesk, residentDeskLabels } from './ResidentDesk';
+import { DevopsMonitor } from './DevopsMonitor';
 import { personalPlacement, actorHasScythe, scytheOwnership } from './personalIdle';
 import type { PersonalIdle } from './personalIdle';
 
-export interface OfficeSceneSeat extends Omit<OfficeSeat, 'persona'> { persona: CharacterId; isLeader?: boolean; geometryId?: string }
+export interface OfficeSceneSeat extends Omit<OfficeSeat, 'persona'> { persona: OfficePersona; isLeader?: boolean; geometryId?: string }
 export interface OfficeScenePose {
   stage: DemoStage; stageElapsedMs: number; progress: number; label: string;
   sheet?: 'locomotion' | 'seated' | 'extra' | 'pickup' | 'sleep'; frame?: number; personal?: PersonalIdle;
@@ -31,7 +35,7 @@ export interface WholeOfficeSceneProps {
   sourceLabelForSeat?: (seat: OfficeSceneSeat) => string | null;
   collaborationLabelForSeats?: (seats: readonly OfficeSceneSeat[]) => string | null;
   /** A short display-only cue for a provider/model change on an already-seated instance. */
-  modelSwitchForSeat?: (seat: OfficeSceneSeat) => { key: string; fromPersona: CharacterId; toCharacter: CharacterId } | null;
+  modelSwitchForSeat?: (seat: OfficeSceneSeat) => { key: string; fromPersona: OfficePersona; toCharacter: OfficePersona } | null;
   screenForSeat?: (seat: OfficeSceneSeat) => { task: string | null; repository: string | null; stale: boolean } | null;
 }
 import { demoAssetUrl as assetUrl } from './assetUrl';
@@ -49,12 +53,12 @@ const furniturePosition = (seat: OfficeSeat, x: number, y: number, width: number
   return { ...position(point.x, point.y, width * seat.scale, height * seat.scale, depth, seatAnchorY(seat)), '--seat-scale': seat.scale } as CSSProperties;
 };
 
-const modelSwitchAccent: Record<CharacterId, string> = {
-  self: '#d9b8ff', deepseek: '#8fd3ff', chatgpt: '#8ff0c3', grok: '#ffd28f', github: '#aebdff', unknown: '#c9ced8',
+const modelSwitchAccent: Record<OfficePersona, string> = {
+  self: '#d9b8ff', deepseek: '#8fd3ff', chatgpt: '#8ff0c3', grok: '#ffd28f', github: '#aebdff', devops: '#8cd8e8', hotspot: '#f2bb77', unknown: '#c9ced8',
 };
 
 const COMFORTABLE_ZOOM = .65;
-type OfficeRegion = 'overview' | 'private' | 'public' | 'desks' | 'fit';
+type OfficeRegion = 'overview' | 'private' | 'public' | 'desks' | 'devops' | 'fit';
 const regionCenters = officeRegionCenters;
 
 /** Shared approved office presentation. The caller owns its clock and data semantics. */
@@ -136,9 +140,10 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
       {!shared && <div className={`wo-desk-back wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.backX, 376.2, OFFICE_DESK.backWidth, 57, seat.y - 10)} aria-hidden="true" />}
       <div className={`wo-monitor ${facingClass} ${working ? 'wo-screen-work' : ''} ${error ? 'wo-screen-error' : ''}`} style={furniturePosition({ ...seat, persona: calibration.id }, 770, 267.9, shared ? 105 : 120, shared ? 110 : 119.7, shared ? surfaceDepth + 1 : surfaceDepth - 1)} aria-hidden={screen ? undefined : true} title={screen ? `${screen.stale ? '最后观察（状态未知）\n' : ''}${[screen.task, screen.repository].filter(Boolean).join('\n')}` : undefined} onClick={screen ? () => onSelect?.(seat.id) : undefined}><div className={`wo-screen ${screen ? 'wo-screen-content' : ''}`}>{screen ? <>{screen.stale && <span className="wo-screen-caption">最后观察</span>}{screen.task && <span className="wo-screen-task">{screen.task}</span>}{screen.repository && <span className="wo-screen-repository">{screen.repository}</span>}</> : <><strong>{seat.empty || (live && indication?.status === 'offline') ? '○' : error ? '!' : working ? '>_' : !live && stage === 'slack' ? '☕' : indication?.status === 'stopping' ? 'Ⅱ' : indication?.status === 'unknown' ? '?' : '···'}</strong>{[0, 1, 2].map(index => <i key={index} style={{ width: `${working ? 28 + (workBeat * 13 + index * 19) % 60 : 50 - index * 10}%` }} />)}{working && !live && <b style={{ width: `${progress * 100}%` }} />}</>}</div><span className="wo-monitor-neck" /></div>
       {!seat.empty && (canAnimate || (seat.kind === 'owner' && personal)) && (!assetReady || !character || assetReady(atlas.src)) && current && <div className={`wo-actor wo-${seat.kind}`} style={spriteStyle} data-office-actor={seat.id} data-office-persona={seat.persona} data-office-status={current.status} data-office-phase={current.phase ?? stage} data-office-personal-phase={current.personal?.phase} data-scythe-owner={seat.kind === 'owner' && seat.persona === 'self' && actorHasScythe(personal) ? 'actor' : undefined} data-scythe-state={seat.kind === 'owner' ? scytheOwnership(personal) : undefined} data-office-seat-kind={seat.kind} data-office-facing={placement.mirrored ? 'left' : 'right'} data-office-contact-x={placement.contactX} data-office-contact-y={placement.contactY} role={live ? 'button' : 'img'} tabIndex={live ? 0 : undefined} onClick={live ? () => onSelect?.(seat.id) : undefined} onKeyDown={live ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect?.(seat.id); } } : undefined} aria-haspopup={live ? 'dialog' : undefined} aria-label={`${seat.label}，${seat.role}，${current.label}${live ? '，查看详情' : ''}`}>{modelSwitch ? <div key={modelSwitch.key} className="wo-sprite-stack" data-office-model-switch="true" data-office-model-from={modelSwitch.fromPersona} data-office-model-to={modelSwitch.toCharacter}><div className="wo-model-layer wo-model-layer-in">{character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} data-office-sprite="current" /> : <div className="wo-unknown-persona" aria-label="身份未映射"><b aria-hidden="true">?</b></div>}</div>{swapAtlas && modelSwitch.fromPersona !== seat.persona && <div className="wo-model-layer wo-model-layer-out"><div className="wo-sprite" style={frameStyleFor(swapAtlas, swapFrame)} data-office-sheet={swapSheet} data-office-frame={swapFrame} data-office-sprite="previous" /></div>}<div className="wo-model-swap" style={{ '--model-swap-accent': modelSwitchAccent[seat.persona] } as CSSProperties} aria-hidden="true"><span className="wo-model-swap-ring" /><span className="wo-model-swap-scan" /><span className="wo-model-swap-particles">{Array.from({ length: 7 }, (_, index) => <i key={index} style={{ '--i': index } as CSSProperties} />)}</span></div></div> : character ? <div className="wo-sprite" style={frameStyle} data-office-sheet={sheet} data-office-frame={frame} /> : <div className="wo-unknown-persona" aria-label="身份未映射"><b aria-hidden="true">?</b></div>}</div>}
-      {!shared && <div className={`wo-desk-front wo-${seat.kind} wo-${seat.persona}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.frontX, 376.2, OFFICE_DESK.frontWidth, 119.7, surfaceDepth)} data-office-leader={seat.isLeader || undefined} data-office-desk={seat.geometryId ?? seat.id} data-office-empty={Boolean(seat.empty)} data-office-seat-kind={seat.kind}>
-        <span className="wo-desk-top" /><span className="wo-desk-leg wo-left" /><span className="wo-desk-leg wo-right" />
+      {!shared && <div className={`wo-desk-front wo-${seat.kind} wo-${seat.persona} ${seat.residentRole ? `wo-resident-desk wo-desk-${seat.residentRole}` : ''}`} style={furniturePosition({ ...seat, persona: calibration.id }, OFFICE_DESK.frontX, 376.2, OFFICE_DESK.frontWidth, 119.7, surfaceDepth)} data-office-leader={seat.isLeader || undefined} data-office-desk={seat.geometryId ?? seat.id} data-resident-role={seat.residentRole} data-office-empty={Boolean(seat.empty)} data-office-seat-kind={seat.kind}>
+        <span className="wo-desk-top" /><span className="wo-desk-leg wo-left" /><span className="wo-desk-leg wo-right" />{seat.residentRole && <span className="wo-resident-name"><b>{residentDeskLabels[seat.residentRole]}</b><i>{seat.residentRole === 'main' ? '✦' : seat.residentRole === 'auto-fix' ? '⌘' : seat.residentRole === 'devops' ? '▥' : '◎'}</i></span>}
       </div>}
+      {seat.residentRole && <div className="wo-resident-accessory" style={furniturePosition({ ...seat, persona: calibration.id }, 805, 320, 90, 60, surfaceDepth + 2)}><ResidentDesk role={seat.residentRole} /></div>}
       {sourceLabel && <div className="wo-source-plaque" style={position(seat.x - 58 * seat.scale, seat.y + 43 * seat.scale, 180 * seat.scale, undefined, surfaceDepth + 2, seatAnchorY(seat))} title={sourceLabel}>{sourceLabel}</div>}
       <div className={`wo-keyboard ${facingClass}`} style={furniturePosition({ ...seat, scale: seat.scale * OFFICE_ACTOR_RATIO, persona: calibration.id }, 630, 358, 110, 15, surfaceDepth + 1)} data-office-workbeat={working ? workBeat : undefined} aria-hidden="true">{Array.from({ length: 8 }, (_, key) => <i key={key} className={working && !reducedMotion && key === workBeat % 8 ? 'wo-key-pressed' : ''} />)}</div>
       {error && seat.kind !== 'simulated-child' && <div className="wo-error-bubble" style={position(seat.x - 62, seat.y - 158, 150, undefined, 900)} role="img" aria-label="演示任务异常">!</div>}
@@ -147,8 +152,8 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
 
   return <div className="wo-scene-card">
       <div className="wo-view-controls"><div><button onClick={() => setZoom(value => { const current = value ?? visibleScale(); return Math.min(current, Math.max(.025, current * .8)); })} aria-label="缩小办公室">−</button><button onClick={() => setZoom(value => Math.min(1.5, (value ?? visibleScale()) / .8))} aria-label="放大办公室">＋</button><button onClick={() => navigate('overview')} aria-pressed={zoom === COMFORTABLE_ZOOM}>舒适近景</button><button onClick={() => navigate('fit')} aria-pressed={zoom === null}>适应全景</button><button onClick={() => setZoom(1)} aria-pressed={zoom === 1}>100%</button><button onClick={() => viewport.current?.scrollBy({ left: -320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向左平移">←</button><button onClick={() => viewport.current?.scrollBy({ left: 320, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向右平移">→</button><button onClick={() => viewport.current?.scrollBy({ top: -260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向上平移">↑</button><button onClick={() => viewport.current?.scrollBy({ top: 260, behavior: reducedMotion ? 'auto' : 'smooth' })} aria-label="向下平移">↓</button></div></div>
-      {!live && <div className="wo-region-controls" role="group" aria-label="跳转办公区域"><button onClick={() => navigate('private')}>主办公室</button><button onClick={() => navigate('public')}>公共协作桌</button><button onClick={() => navigate('desks')}>独立工位</button></div>}
-      <div ref={viewport} className="wo-viewport" tabIndex={0} role="region" aria-label="办公室可滚动全景，默认紧凑全景，完整保留 20 席，可缩放及横向纵向滚动">
+      {<div className="wo-region-controls" role="group" aria-label="跳转办公区域"><button onClick={() => navigate('private')}>主办公室</button><button onClick={() => navigate('public')}>公共协作桌</button><button onClick={() => navigate('desks')}>独立工位</button><button onClick={() => navigate('devops')}>DevOps 办公室</button></div>}
+      <div ref={viewport} className="wo-viewport" tabIndex={0} role="region" aria-label="办公室可滚动全景，默认紧凑全景，完整保留 22 席，可缩放及横向纵向滚动">
         <div ref={world} className={`wo-world wo-fixed-world wo-stage-${worldStage}`} role="group" aria-label={`${floorLabel}，${floorStatus}`} style={zoom === null ? undefined : { width: OFFICE_WORLD.width * zoom }}>
           <div className="wo-back-wall" aria-hidden="true"><div className="wo-window wo-window-private"><i /><i /><i /><i /></div><div className="wo-window wo-window-team"><i /><i /><i /><i /></div></div>
           <div className="wo-floor" aria-hidden="true" />
@@ -158,6 +163,8 @@ export function WholeOfficeScene({ layout, seats, poseForSeat, characters = demo
           <div className="wo-glass-wall" aria-hidden="true"><i /><i /><i /></div>
           <div className="wo-private-door" aria-label="独立办公室的敞开门口"></div>
           <div className="wo-owner-rug" aria-hidden="true" />
+          <section className="wo-devops-room" style={position(1730, 120, 790, 490, 22)} aria-label="DevOps 独立办公室，Auto-fix 与 DevOps 同室"><span className="wo-devops-room-title">DEVOPS / 运维办公室</span><i className="wo-ops-left-wall"/><i className="wo-ops-right-wall"/><i className="wo-ops-bottom-wall"/><span className="wo-ops-door" aria-label="DevOps 办公室敞开门口" /></section>
+          <div className="wo-devops-wall-screen" style={position(1755, 155, 740, 145, 100)}><DevopsMonitor compact /></div>
           {(() => {
             const owner = furnitureSeats.find(seat => seat.kind === 'owner')!;
             const self = characters.find(character => character.id === 'self');

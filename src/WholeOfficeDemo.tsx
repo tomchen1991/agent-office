@@ -1,3 +1,4 @@
+import { nightRestPersona } from './residentVisuals';
 import { useLiveOfficeMotion } from './useLiveOfficeMotion';
 import { liveOfficePose } from './liveOfficeMotion';
 import { personalAssets, personalAssetsReady } from './personalIdle';
@@ -22,7 +23,7 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [assets, setAssets] = useState<{ key: unknown; ready: boolean; failed: string[]; loaded: string[] }>({ key: characters, ready: false, failed: [], loaded: [] });
   const seats = useMemo(() => wholeOfficeSeats(layout, SIMULATED_CHILD_COUNT, characters.some(character => character.id === 'github' && character.ready)), [layout, characters]);
-  const available = ['self', 'deepseek', 'chatgpt', 'grok', 'github'].every(id => characters.some(character => character.id === id && character.ready));
+  const available = ['self', 'deepseek', 'chatgpt', 'grok', 'github', 'devops', 'hotspot'].every(id => characters.some(character => character.id === id && character.ready));
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -68,7 +69,7 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
       ? characters.filter(item => personalAssetsReady(item, assets.loaded)).map(item => item.id) : [] };
     setStoredSlack(slackSession);
   }
-  const nightTargets = seats.filter(seat => seat.kind === 'owner' || seat.kind === 'github').map(seat => {
+  const nightTargets = seats.filter(seat => nightRestPersona(seat)).map(seat => {
     const pendingLeisure = stage === 'slack' && slackSession.roles.includes(seat.persona) && personalDemo(seat.persona as 'self' | 'github', current.stageElapsedMs);
     const nightArtReady = characters.some(character => character.id === seat.persona && character.sleep && assets.loaded.includes(character.sleep.src));
     return { id: seat.id, identityKey: `demo-night:${seat.id}`, seatKey: seat.id,
