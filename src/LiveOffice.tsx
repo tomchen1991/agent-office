@@ -2,10 +2,12 @@ import { DEFAULT_NIGHT_REST, isNightRestTime, parseNightRestConfig } from './nig
 import type { NightRestConfig } from './nightRest';
 import { personalAssets, personalAssetsReady } from './personalIdle';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeSnapshot, OfficeTopology } from './core';
-import { displayStatus, freshness, validateTopology, liveOfficeSeatReport } from './core';
-import { bindOffice } from './binding';
-import type { OfficeConfig } from './config';
+import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeSnapshot } from './core';
+import { displayStatus, freshness } from './core';
+import { validateResidentTopology as validateTopology, residentSeatReport as liveOfficeSeatReport, bindResidentOffice as bindOffice } from './residentLayout';
+import type { ResidentOfficeTopology as OfficeTopology, ResidentOfficeConfig as OfficeConfig } from './residentLayout';
+import { residentPersona, nightRestPersona } from './residentVisuals';
+import type { OfficePresentation } from './residentVisuals';
 import { demoCharacters } from './demoAssets';
 import type { DemoCharacter } from './demoAssets';
 import { WholeOfficeScene } from './WholeOfficeScene';
@@ -105,7 +107,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   validateTopology(topology);
   const snapshot = bound?.snapshot ?? state.snapshot;
   const observedAgents = snapshot?.agents ?? [];
-  const visiblePersonas = [...new Set(observedAgents.filter(agent => agent.sourceFreshness === 'fresh').map(agent => agent.character))].sort().join(',');
+  const visiblePersonas = [...new Set(observedAgents.filter(agent => agent.sourceFreshness === 'fresh').map(agent => residentPersona(agent.id, agent.character, topology)))].sort().join(',');
   const assetCache = useRef(new Set<string>());
   useEffect(() => {
     let alive = true;
@@ -136,18 +138,18 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
     return () => { alive = false; };
   }, [characters, visiblePersonas, loadAttempt]);
   // Cache presentation only, never a request, status, or timestamp. Missing rows stay uncertain.
-  const presentationCache = useRef<{ key: unknown; agents: Map<string, Pick<OfficeAgent, 'id' | 'name' | 'character'>> }>({ key: sourceKey, agents: new Map() });
+  const presentationCache = useRef<{ key: unknown; agents: Map<string, OfficePresentation> }>({ key: sourceKey, agents: new Map() });
   const presentation = new Map(received.key === sourceKey && presentationCache.current.key === sourceKey ? presentationCache.current.agents : []);
   if (officeConfig && bound) {
-    const logicalIds = [officeConfig.office.selfSeatId, ...officeConfig.office.childSeatIds, ...officeConfig.office.team.memberSeatIds, ...(officeConfig.office.githubSeatId === undefined ? [] : [officeConfig.office.githubSeatId])];
-    const actualIds = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds, ...(topology.githubAgentId === undefined ? [] : [topology.githubAgentId])];
+    const logicalIds = [officeConfig.office.selfSeatId, ...officeConfig.office.childSeatIds, ...officeConfig.office.team.memberSeatIds, ...[officeConfig.office.githubSeatId, officeConfig.office.devopsSeatId, officeConfig.office.hotspotSeatId].filter((id): id is string => id !== undefined)];
+    const actualIds = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds, ...[topology.githubAgentId, topology.devopsAgentId, topology.hotspotAgentId].filter((id): id is string => id !== undefined)];
     logicalIds.forEach((logicalId, index) => {
       const configured = officeConfig.seats.find(seat => seat.id === logicalId)!;
-      presentation.set(actualIds[index], { id: actualIds[index], name: configured.name, character: configured.character });
+      presentation.set(actualIds[index], { id: actualIds[index], name: configured.name, character: residentPersona(actualIds[index], configured.character, topology) });
     });
   }
-  for (const agent of observedAgents) presentation.set(agent.id, { id: agent.id, name: agent.name, character: agent.character });
-  const ids = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds, ...(topology.githubAgentId === undefined ? [] : [topology.githubAgentId])];
+  for (const agent of observedAgents) presentation.set(agent.id, { id: agent.id, name: agent.name, character: residentPersona(agent.id, agent.character, topology) });
+  const ids = [topology.selfAgentId, ...topology.childAgentIds, ...topology.team.memberIds, ...[topology.githubAgentId, topology.devopsAgentId, topology.hotspotAgentId].filter((id): id is string => id !== undefined)];
   for (const id of presentation.keys()) if (!ids.includes(id)) presentation.delete(id);
   useEffect(() => { presentationCache.current = { key: sourceKey, agents: presentation }; }, [snapshot, sourceKey, topology]);
   // Provider/model changes keep the same instance seated. Detect them against
@@ -171,10 +173,11 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
     const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : undefined;
-    const nightRest = Boolean(personalRole && nightTime);
-    const nightArtReady = characters.some(item => item.id === personalRole && item.sleep && assets.key === characters && assets.loaded.includes(item.sleep.src));
+    const sleepPersona = nightRestPersona(seat);
+    const nightRest = Boolean(sleepPersona && nightTime);
+    const nightArtReady = characters.some(item => item.id === sleepPersona && item.sleep && assets.key === characters && assets.loaded.includes(item.sleep.src));
     const nightEligible = Boolean(!state.error && nightRest && agent && displayStatus(agent, elapsed, state.phase) === 'idle' && nightArtReady);
-    const nightArtKey = JSON.stringify([personalRole, characters.find(item => item.id === personalRole)?.sleep?.src]);
+    const nightArtKey = JSON.stringify([sleepPersona, characters.find(item => item.id === sleepPersona)?.sleep?.src]);
     return { nightRest, nightEligible, nightArtReady, nightArtKey, personalRole: !state.error && personalRole && characters.some(item => item.id === personalRole && personalAssetsReady(item, assets.loaded)) ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
   });
   const assetsReady = assets.key === characters && assets.ready;

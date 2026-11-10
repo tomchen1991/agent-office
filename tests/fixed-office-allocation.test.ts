@@ -10,12 +10,12 @@ import { bindOffice } from '../src/binding.ts';
 const topology = (members = 16): OfficeTopology => ({selfAgentId:'owner',childAgentIds:['child1','child2','child3','child4'],team:{layout:'independent-desks',memberIds:Array.from({length:members},(_,i)=>`member${i+1}`)}});
 const config = (): OfficeConfig => ({version:1,seats:['owner','a','b'].map(id=>({id,name:id,character:'unknown',selector:{sourceId:'fixture',instanceId:id,epoch:{policy:'exact',value:'e1'}}})),office:{selfSeatId:'owner',childSeatIds:[],team:{layout:'independent-desks',memberSeatIds:['a','b'],seatAssignments:{a:'public-table-2-seat-3',b:'public-desk-10'}}}});
 
-test('fixed furniture includes 1 owner, 2 private, 10 desks, 1 GitHub desk and 6 public table seats simultaneously',()=>{
+test('fixed furniture includes 1 owner, 2 private, 10 desks, 3 dedicated resident desks and 6 public table seats simultaneously',()=>{
  const seats=liveOfficeSeats({selfAgentId:'owner',childAgentIds:[],team:{layout:'peer-table',memberIds:[]}},[]);
- assert.equal(seats.length,20); assert.equal(seats.filter(s=>s.empty).length,19);
+ assert.equal(seats.length,22); assert.equal(seats.filter(s=>s.empty).length,21);
  assert.equal(seats.filter(s=>s.geometryId?.startsWith('public-desk-')).length,10);
  assert.equal(seats.filter(s=>s.geometryId?.startsWith('public-table-')).length,6);
- assert.equal(new Set(seats.map(s=>s.geometryId)).size,20);
+ assert.equal(new Set(seats.map(s=>s.geometryId)).size,22);
  assert.equal(seats[0].persona,'unknown'); assert.equal(seats[0].id,'owner');
  assert.ok(seats.every(s=>!Object.hasOwn(s,'status')));
 });
@@ -24,7 +24,7 @@ test('capacity reserves missing configured identities, reports every overflow, r
  assert.deepEqual(report.childOverflowIds,['child3','child4']); assert.deepEqual(report.teamOverflowIds,['member17','member18','member19','member20','member21','member22']);
  assert.equal(report.assignments.member1,'public-desk-1'); assert.equal(report.assignments.member11,'public-table-1-seat-1');
  assert.equal(Object.keys(report.assignments).length,19);
- const seats=liveOfficeSeats(t,[]); assert.equal(seats.length,20);assert.ok(seats.filter(s=>s.kind!=='github').every(s=>!s.empty && s.persona==='unknown'));
+ const seats=liveOfficeSeats(t,[]); assert.equal(seats.length,22);assert.ok(seats.filter(s=>!['github','devops','hotspot'].includes(s.kind)).every(s=>!s.empty && s.persona==='unknown'));
 });
 test('explicit groups reserve positions before defaults and can change without altering actor identity',()=>{
  const t=topology(16); t.team.seatAssignments={member16:'public-desk-1',member3:'public-table-1-seat-1',member4:'public-table-2-seat-2',member5:'public-table-2-seat-3'};
@@ -52,7 +52,7 @@ test('config roundtrip copies positions and binder carries logical placement to 
 test('empty furniture display keys never collide with actual or configured agent IDs',()=>{
  const id=JSON.stringify(['empty-office-seat','public-desk-1']);
  const t:OfficeTopology={selfAgentId:id,childAgentIds:[],team:{layout:'independent-desks',memberIds:[]}};
- const seats=liveOfficeSeats(t,[]);assert.equal(new Set(seats.map(s=>s.id)).size,20);assert.equal(seats.find(s=>s.geometryId==='self')?.id,id);
+ const seats=liveOfficeSeats(t,[]);assert.equal(new Set(seats.map(s=>s.id)).size,22);assert.equal(seats.find(s=>s.geometryId==='self')?.id,id);
 });
 
 test('three configured logical children survive config roundtrip and exact binding with third in overflow',()=>{

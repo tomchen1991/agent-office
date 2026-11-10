@@ -1,4 +1,4 @@
-import type { CharacterId } from './core.ts';
+import type { OfficePersona } from './residentVisuals.ts';
 import { MAX_VISIBLE_CHILD_AGENTS } from './core.ts';
 import { demoCharacters } from './demoAssets.ts';
 import type { DemoCharacter } from './demoAssets.ts';
@@ -9,17 +9,18 @@ import { DEMO_SPRITE_WIDTH_PERCENT, SEATED_CONTACT_Y, seatingPlacement, seatingP
 export const OFFICE_ACTOR_RATIO = 1.25;
 export const officeActorWidth = (seat: OfficeSeat) => DEMO_SPRITE_WIDTH_PERCENT * 10 * seat.scale * OFFICE_ACTOR_RATIO;
 export const OFFICE_DESK = { backX: 610, backWidth: 277, frontX: 600, frontWidth: 297 } as const;
-export const OFFICE_WORLD = { width: 2250, height: 1050 } as const;
-export const officeRegionCenters = { private: { x: 325, y: 520 }, public: { x: 1420, y: 320 }, desks: { x: 1420, y: 720 } } as const;
+export const OFFICE_WORLD = { width: 2550, height: 1050 } as const;
+export const officeRegionCenters = { private: { x: 325, y: 520 }, public: { x: 1420, y: 320 }, desks: { x: 1520, y: 800 }, devops: { x: 2110, y: 380 } } as const;
 export const MAX_SIMULATED_CHILD_SEATS = MAX_VISIBLE_CHILD_AGENTS;
 export const SIMULATED_CHILD_COUNT = 5;
 export type OfficeLayout = 'independent-desks' | 'leader-desks' | 'peer-table';
 export interface OfficePoint { x: number; y: number }
 export interface OfficeSeat extends OfficePoint {
   id: string;
-  persona: CharacterId;
+  persona: OfficePersona;
   label: string;
-  kind: 'owner' | 'team' | 'simulated-child' | 'github';
+  kind: 'owner' | 'team' | 'simulated-child' | 'github' | 'devops' | 'hotspot';
+  residentRole?: 'main' | 'auto-fix' | 'devops' | 'hotspot';
   role: string;
   scale: number;
   /** Only shared-table seats may face inward or use its perimeter aisle. */
@@ -39,7 +40,7 @@ export const fixedOfficeTables: readonly OfficeTable[] = [
 ];
 /** All furniture exists even when no agent is connected. No template is an actor. */
 export function fixedOfficeSeats(): OfficeSeat[] {
-  const seats: OfficeSeat[] = [{ id: 'self', geometryId: 'self', persona: 'self', label: '主工位', kind: 'owner', role: '独立办公室 · 大工位', x: 250, y: 340, scale: 1.1, empty: true }];
+  const seats: OfficeSeat[] = [{ id: 'self', geometryId: 'self', persona: 'self', label: '主工位', kind: 'owner', residentRole: 'main', role: '独立办公室 · 大工位', x: 250, y: 340, scale: 1.1, empty: true }];
   for (let index = 0; index < MAX_SIMULATED_CHILD_SEATS; index++) {
     const id = `self-child-${index + 1}`;
     seats.push({ id, geometryId: id, persona: 'self', label: `子工位 ${index + 1}`, kind: 'simulated-child', role: '子 Agent 独立工位', x: 250, y: 600 + index * 235, scale: .756, empty: true });
@@ -53,16 +54,18 @@ export function fixedOfficeSeats(): OfficeSeat[] {
   }
   for (let index = 0; index < 10; index++) {
     const id = `public-desk-${index + 1}`;
-    seats.push({ id, geometryId: id, persona: 'self', label: `工位 ${String(index + 1).padStart(2, '0')}`, kind: 'team', role: '公共独立工位', x: 910 + index % 5 * 270, y: 580 + Math.floor(index / 5) * 235, scale: .756, empty: true });
+    seats.push({ id, geometryId: id, persona: 'self', label: `工位 ${String(index + 1).padStart(2, '0')}`, kind: 'team', role: '公共独立工位', x: 910 + index % 5 * 270, y: 650 + Math.floor(index / 5) * 235, scale: .756, empty: true });
   }
-  seats.push({ id: 'github-desk', geometryId: 'github-desk', persona: 'unknown', label: 'GitHub Agent 专属桌', kind: 'github', role: '修复 / 审核 · 待绑定', x: 1840, y: 300, scale: 1.1, empty: true });
+  seats.push({ id: 'github-desk', geometryId: 'github-desk', persona: 'unknown', label: 'Auto-fix', kind: 'github', residentRole: 'auto-fix', role: '自动修复 · DevOps 办公室', x: 1850, y: 460, scale: .95, empty: true });
+  seats.push({ id: 'devops-desk', geometryId: 'devops-desk', persona: 'unknown', label: 'DevOps', kind: 'devops', residentRole: 'devops', role: '服务运维 · DevOps 办公室', x: 2220, y: 460, scale: .95, empty: true });
+  seats.push({ id: 'hotspot-desk', geometryId: 'hotspot-desk', persona: 'unknown', label: '热点追踪', kind: 'hotspot', residentRole: 'hotspot', role: '热点追踪 · 公共办公室', x: 2280, y: 840, scale: .9, empty: true });
   return seats;
 }
 /** Compatibility demo occupants. Layout is a collaboration mode, not a floor replacement. */
 export function wholeOfficeSeats(layout: OfficeLayout, childCount = SIMULATED_CHILD_COUNT, includeGithub = true): OfficeSeat[] {
   const templates = fixedOfficeSeats();
   const occupied = (geometryId: string, id: string, persona: DemoCharacter['id'], label: string, role: string): OfficeSeat => ({ ...templates.find(seat => seat.id === geometryId)!, id, persona, label, role, empty: false });
-  return [...(includeGithub ? [occupied('github-desk', 'github-demo', 'github', 'GitHub Agent · 模拟', '修复 / 审核 · 专属大桌')] : []), occupied('self', 'self', 'self', '自研 Agent', '独立办公室 · 专属席位'),
+  return [occupied('devops-desk', 'devops-demo', 'devops', 'DevOps · 模拟', '服务运维 · 模拟角色'), occupied('hotspot-desk', 'hotspot-demo', 'hotspot', '热点追踪 · 模拟', '热点追踪 · 模拟角色'), ...(includeGithub ? [occupied('github-desk', 'github-demo', 'github', 'GitHub Agent · 模拟', '修复 / 审核 · 专属大桌')] : []), occupied('self', 'self', 'self', '自研 Agent', '独立办公室 · 专属席位'),
     ...Array.from({ length: Math.min(MAX_SIMULATED_CHILD_SEATS, Math.max(0, Math.floor(childCount))) }, (_, index) => occupied(`self-child-${index + 1}`, `self-child-${index + 1}`, 'self', `模拟子 Actor ${index + 1}`, '自研外观派生 · 演示实例')),
     ...(['deepseek', 'chatgpt', 'grok'] as const).map((id, index) => occupied(layout === 'independent-desks' && index > 0 ? `public-desk-${index}` : `public-table-1-seat-${index + 1}`, id, id, id === 'chatgpt' ? 'ChatGPT' : id === 'deepseek' ? 'DeepSeek' : 'Grok', layout === 'leader-desks' && id === 'chatgpt' ? '任务负责人 · 演示指定' : '同级协作'))];
 }
@@ -86,8 +89,9 @@ export function officeTravelTiming(seat: OfficeSeat) {
 export function officeRoute(seat: OfficeSeat, character?: DemoCharacter): OfficePoint[] {
   const end = officeApproachPoint(seat, character);
   const entry = [{ x: 780, y: 1010 }, { x: 780, y: 980 }];
-  // The large public actor needs a wider entry lane, then the gap behind the desk row.
-  if (seat.kind === 'github') return [...entry, { x: 840, y: 980 }, { x: 840, y: 460 }, { x: 1710, y: 460 }, { x: 1710, y: 300 }, { x: seat.x - 80, y: 300 }, { x: seat.x - 80, y: end.y }, end];
+  // Both residents enter the DevOps room through its bottom-left doorway.
+  if (seat.kind === 'github' || seat.kind === 'devops') return [...entry, { x: 840, y: 980 }, { x: 840, y: 600 }, { x: 1738, y: 600 }, { x: 1738, y: 340 }, { x: seat.x - 80, y: 340 }, { x: seat.x - 80, y: end.y }, end];
+  if (seat.kind === 'hotspot') return [...entry, { x: 780, y: 1020 }, { x: 2180, y: 1020 }, { x: 2180, y: 740 }, { x: seat.x - 80, y: 740 }, { x: seat.x - 80, y: end.y }, end];
   if (seat.sharedTable) {
     const table = fixedOfficeTables.find(item => item.id === seat.tableId)!;
     const perimeterX = seat.mirrored ? table.x + table.width + 12 : seat.x - (table.private ? 0 : 25);
@@ -95,7 +99,7 @@ export function officeRoute(seat: OfficeSeat, character?: DemoCharacter): Office
     return [...entry, ...(table.private ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: perimeterX, y: aisleY }, { x: perimeterX, y: end.y }, end];
   }
   const privateSeat = seat.kind === 'owner' || seat.kind === 'simulated-child';
-  const aisleY = seat.y - (privateSeat ? 60 : 100);
+  const aisleY = seat.y - (privateSeat ? 60 : seat.y === 650 ? 40 : 100);
   return [...entry, ...(privateSeat ? [{ x: 486, y: 980 }, { x: 486, y: aisleY }] : [{ x: 780, y: 980 }, { x: 780, y: aisleY }]), { x: seat.x - (privateSeat ? 30 : 80), y: aisleY }, { x: seat.x - (privateSeat ? 30 : 80), y: end.y }, end];
 }
 export function pointAlongOfficeRoute(route: readonly OfficePoint[], progress: number): OfficePoint & { movingLeft: boolean } {

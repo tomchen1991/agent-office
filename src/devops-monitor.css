@@ -1,0 +1,17 @@
+.devops-monitor{box-sizing:border-box;width:100%;height:145px;padding:10px 14px;color:#d9f9f5;background:linear-gradient(120deg,#102e39,#101d30);border:4px solid #354e5f;border-radius:9px;box-shadow:0 6px 0 #152334,0 0 22px #34e0c521;font:12px/1.3 system-ui,sans-serif;overflow:hidden;text-align:left}
+.devops-monitor header,.devops-monitor footer,.devops-monitor-dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}.devops-monitor header>strong{letter-spacing:2px;color:#80f1d5;font-size:14px}.devops-monitor header strong span{letter-spacing:0;color:#c5dbeb;font-size:12px}.devops-connection{color:#c8d7e6;font-size:11px}.devops-empty{height:68px;display:flex;justify-content:center;flex-direction:column;gap:6px}.devops-empty strong{font-size:15px}.devops-empty span,.devops-monitor footer{font-size:10px;color:#a9c3ce}.devops-monitor button{font:inherit;color:#d9f9f5;background:#284658;border:1px solid #6b98ab;border-radius:4px;cursor:pointer;padding:3px 9px}.devops-monitor button:focus-visible,.devops-monitor-dialog button:focus-visible{outline:3px solid #ffcc76;outline-offset:2px}.devops-monitor-dialog{box-sizing:border-box;width:min(640px,calc(100vw - 32px));max-height:80vh;overflow:auto;border:1px solid #668c9f;border-radius:14px;color:#e2f3f5;background:#122839;padding:24px;font:14px/1.6 system-ui,sans-serif}.devops-monitor-dialog::backdrop{background:#060f20b8}.devops-monitor-dialog h2{margin:0;font-size:20px}.devops-monitor-dialog button{cursor:pointer;padding:6px 16px;border:1px solid #a3b9c9;border-radius:5px;background:#284658;color:white}.devops-detail-note{color:#bacbd5;font-size:12px}
+/* The world lays out in percentage units, so use its screen wrapper as the
+   query container rather than retaining desktop pixel dimensions. Dialogs
+   are portaled outside the world and deliberately keep readable UI sizing. */
+.devops-monitor--compact{height:100%;padding:1.1cqw 1.8cqw;border-width:.5cqw;border-radius:1.2cqw;font-size:1.6cqw;line-height:1.25;display:flex;flex-direction:column;gap:.5cqw}
+.devops-monitor--compact header,.devops-monitor--compact footer{gap:1.5cqw;flex-shrink:0}
+.devops-monitor--compact header>strong{font-size:2.1cqw;letter-spacing:.2cqw}
+.devops-monitor--compact header strong span{font-size:1.65cqw}
+.devops-monitor--compact .devops-connection{font-size:1.5cqw}
+.devops-monitor--compact .devops-empty{height:auto;min-height:0;flex:1;gap:.7cqw}
+.devops-monitor--compact .devops-empty strong{font-size:2.1cqw}
+.devops-monitor--compact .devops-empty span,.devops-monitor--compact footer{font-size:1.4cqw}
+.devops-monitor--compact button{padding:.35cqw 1.1cqw;border-radius:.5cqw}
+/* Isolate the wall display from the application's generic header/footer rules. */
+.devops-monitor header,.devops-monitor footer{margin:0;padding:0;text-align:left}
+.devops-monitor-dialog header{margin:0 0 12px;padding:0}
