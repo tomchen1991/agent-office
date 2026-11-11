@@ -179,7 +179,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const nightTime = isNightRestTime(wallClock(), nightConfig);
   const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
-    const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : undefined;
+    const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : seat.persona === 'deepseek' || seat.persona === 'chatgpt' || seat.persona === 'grok' ? seat.persona : undefined;
     const sleepPersona = nightRestPersona(seat);
     const nightRest = Boolean(sleepPersona && nightTime);
     const nightArtReady = characters.some(item => item.id === sleepPersona && item.sleep && assets.key === characters && assets.loaded.includes(item.sleep.src));

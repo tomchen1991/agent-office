@@ -3,8 +3,8 @@ import type { DemoStage } from './demoTimeline.ts';
 import type { DemoCharacter } from './demoAssets.ts';
 import { officeActorWidth, officeApproachPoint, pointAlongOfficeRoute } from './wholeOfficeGeometry.ts';
 import type { OfficeSeat } from './wholeOfficeGeometry.ts';
-export type PersonalRole = 'self' | 'github';
-export type PersonalPhase = 'game' | 'rise' | 'out' | 'pickup' | 'scythe' | 'putdown' | 'back' | 'settle';
+export type PersonalRole = 'self' | 'github' | 'deepseek' | 'chatgpt' | 'grok';
+export type PersonalPhase = 'slack' | 'game' | 'rise' | 'out' | 'pickup' | 'scythe' | 'putdown' | 'back' | 'settle';
 export interface PersonalIdle {
   phase: PersonalPhase; elapsedMs: number; returnFrom?: number;
   /** Latched recall deadline in the existing scythe clock; survives freeze/reconcile. */
@@ -12,14 +12,14 @@ export interface PersonalIdle {
 }
 export const PERSONAL_IDLE_DELAY_MS = 5000;
 export const PERSONAL_IDLE_DURATION_MS = 11000;
-export const personalDuration: Record<PersonalPhase, number> = { game: 2600, rise: 2000, out: 1200, pickup: 1000, scythe: 2600, putdown: 1000, back: 1200, settle: 2000 };
-export function personalStart(role: PersonalRole): PersonalIdle { return { phase: role === 'self' ? 'rise' : 'game', elapsedMs: 0 }; }
+export const personalDuration: Record<PersonalPhase, number> = { slack: 11000, game: 2600, rise: 2000, out: 1200, pickup: 1000, scythe: 2600, putdown: 1000, back: 1200, settle: 2000 };
+export function personalStart(role: PersonalRole): PersonalIdle { return { phase: role === 'self' ? 'rise' : role === 'github' ? 'game' : 'slack', elapsedMs: 0 }; }
 export function personalRouteProgress(action: PersonalIdle): number {
   return action.phase === 'out' ? Math.min(1, action.elapsedMs / 1200) : ['pickup', 'scythe', 'putdown'].includes(action.phase) ? 1
     : action.phase === 'back' ? (action.returnFrom ?? 1) * (1 - Math.min(1, action.elapsedMs / 1200)) : 0;
 }
 export function interruptPersonal(action: PersonalIdle): PersonalIdle | undefined {
-  if (action.phase === 'game') return undefined;
+  if (action.phase === 'game' || action.phase === 'slack') return undefined;
   if (action.phase === 'scythe') {
     if (action.scytheReturnAtMs !== undefined) return action;
     // At the initial grip we can reverse immediately. Once spinning, finish
@@ -37,7 +37,7 @@ export function interruptPersonal(action: PersonalIdle): PersonalIdle | undefine
 }
 export function advancePersonal(action: PersonalIdle, role: PersonalRole, deltaMs: number): PersonalIdle | undefined {
   let next = { ...action, elapsedMs: action.elapsedMs + deltaMs };
-  const sequence: PersonalPhase[] = role === 'self' ? ['rise', 'out', 'pickup', 'scythe', 'putdown', 'back', 'settle'] : ['game', 'rise', 'out', 'back', 'settle'];
+  const sequence: PersonalPhase[] = role === 'self' ? ['rise', 'out', 'pickup', 'scythe', 'putdown', 'back', 'settle'] : role === 'github' ? ['game', 'rise', 'out', 'back', 'settle'] : ['slack'];
   const duration = (value: PersonalIdle) => value.phase === 'scythe' ? value.scytheReturnAtMs ?? personalDuration.scythe : personalDuration[value.phase];
   while (next.elapsedMs >= duration(next)) {
     const elapsedMs = next.elapsedMs - duration(next);
@@ -52,6 +52,7 @@ export function personalPose(action: PersonalIdle): { stage: DemoStage; stageEla
   const base = { stageElapsedMs: action.elapsedMs, progress: 0, personal: action };
   if (action.phase === 'pickup' || action.phase === 'putdown') return { ...base, stage: 'slack', sheet: 'pickup', frame: pickupFrame(action) };
   if (action.phase === 'scythe') return { ...base, stage: 'slack', sheet: 'extra', frame: scytheFrame(action) };
+  if (action.phase === 'slack') return { ...base, stage: 'slack', sheet: 'seated', frame: 2 + Math.floor(action.elapsedMs / 650) % 2 };
   if (action.phase === 'game') return { ...base, stage: 'slack', sheet: 'extra', frame: Math.floor(action.elapsedMs / 325) % 4 };
   if (action.phase === 'rise' || action.phase === 'settle') {
     const stage = action.phase === 'rise' ? 'stand' : 'sit';
@@ -94,9 +95,11 @@ export function actorHasScythe(action?: PersonalIdle): boolean {
   return owner === 'held' || owner === 'returning';
 }
 export function personalAssets(character: DemoCharacter): string[] {
+  if (['deepseek', 'chatgpt', 'grok'].includes(character.id)) return [character.seated.src];
   return [character.extra?.src, ...(character.id === 'self' ? [character.pickup?.src, character.parkedScythe?.src] : [])].filter((src): src is string => Boolean(src));
 }
 export function personalAssetsReady(character: DemoCharacter, loaded: readonly string[]): boolean {
+  if (['deepseek', 'chatgpt', 'grok'].includes(character.id)) return loaded.includes(character.seated.src);
   return Boolean(character.extra && (character.id !== 'self' || (character.pickup && character.parkedScythe))) && personalAssets(character).every(src => loaded.includes(src));
 }
 

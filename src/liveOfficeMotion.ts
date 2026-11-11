@@ -102,8 +102,8 @@ export function advanceLiveOffice(previous: LiveOfficeMotionState, deltaMs: numb
   return previous.flatMap(actor => {
     if (actor.frozen || (actor.status === 'unknown' && !actor.visualOnly)) return [actor];
     if (actor.phase === 'personal') {
-      if (actor.personal?.phase === 'game' && actor.status === 'idle' && !actor.nightRest) {
-        return [{ ...actor, personal: { phase: 'game', elapsedMs: (actor.personal.elapsedMs + deltaMs) % 1300 } }];
+      if ((actor.personal?.phase === 'game' || actor.personal?.phase === 'slack') && actor.status === 'idle' && !actor.nightRest) {
+        return [{ ...actor, personal: { phase: actor.personal.phase, elapsedMs: (actor.personal.elapsedMs + deltaMs) % 1300 } }];
       }
       const personal = actor.personal && actor.personalRole && advancePersonal(actor.personal, actor.personalRole, deltaMs);
       if (personal) return [{ ...actor, personal }];
@@ -135,7 +135,7 @@ export function advanceLiveOffice(previous: LiveOfficeMotionState, deltaMs: numb
       return [{ ...actor, phase: 'drowse', elapsedMs: 0 }];
     }
     if (phase === 'seated' && actor.status === 'idle' && !actor.nightRest && actor.personalRole && elapsedMs >= PERSONAL_IDLE_DELAY_MS) {
-      return [{ ...actor, phase: 'personal', elapsedMs: 0, personal: actor.personalRole === 'self' ? personalStart('self') : { phase: 'game', elapsedMs: 0 } }];
+      return [{ ...actor, phase: 'personal', elapsedMs: 0, personal: personalStart(actor.personalRole) }];
     }
     // Bound the seated animation counter. No demo lifecycle repeats behind live data.
     return [{ ...actor, phase, elapsedMs: phase === 'seated' ? elapsedMs % 234000 : elapsedMs }];
