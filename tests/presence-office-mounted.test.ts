@@ -4,7 +4,7 @@ import { createServer } from 'vite';
 import { JSDOM } from 'jsdom';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { OfficeSnapshot, OfficeTopology } from '../src/core.ts';
+import { collectorFrame } from './fixtures/presence.ts';
 
 test('presence WS retains observations, detects silence and safely resumes browser lifecycle', async t => {
   const vite = await createServer({ server: { middlewareMode: true, watch: null, hmr: false }, appType: 'custom' });
@@ -39,16 +39,12 @@ test('presence WS retains observations, detects silence and safely resumes brows
   dom.window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   const container = dom.window.document.getElementById('root')!;
   const root = createRoot(container);
-  const topology: OfficeTopology = { selfAgentId: 'self', childAgentIds: [], team: { layout: 'independent-desks', memberIds: [] } };
-  const snapshot: OfficeSnapshot = { receivedAt: '', identityCoverage: 'complete', agents: [{
-    id: 'self', name: 'Fixture', character: 'deepseek', status: 'working', source: 'test', sourceFreshness: 'fresh', validForMs: 1000,
-    observedAt: null, latestUserRequest: null, task: { name: 'Retained task', type: null, startedAt: null, detail: null }, repo: 'retained-repo',
-  }] };
+  const frame = collectorFrame();
   const latest = () => Socket.all.at(-1)!;
-  const respond = async (socket = latest(), body: object = { topology, snapshot }) => {
+  const respond = async (socket = latest(), body: object = {}) => {
     const reason = socket.sequence === 0 ? 'initial' : 'heartbeat';
     const sequence = ++socket.sequence;
-    await act(async () => socket.message(structuredClone({ type: 'snapshot', reason, sequence, ...body })));
+    await act(async () => socket.message(structuredClone({ ...frame, reason, sequence, ...body })));
   };
   const runTimer = async (delay: number) => {
     const matches = [...timers].filter(([, timer]) => timer.delay === delay);
@@ -58,7 +54,7 @@ test('presence WS retains observations, detects silence and safely resumes brows
   };
   const visibility = async (value: boolean) => { await act(async () => { hidden = value; dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange')); }); };
   const event = async (name: string) => { await act(async () => dom.window.dispatchEvent(new dom.window.Event(name))); };
-  const actor = () => container.querySelector('[data-office-actor="self"]');
+  const actor = () => container.querySelector('[data-office-actor]');
   const alert = () => container.querySelector('[role="alert"]')?.textContent ?? '';
   try {
     const { PresenceOffice } = await vite.ssrLoadModule('/src/PresenceOffice.tsx');
@@ -66,8 +62,8 @@ test('presence WS retains observations, detects silence and safely resumes brows
     await t.test('Strict Mode closes old socket and ignores late frames; no polling timer', async () => {
       assert.equal(Socket.all.length, 2);
       assert.equal(Socket.all[0].closed, true);
-      assert.equal(latest().url.href, 'wss://office.example/api/office/presence/ws');
-      await respond(Socket.all[0], { type: 'snapshot', topology, snapshot: { ...snapshot, agents: [] } });
+      assert.equal(latest().url.href, 'wss://collect.falsita.cn/api/presence/v1/ws');
+      await respond(Socket.all[0], { instances: [], total: 0 });
       assert.equal(actor(), null);
       await respond();
       assert.equal(actor()?.getAttribute('data-office-status'), 'working');
@@ -93,7 +89,7 @@ test('presence WS retains observations, detects silence and safely resumes brows
       assert.equal(actor()?.getAttribute('data-office-status'), 'working');
     });
     await t.test('full heartbeats confirm state; silence and malformed frames reconnect', async () => {
-      await respond(latest(), { reason: 'heartbeat', topology, snapshot });
+      await respond(latest(), { reason: 'heartbeat' });
       await runTimer(35000);
       assert.equal(latest().closed, true);
       await runTimer(1000);
@@ -101,7 +97,7 @@ test('presence WS retains observations, detects silence and safely resumes brows
       assert.match(alert(), /自动重连/);
       await runTimer(2000);
       await respond();
-      await respond(latest(), { topology, snapshot, reason: 'change', sequence: 999 });
+      await respond(latest(), { reason: 'change', sequence: 999 });
       assert.match(alert(), /自动重连/);
       await runTimer(1000);
       await respond();
@@ -117,7 +113,7 @@ test('presence WS retains observations, detects silence and safely resumes brows
       assert.equal(Socket.all.length, count + 1);
       await event('pageshow'); await event('online'); await visibility(false);
       assert.equal(Socket.all.length, count + 1);
-      await respond(old, { reason: 'change', topology: { ...topology, selfAgentId: 'obsolete' }, snapshot: { ...snapshot, agents: [] } });
+      await respond(old, { reason: 'change', instances: [], total: 0 });
       assert.ok(actor());
       assert.equal(timers.size, 1);
       await respond();

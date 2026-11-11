@@ -1,5 +1,11 @@
 # Office production deployment
 
+## Deployment ownership
+
+Deployment is handled by DevOps. Coding changes may be committed and pushed when requested; do not deploy, change production configuration, or restart services as part of coding work. The current browser-direct migration has not been deployed and its collector browser-auth prerequisite remains unresolved.
+
+> Pending source migration (not deployed): the Office Node presence backend and systemd template have been removed from current source. The new static frontend connects directly to the collector and computes mappings/seats locally. Production still uses the old architecture below. Do not deploy the static template or stop the old service before the collector supports browser read-only connections; its current endpoint rejects Origin/Cookie and requires machine Bearer headers. See [direct connection migration](presence-direct.md). No production or collector changes were made for this migration.
+
 ## Latest infrastructure update: public ACME TLS (2026-11-09)
 
 - User authorized office TLS maintenance via acme.sh, explicitly after collect TLS migration completed. Waited for the collector owner to confirm no remaining ACME/Nginx work before changing office.

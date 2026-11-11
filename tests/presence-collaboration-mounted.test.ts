@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AdapterState, OfficeAdapter, OfficeAgent } from '../src/core.ts';
-import { createPresenceSeatAllocator, presenceTopology } from '../server/presenceProxy.ts';
+import { createPresenceSeatAllocator, presenceTopology } from '../src/presence.ts';
 
 test('live presence renders separate collaboration table labels and marks stale observations', async () => {
   const vite = await createServer({ server: { middlewareMode: true, watch: null, hmr: false }, appType: 'custom' });

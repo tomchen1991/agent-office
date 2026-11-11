@@ -1,8 +1,10 @@
 # Agent Office
 
-将 Agent 的工作状态变成可视化办公室。面向现有 Electron 项目的可嵌入消费端，使用 **React + TypeScript**；Node.js 消费适配层也使用 TypeScript。
+将 Agent 的工作状态变成可视化办公室，使用 **React + TypeScript**。网页部署是纯静态前端：浏览器直接从采集服务订阅数据并完成展示计算，不运行 Office 后端。可选 Electron main 进程适配库单独保留。
 
 ## 当前阶段
+
+**直连迁移尚未部署**：当前采集接口仍拒绝浏览器 Origin，只接受机器 Bearer 鉴权。必须先提供浏览器可用的只读订阅入口；不能直接发布当前构建替换线上旧架构。见 [直连接入与前置条件](docs/presence-direct.md)。本改动未修改采集服务，也未改线上。
 
 默认打开 **真实 presence 状态办公室**（WebSocket），采用无工具栏展示；开发环境可用 `?simulate=1` 打开合成状态示例。独立动作演示组件仍保留在源码中，但不是默认入口。这仍是原型，不是完整产品：
 
@@ -18,7 +20,7 @@
 - 主 Agent、Auto-fix、DevOps 与热点追踪四位常驻角色支持夜间空闲趴桌休息、任务唤醒；默认本机 22:00–07:00 可调整。演示页可选择模拟夜间，实际状态仍须连接正常且可靠空闲，不表示 Agent 停机。
 - 真实状态的超量团队 / 子 Agent 不占虚构工位：可靠空闲时沿公共通道游荡，工作时原地使用平板；平板素材待提供，当前用站姿兜底。未知、断连、过期停止动作，可直接点击查看详情。见 `docs/overflow-agents.md`。独立动作演示仍仅安排两个模拟子角色。
 - 安全 main/preload IPC 集成层及真实归一化状态驱动场景已提供；状态控制台是明确合成数据演示。
-- 已部署到 `https://office.falsita.cn`，公网页面、静态资产与 presence WebSocket 已验证；未做 Electron 宿主联调，不调用模型，也不新增后台服务。DevOps 与热点追踪的服务端专属身份接线留待后续接口工作。部署记录见 `docs/office-deployment.md`。
+- 线上 `https://office.falsita.cn` 仍使用旧版 Node 转发架构；当前源码已移除该后端，直连尚待采集服务接口支持及上线验证。历史部署记录见 `docs/office-deployment.md`，新部署方案见 `docs/presence-direct.md`。未做 Electron 宿主联调，不调用模型。
 - 角色动作图集已生成并接入，仍需精修帧间一致性，不宣称逐像素锁定的生产级精灵。
 
 ## 本地运行
@@ -30,7 +32,7 @@ npm ci
 npm run dev
 ```
 
-Vite 仅监听本机回环地址。打开终端显示的本地地址即可。
+Vite 仅监听本机回环地址，只提供前端、不代理采集接口。`VITE_PRESENCE_WS_URL` 设置公开的采集服务 WSS 地址（见 `.env.example`），显式角色映射在 `src/presenceConfig.ts`。不要配置任何 VITE token。采集服务尚未支持浏览器时，默认页面会显示直连失败；本地可用 `?simulate=1` 查看合成状态场景。
 
 ```sh
 npm run typecheck
@@ -48,7 +50,7 @@ npm run check
 ```text
 src/                    React 场景、展示 DTO、配置 / 绑定 / 增强核心 API
 examples/               无真实标识或凭据的合成配置
-server/                 Node-only 消费状态适配器
+server/                 可选 Electron main 适配库，不是网页后端
 public/assets/          已批准的素材与 SHA-256 清单
 scripts/verify-assets.ts 资产字节完整性检查
 tests/                  展示规则测试
@@ -58,6 +60,7 @@ docs/integration.md     接入契约与宿主边界
 docs/electron-integration.md main/preload 安全接线与待验证范围
 docs/collect-pagination.md 完整分页、时序及覆盖限制
 docs/live-office.md     实际状态驱动场景与模拟验证边界
+docs/presence-direct.md  浏览器直连、公开映射及部署前置条件
 docs/motion.md          多 Agent 标签的简化动作插槽
 docs/lifecycle-demo.md  独立完整动作演示与图集说明
 docs/whole-office-demo.md 整体办公室空间、动作与模拟边界

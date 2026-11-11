@@ -14,5 +14,5 @@ export function PresenceOffice() {
     return { factory: () => adapter, publish(next: AdapterState | ((previous: AdapterState) => AdapterState)) { state = typeof next === 'function' ? next(state) : next; listeners.forEach(fn => fn(state)); } };
   }, []);
   useEffect(() => connectPresenceStream(channel.publish, setTopology), [channel]);
-  return <main className="office-display-only"><LiveOffice adapterFactory={channel.factory} topology={topology} modeLabel="真实 presence · WebSocket" /></main>;
+  return <main className="office-display-only"><LiveOffice adapterFactory={channel.factory} topology={topology} modeLabel="真实 presence · 直连采集服务" /></main>;
 }
