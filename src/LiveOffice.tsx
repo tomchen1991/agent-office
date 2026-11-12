@@ -180,6 +180,8 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const nightTime = isNightRestTime(wallClock(), nightConfig);
   const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
+    // Persona-specific seated breaks replace the children's generic slack loop.
+    // Keep owner/GitHub personal actions; missing optional break art stays seated.
     const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : undefined;
     const character = characters.find(item => item.id === seat.persona);
     const breakRole = !state.error && assets.key === characters && character ? seatedBreakRole(character, assets.loaded) : undefined;

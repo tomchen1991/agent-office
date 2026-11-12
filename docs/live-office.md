@@ -38,7 +38,7 @@ Supply **exactly one** of:
 | --- | --- |
 | New fresh explicit `working`, `idle`, `waiting`, or `stopping` presence | One arrival and sit sequence, then the newest status. |
 | Fresh `working` after seating | Approved seated work frames 0/1 and active monitor/keyboard. |
-| Fresh `idle` or `waiting` | Seated idle frames 6/7. No coffee/slack frames. |
+| Fresh `idle` or `waiting` | 默认坐姿待机帧 6/7；DeepSeek、ChatGPT、Grok 在白天连续 `idle` 5 秒后循环各自坐姿摸鱼帧 2/3。`waiting` 不触发；工作恢复、状态未知、身份变化、夜间或减少动态时取消。 |
 | Fresh `stopping` | Neutral seated frame 6 and explicit stopping label. No error frames. |
 | Unknown, stale, connecting, or disconnected | No phantom working animation. An existing observed actor is neutral, or an unbound/unobserved seat remains empty. |
 | Missing snapshot entry, including partial coverage | Uncertainty, never an asserted exit. An already-bound ID can retain a neutral presentation; an unresolved configuration binding remains empty. |

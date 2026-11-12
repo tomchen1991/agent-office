@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { OfficeAgent } from '../src/core.ts';
-import { createPresenceSeatAllocator, presenceTopology, presenceProxy, providerCharacter, presenceCollaboration, presenceStatus } from '../server/presenceProxy.ts';
+import { createPresenceSeatAllocator, presenceTopology, providerCharacter, presenceCollaboration, presenceStatus, normalizePresence } from '../src/presence.ts';
 
 test('new arrivals and departures do not move surviving public members', () => {
   const allocate = createPresenceSeatAllocator();
@@ -111,26 +111,23 @@ test('provider selects appearance without guessing unknown vendors', () => {
   assert.equal(providerCharacter('proxy-openai-unknown'), undefined);
 });
 
-test('presence backend rejects foreign origins and does not expose missing config paths', async () => {
-  let handler: any;
-  const plugin = presenceProxy();
-  (plugin.configureServer as Function)({ middlewares: { use(_path: string, fn: any) { handler = fn; } } });
-  async function request(headers: Record<string, string>) {
-    let body = '';
-    const res = { statusCode: 200, setHeader() {}, end(value: string) { body = value; } };
-    await handler({ method: 'GET', url: '/', headers }, res);
-    return { code: res.statusCode, body };
+test('raw collector snapshots are normalized locally, honoring explicit public mappings', () => {
+  const row = { sourceId: 'main', instanceId: 'one', status: 'idle', freshness: 'fresh', ageMs: 100,
+    receivedAt: '2026-01-01T00:00:00Z', data: { instance_id: 'one', member_name: 'Main', provider: 'openai', private_field: 'ignored' } };
+  const frame = { version: 1, persistence: 'memory', complete: true, processId: 'epoch', staleAfterMs: 45000, instances: [row] };
+  const next = normalizePresence(frame, { sourceKinds: { main: 'self' }, sourceLabels: { main: 'Main source' } });
+  assert.equal(next.topology.selfAgentId, JSON.stringify(['main', 'one']));
+  assert.equal(next.snapshot.agents[0].character, 'self');
+  assert.equal(next.snapshot.agents[0].sourceLabel, 'Main source');
+  assert.equal(next.snapshot.agents[0].validForMs, 44900);
+  assert.equal(next.snapshot.agents[0].identity?.collectorEpoch, 'epoch');
+  assert.ok(!JSON.stringify(next).includes('private_field'));
+  assert.equal(normalizePresence(frame).snapshot.agents[0].character, 'chatgpt');
+  assert.equal(normalizePresence(frame, { instanceCharacters: { '["main","one"]': 'github' } }).snapshot.agents[0].character, 'github');
+  for (const invalid of [null, {}, { ...frame, complete: false }, { ...frame, instances: [row, row] },
+    { ...frame, instances: [{ ...row, ageMs: -1 }] }, { ...frame, instances: [{ ...row, staleAfterMs: 'bad' }] },
+    { ...frame, instances: [{ ...row, data: { ...row.data, instance_id: 'mismatch' } }] }]) {
+    assert.throws(() => normalizePresence(invalid));
   }
-  assert.equal((await request({ host: 'evil.example' })).code, 403);
-  assert.equal((await request({ host: 'localhost:5188', origin: 'https://evil.example' })).code, 403);
-  const before = process.env.OFFICE_PRESENCE_CONFIG;
-  process.env.OFFICE_PRESENCE_CONFIG = '/nonexistent/private-presence-test.json';
-  try {
-    const result = await request({ host: '127.0.0.1:5188' });
-    assert.equal(result.code, 503);
-    assert.ok(!result.body.includes('/nonexistent'));
-  } finally {
-    if (before === undefined) delete process.env.OFFICE_PRESENCE_CONFIG;
-    else process.env.OFFICE_PRESENCE_CONFIG = before;
-  }
+  assert.deepEqual(normalizePresence({ ...frame, instances: [] }).snapshot.agents, []);
 });

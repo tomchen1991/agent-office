@@ -5,7 +5,7 @@ import { JSDOM } from 'jsdom';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AdapterState, OfficeAdapter, OfficeAgent, OfficeTopology } from '../src/core.ts';
-import { presenceStatus } from '../server/presenceProxy.ts';
+import { presenceStatus } from '../src/presence.ts';
 
 test('presence monitors clear retained exit metadata without erasing uncertain observations or inspector history', async t => {
   const vite = await createServer({ server: { middlewareMode: true, watch: null, hmr: false }, appType: 'custom' });

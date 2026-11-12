@@ -119,8 +119,8 @@ export function advanceLiveOffice(previous: LiveOfficeMotionState, deltaMs: numb
       return [{ ...actor, elapsedMs: (actor.elapsedMs + deltaMs) % seatedBreakDuration(actor.seatedBreakRole!) }];
     }
     if (actor.phase === 'personal') {
-      if (actor.personal?.phase === 'game' && actor.status === 'idle' && !actor.nightRest) {
-        return [{ ...actor, personal: { phase: 'game', elapsedMs: (actor.personal.elapsedMs + deltaMs) % 1300 } }];
+      if ((actor.personal?.phase === 'game' || actor.personal?.phase === 'slack') && actor.status === 'idle' && !actor.nightRest) {
+        return [{ ...actor, personal: { phase: actor.personal.phase, elapsedMs: (actor.personal.elapsedMs + deltaMs) % 1300 } }];
       }
       const personal = actor.personal && actor.personalRole && advancePersonal(actor.personal, actor.personalRole, deltaMs);
       if (personal) return [{ ...actor, personal }];
@@ -152,7 +152,7 @@ export function advanceLiveOffice(previous: LiveOfficeMotionState, deltaMs: numb
       return [{ ...actor, phase: 'drowse', elapsedMs: 0 }];
     }
     if (phase === 'seated' && actor.status === 'idle' && !actor.nightRest && actor.personalRole && elapsedMs >= PERSONAL_IDLE_DELAY_MS) {
-      return [{ ...actor, phase: 'personal', elapsedMs: 0, personal: actor.personalRole === 'self' ? personalStart('self') : { phase: 'game', elapsedMs: 0 } }];
+      return [{ ...actor, phase: 'personal', elapsedMs: 0, personal: personalStart(actor.personalRole) }];
     }
     if (phase === 'seated' && actor.status === 'idle' && !actor.nightRest && actor.seatedBreakRole && elapsedMs >= SEATED_BREAK_DELAY_MS) {
       return [{ ...actor, phase: 'seated-break', elapsedMs: (elapsedMs - SEATED_BREAK_DELAY_MS) % seatedBreakDuration(actor.seatedBreakRole) }];

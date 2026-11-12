@@ -1,5 +1,11 @@
 # Office production deployment
 
+## Deployment ownership
+
+Deployment is handled by DevOps. Coding changes may be committed and pushed when requested; do not deploy, change production configuration, or restart services as part of coding work. The current browser-direct migration has not been deployed and its collector browser-auth prerequisite remains unresolved.
+
+> Pending source migration (not deployed): the Office Node presence backend and systemd template have been removed from current source. The new static frontend connects directly to the collector and computes mappings/seats locally. Production still uses the old architecture below. Do not deploy the static template or stop the old service before the collector supports browser read-only connections; its current endpoint rejects Origin/Cookie and requires machine Bearer headers. See [direct connection migration](presence-direct.md). No production or collector changes were made for this migration.
+
 ## Latest infrastructure update: public ACME TLS (2026-11-09)
 
 - User authorized office TLS maintenance via acme.sh, explicitly after collect TLS migration completed. Waited for the collector owner to confirm no remaining ACME/Nginx work before changing office.
@@ -12,7 +18,15 @@
 - Backup/audit: `/srv/backups/agent-office-tls.NnkBTA` holds original office vhost, pre-change vhost checksums, application PID evidence and private ACME logs. Original shared Origin CA files and other domains' certificates retained.
 - Rollback: restore that office vhost, `nginx -t`, reload Nginx only. Do not remove shared Origin CA files or change collect/other vhosts; if permanently reverting, separately adjust office's acme install hook to match intended operations. The failed first attempt exercised configuration restoration, not future certificate-renewal failure handling.
 
-## Latest application release: compact rooms and overflow actors (2026-11-10)
+## Latest application release: child idle leisure (2026-11-11)
+
+- Source `5c18fe2` committed and pushed to main before activation. DeepSeek / ChatGPT / Grok use their own seated leisure frames after five seconds of continuous fresh daytime idle; work, waiting, uncertainty, night and reduced motion cancel the action.
+- Release: `/opt/agent-office/releases/20261111T032319Z-child-idle`; rollback: `/opt/agent-office/releases/20261110-78ec6f8-viewport-fill`. Archive SHA256: `96c4879e99c558d7e34eabc120bbd7f1a62a144da958e9411ee2bc7d04fa9694`.
+- `npm run check` passed: 265 tests, asset integrity, TypeScript and production build. Public HTML references `index-DyeQYFFq.js`; public JS/CSS and all three child seated WebP assets returned 200 and matched local byte hashes. Public presence HTTP returned 200; trusted WSS delivered two valid JSON snapshots. No production browser visual acceptance was performed.
+- Compared all backend source files, core and dependency inputs with the previous release before atomic frontend-only symlink activation. Dependencies link to that retained release. No service restart or Nginx reload; office PID remained `4112312`. Nginx vhost and private consumer config checksums unchanged; collector untouched.
+- Backup/audit: `/opt/agent-office/deployment-backups/20261111T032319Z-child-idle`. Error trap would restore the old symlink; rollback was not needed. To revert, atomically restore the previous current symlink. Retain the previous directory for dependencies and the unchanged running backend.
+
+## Previous application release: compact rooms and overflow actors (2026-11-10)
 
 - User authorized committing, pushing and deploying the reviewed office presentation. Application source `326920d` was pushed to main before activation. DevOps / hotspot backend identity wiring remains deferred; no new interface or private mapping was added.
 - Release: `/opt/agent-office/releases/20261110T103000Z-office-layout`; rollback: `/opt/agent-office/releases/20261109T104111Z-empty-circle`. Full source commit is recorded in `SOURCE_COMMIT`.
