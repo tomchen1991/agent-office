@@ -1,3 +1,4 @@
+import { seatedBreakRole } from './seatedBreak';
 import { DEFAULT_NIGHT_REST, isNightRestTime, parseNightRestConfig } from './nightRest';
 import type { NightRestConfig } from './nightRest';
 import { personalAssets, personalAssetsReady } from './personalIdle';
@@ -130,7 +131,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
       for (const character of selectedCharacters) {
         if (!alive) return;
         await load(character.locomotion.src, 'low');
-        for (const src of [...personalAssets(character), ...(character.sleep ? [character.sleep.src] : []), ...(character.tablet ? [character.tablet.src] : [])]) {
+        for (const src of [...personalAssets(character), ...(character.seatedBreak ? [character.seatedBreak.src] : []), ...(character.sleep ? [character.sleep.src] : []), ...(character.tablet ? [character.tablet.src] : [])]) {
           if (!alive) return;
           await load(src, 'low');
         }
@@ -179,13 +180,17 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   const nightTime = isNightRestTime(wallClock(), nightConfig);
   const targets = seats.filter(seat => !seat.empty).map(seat => {
     const agent = observedAgents.find(item => item.id === seat.id);
-    const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : seat.persona === 'deepseek' || seat.persona === 'chatgpt' || seat.persona === 'grok' ? seat.persona : undefined;
+    // Persona-specific seated breaks replace the children's generic slack loop.
+    // Keep owner/GitHub personal actions; missing optional break art stays seated.
+    const personalRole = seat.kind === 'owner' && seat.persona === 'self' ? 'self' as const : seat.kind === 'github' && seat.persona === 'github' ? 'github' as const : undefined;
+    const character = characters.find(item => item.id === seat.persona);
+    const breakRole = !state.error && assets.key === characters && character ? seatedBreakRole(character, assets.loaded) : undefined;
     const sleepPersona = nightRestPersona(seat);
     const nightRest = Boolean(sleepPersona && nightTime);
     const nightArtReady = characters.some(item => item.id === sleepPersona && item.sleep && assets.key === characters && assets.loaded.includes(item.sleep.src));
     const nightEligible = Boolean(!state.error && nightRest && agent && displayStatus(agent, elapsed, state.phase) === 'idle' && nightArtReady);
     const nightArtKey = JSON.stringify([sleepPersona, characters.find(item => item.id === sleepPersona)?.sleep?.src]);
-    return { nightRest, nightEligible, nightArtReady, nightArtKey, personalRole: !state.error && personalRole && characters.some(item => item.id === personalRole && personalAssetsReady(item, assets.loaded)) ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
+    return { seatedBreakRole: breakRole, seatedBreakArtKey: breakRole ? character?.seatedBreak?.src : undefined, nightRest, nightEligible, nightArtReady, nightArtKey, personalRole: !state.error && personalRole && characters.some(item => item.id === personalRole && personalAssetsReady(item, assets.loaded)) ? personalRole : undefined, id: seat.id, identityKey: agent ? identityKey(agent) : null, seatKey: JSON.stringify([seat.geometryId, seat.x, seat.y, seat.scale, seat.mirrored]), status: agent ? displayStatus(agent, elapsed, state.phase) : 'unknown' as const };
   });
   const assetsReady = assets.key === characters && assets.ready;
   const actors = useLiveOfficeMotion(targets, { sourceKey, reducedMotion, paused, assetsReady: true, hydrateSeated: true });

@@ -1,3 +1,4 @@
+import { seatedBreakRole, seatedBreakFrame } from './seatedBreak';
 import { nightRestPersona } from './residentVisuals';
 import { useLiveOfficeMotion } from './useLiveOfficeMotion';
 import { liveOfficePose } from './liveOfficeMotion';
@@ -39,7 +40,7 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
     setAssets({ key: characters, ready: false, failed: [], loaded: [] });
     // Base atlases gate the shared clock. Optional leisure art can arrive later without hiding the office.
     const required = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src]))];
-    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...personalAssets(character), ...(character.sleep ? [character.sleep.src] : [])]))];
+    const sources = [...new Set(characters.flatMap(character => [character.locomotion.src, character.seated.src, ...personalAssets(character), ...(character.seatedBreak ? [character.seatedBreak.src] : []), ...(character.sleep ? [character.sleep.src] : [])]))];
     const publish = () => { if (alive) setAssets({ key: characters, ready: required.every(src => loaded.has(src)), failed: [...failed], loaded: [...loaded] }); };
     const images = sources.map(src => {
       const image = new Image();
@@ -61,12 +62,13 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
   const { stage } = current;
   // Optional sheets may finish mid-cycle. Admit each role only at slack entry,
   // so a late load (even while paused) cannot teleport a seated actor outside.
-  const [storedSlack, setStoredSlack] = useState<{ stage: DemoStage | null; sourceKey: number; characters: readonly DemoCharacter[]; reduced: boolean; night: boolean; roles: string[] }>({ stage: null, sourceKey: nightSourceKey, characters, reduced: reducedMotion, night: nightPreview, roles: [] });
+  const [storedSlack, setStoredSlack] = useState<{ stage: DemoStage | null; sourceKey: number; characters: readonly DemoCharacter[]; reduced: boolean; night: boolean; roles: string[]; breakRoles: string[] }>({ stage: null, sourceKey: nightSourceKey, characters, reduced: reducedMotion, night: nightPreview, roles: [], breakRoles: [] });
   let slackSession = storedSlack;
   if (storedSlack.stage !== stage || storedSlack.characters !== characters || storedSlack.sourceKey !== nightSourceKey) {
     const entering = stage === 'slack' && (storedSlack.stage !== 'slack' || storedSlack.sourceKey !== nightSourceKey);
     slackSession = { stage, sourceKey: nightSourceKey, characters, reduced: reducedMotion, night: nightPreview, roles: entering && canAnimate && !reducedMotion && !nightPreview
-      ? characters.filter(item => personalAssetsReady(item, assets.loaded)).map(item => item.id) : [] };
+      ? characters.filter(item => personalAssetsReady(item, assets.loaded)).map(item => item.id) : [],
+      breakRoles: entering && canAnimate && !reducedMotion ? characters.flatMap(item => seatedBreakRole(item, assets.loaded) ?? []) : [] };
     setStoredSlack(slackSession);
   }
   const nightTargets = seats.filter(seat => nightRestPersona(seat)).map(seat => {
@@ -91,6 +93,9 @@ export function WholeOfficeDemo({ characters = demoCharacters }: { characters?: 
       if (seat.empty) return null;
       const nightActor = nightActors.find(actor => actor.id === seat.id && ['drowse', 'sleep', 'wake'].includes(actor.phase));
       if (nightActor) return { ...liveOfficePose(nightActor, reducedMotion), label: nightActor.phase === 'wake' ? '模拟：醒来' : '模拟：夜间伏桌休息' };
+      const character = characters.find(item => item.id === seat.persona);
+      const breakRole = character && seatedBreakRole(character, assets.loaded);
+      if (stage === 'slack' && !reducedMotion && breakRole && slackSession.breakRoles.includes(breakRole)) return { ...current, sheet: 'seatedBreak', frame: seatedBreakFrame(breakRole, current.stageElapsedMs), label: activeStage.label };
       const role = seat.kind === 'owner' && seat.persona === 'self' ? 'self' : seat.kind === 'github' && seat.persona === 'github' ? 'github' : null;
       const action = role && stage === 'slack' && slackSession.roles.includes(role) ? personalDemo(role, current.stageElapsedMs) : undefined;
       return { ...current, ...(action ? personalPose(action) : {}), label: activeStage.label };

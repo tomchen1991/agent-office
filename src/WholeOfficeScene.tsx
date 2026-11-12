@@ -19,7 +19,7 @@ import type { PersonalIdle } from './personalIdle';
 export interface OfficeSceneSeat extends Omit<OfficeSeat, 'persona'> { persona: OfficePersona; isLeader?: boolean; geometryId?: string }
 export interface OfficeScenePose {
   stage: DemoStage; stageElapsedMs: number; progress: number; label: string;
-  sheet?: 'locomotion' | 'seated' | 'extra' | 'pickup' | 'sleep'; frame?: number; personal?: PersonalIdle;
+  sheet?: 'locomotion' | 'seated' | 'extra' | 'pickup' | 'sleep' | 'seatedBreak'; frame?: number; personal?: PersonalIdle;
   status?: OfficeStatus; phase?: string;
 }
 export interface WholeOfficeSceneProps {

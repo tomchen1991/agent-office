@@ -1,3 +1,4 @@
+import { seatedBreakRole, seatedBreakFrame, seatedBreakAnimations } from './seatedBreak';
 import { useEffect, useReducer, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { DEMO_STAGES, TOTAL_DEMO_MS, initialDemoState, demoPosition, demoReducer, demoFrame } from './demoTimeline';
@@ -12,7 +13,7 @@ const stageDescriptions: Record<DemoStage, string> = {
   arrival: '从门口沿地面路线走向工位。',
   sit: '到达椅子前，转入落座动作。',
   work: '坐在办公桌后，敲键盘处理任务。',
-  slack: '暂时靠回椅子，喝口饮料。',
+  slack: '坐在工位上休息片刻。',
   error: '任务遇到异常，角色与屏幕同步提示。',
   stand: '结束当前任务，从椅子上起身。',
   exit: '沿原路离开，在门口结束这次演示。',
@@ -23,6 +24,7 @@ export function LifecycleDemo({ characters = demoCharacters }: {characters?: rea
   const [reducedMotion, setReducedMotion] = useState(false);
   const [selectedId, setSelectedId] = useState<DemoCharacter['id']>('self');
   const character = characters.find(item => item.id === selectedId)!;
+  const [loadedBreak, setLoadedBreak] = useState<string | null>(null);
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [errorId, setErrorId] = useState<string | null>(null);
   const assetError = errorId === selectedId;
@@ -34,7 +36,7 @@ export function LifecycleDemo({ characters = demoCharacters }: {characters?: rea
     return () => media.removeEventListener('change', apply);
   }, []);
   useEffect(() => {
-    setLoadedId(null); setErrorId(null);
+    setLoadedId(null); setErrorId(null); setLoadedBreak(null);
     if (!character.ready) return;
     let alive = true;
     let count = 0;
@@ -45,6 +47,14 @@ export function LifecycleDemo({ characters = demoCharacters }: {characters?: rea
       image.src = assetUrl(src);
       return image;
     });
+    if (character.seatedBreak) {
+      const src = character.seatedBreak.src;
+      const image = new Image();
+      image.onload = () => { if (alive) setLoadedBreak(src); };
+      // Optional load failure keeps the normal seated fallback and controls usable.
+      image.src = assetUrl(src);
+      images.push(image);
+    }
     return () => { alive = false; for (const image of images) { image.onload = null; image.onerror = null; } };
   }, [character]);
   const canAnimate = character.ready && loadedId === selectedId && !assetError;
@@ -55,8 +65,17 @@ export function LifecycleDemo({ characters = demoCharacters }: {characters?: rea
 
   const { stage, stageElapsedMs, progress } = demoPosition(state);
   const seated = stage === 'work' || stage === 'slack' || stage === 'error';
-  const {sheet, frame} = demoFrame({ stage, stageElapsedMs, progress }, reducedMotion);
-  const atlas = character[sheet];
+  const breakRole = seatedBreakRole(character, loadedBreak ? [loadedBreak] : []);
+  const [storedBreak, setStoredBreak] = useState<{ character: DemoCharacter; stage: DemoStage | null; admitted: boolean }>({ character, stage: null, admitted: false });
+  let breakSession = storedBreak;
+  if (storedBreak.character !== character || storedBreak.stage !== stage) {
+    breakSession = { character, stage, admitted: stage === 'slack' && Boolean(breakRole) && !reducedMotion };
+    setStoredBreak(breakSession);
+  }
+  const breakActive = stage === 'slack' && breakSession.admitted && breakRole && !reducedMotion;
+  const { sheet, frame } = breakActive ? { sheet: 'seatedBreak' as const, frame: seatedBreakFrame(breakRole, stageElapsedMs) } : demoFrame({ stage, stageElapsedMs, progress }, reducedMotion);
+  const atlas = character[sheet] ?? character.seated;
+  const stageDescription = breakActive ? `在工位上${seatedBreakAnimations[breakRole].label}。` : stageDescriptions[stage];
   // World-space contact points, not a collection of unrelated status cards.
   const travel = stage === 'arrival' ? progress : stage === 'exit' ? 1 - progress : 1;
   const transitionPose = stage === 'sit' || stage === 'stand' ? seatingPose(stage, stageElapsedMs, reducedMotion) : null;
@@ -90,7 +109,7 @@ export function LifecycleDemo({ characters = demoCharacters }: {characters?: rea
     <div className="lifecycle-heading"><h1 id="lifecycle-title" className="sr-only">角色动作</h1><span className="lc-demo-badge">模拟演示</span></div>
     <nav className="lc-character-nav" aria-label="角色选择">{characters.map(item => <button key={item.id} className={`lc-character-choice character-${item.id}`} aria-pressed={selectedId === item.id} onClick={() => { setSelectedId(item.id); dispatch({type:'restart'}); if (reducedMotion) dispatch({type:'pause'}); }}><strong>{item.label}</strong>{!item.ready && <span>素材准备中</span>}</button>)}</nav>
     <div className="lc-stage-wrap">
-      <div className={`lc-world lc-${stage}`} role="img" aria-label={`${character.label} 的像素办公室场景：${activeStage.label}。${stageDescriptions[stage]}`}>
+      <div className={`lc-world lc-${stage}`} role="img" aria-label={`${character.label} 的像素办公室场景：${activeStage.label}。${stageDescription}`}>
         <div className="lc-wall"><div className="lc-window"><span /><span /><span /><span /></div><div className="lc-board"></div><div className="lc-wall-trim" /></div>
         <div className="lc-floor" />
         <div className="lc-route" aria-hidden="true"><span>→</span><span>→</span><span>→</span><span>→</span></div>

@@ -409,6 +409,192 @@
       ],
       "sha256": "071a16de6d142ec1ce0d8c799e000f86f9f14374f730f66cbe4f6ffcccce1a01",
       "provenance": "Approved DevOps/hotspot generated action prototype; mechanically registered source atlas copied byte-for-byte. Faces, hair and skirt folds retain small generated pose variations."
+    },
+    {
+      "path": "assets/demo/chatgpt/seated-break.png",
+      "character": "chatgpt",
+      "sheet": "seatedBreak",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": {
+        "x": 0.48828125,
+        "y": 0.693359375
+      },
+      "sha256": "c0b60c078aae8927107f1c0bb9a7ea63b20e647cef68ba6f65cb748c768e2a05",
+      "frameOrder": [
+        "neutral",
+        "reach-shield",
+        "hold-shield",
+        "raise-shield",
+        "peek",
+        "blink-behind-shield",
+        "lower-shield",
+        "neutral"
+      ],
+      "animation": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          4,
+          3,
+          2,
+          6,
+          1,
+          7
+        ],
+        "durationsMs": [
+          600,
+          200,
+          260,
+          350,
+          350,
+          180,
+          350,
+          300,
+          260,
+          260,
+          180,
+          600
+        ],
+        "loop": true
+      },
+      "sourceSeated": {
+        "path": "assets/demo/chatgpt/seated.png",
+        "sha256": "3058ecd7e7e6784be2cc4dd9f54cfeb03d23f7226c7c4b83bdd7b3dd1fc00d89"
+      },
+      "endpointFramesIdenticalToOriginalIdle": true
+    },
+    {
+      "path": "assets/demo/deepseek/seated-break.png",
+      "character": "deepseek",
+      "sheet": "seatedBreak",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": {
+        "x": 0.48828125,
+        "y": 0.693359375
+      },
+      "sha256": "3d64acfa4bb5f79f13793fbb78a73c9daa2c91ea86cc2de267959dbc3c837d1b",
+      "frameOrder": [
+        "neutral",
+        "hold-bowl",
+        "scoop-rice",
+        "bite-a",
+        "bite-b",
+        "happy-chewing",
+        "lower-bowl",
+        "neutral"
+      ],
+      "animation": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          3,
+          4,
+          3,
+          4,
+          5,
+          6,
+          1,
+          7
+        ],
+        "durationsMs": [
+          600,
+          240,
+          300,
+          170,
+          170,
+          170,
+          170,
+          170,
+          170,
+          650,
+          250,
+          180,
+          600
+        ],
+        "loop": true
+      },
+      "sourceSeated": {
+        "path": "assets/demo/deepseek/seated.png",
+        "sha256": "3346207527081e732120eb6df584a30d578496fcdce21a42a397d3d27b23a773"
+      },
+      "endpointFramesIdenticalToOriginalIdle": true
+    },
+    {
+      "path": "assets/demo/grok/seated-break.png",
+      "character": "grok",
+      "sheet": "seatedBreak",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "anchor": {
+        "x": 0.48828125,
+        "y": 0.693359375
+      },
+      "sha256": "b40d6adb7a169ca0cc095730bd42e4f4bef1a08fe3decc5dc62c97d1ef6db06c",
+      "frameOrder": [
+        "neutral",
+        "hold-cup-saucer",
+        "raise-cup",
+        "sip-a",
+        "sip-b",
+        "savor-tea",
+        "lower-cup-saucer",
+        "neutral"
+      ],
+      "animation": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          3,
+          5,
+          2,
+          6,
+          1,
+          7
+        ],
+        "durationsMs": [
+          600,
+          300,
+          400,
+          500,
+          700,
+          250,
+          600,
+          300,
+          300,
+          200,
+          600
+        ],
+        "loop": true
+      },
+      "sourceSeated": {
+        "path": "assets/demo/grok/seated.png",
+        "sha256": "196e151c5b833febda440d40206b00ce1d35b32350c3c2cffbfa84877db1c1ec"
+      },
+      "endpointFramesIdenticalToOriginalIdle": true
     }
   ]
 }
