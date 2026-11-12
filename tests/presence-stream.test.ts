@@ -61,15 +61,17 @@ test('each page directly connects to the collector and computes independently; n
     assert.equal(socketA.url.href, 'wss://collect.falsita.cn/api/presence/v1/ws');
     socketA.message(collectorFrame());
     socketC.message({ ...collectorFrame(), instances: [], total: 0 });
-    assert.equal(a.state().snapshot?.agents.length, 1);
-    assert.equal(c.state().snapshot?.agents.length, 0);
+    assert.equal(a.state().snapshot?.agents.length, 2);
+    assert.equal(c.state().snapshot?.agents.length, 1);
+    assert.equal(c.state().snapshot?.agents[0].presenceMode, 'on-demand');
+    assert.equal(c.state().snapshot?.agents[0].status, 'idle');
     assert.equal(a.state().snapshot?.agents[0].character, 'deepseek');
     assert.ok(!JSON.stringify(a.state()).includes('private_field'));
     closeA();
     assert.equal(socketA.closed, true);
     assert.equal(socketC.closed, false);
     socketA.message({ ...collectorFrame('change', 2), instances: [], total: 0 });
-    assert.equal(a.state().snapshot?.agents.length, 1);
+    assert.equal(a.state().snapshot?.agents.length, 2);
   } finally { closeA(); closeC(); b.close(); }
 });
 
@@ -89,7 +91,7 @@ test('direct stream rejects incomplete/malformed snapshots, epoch changes, gaps 
       socket.message(malformed);
       assert.equal(o.state().phase, 'disconnected');
       assert.equal(socket.closed, true);
-      assert.equal(o.state().snapshot?.agents.length, 1);
+      assert.equal(o.state().snapshot?.agents.length, 2);
       dispose();
     }
     for (const raw of ['x'.repeat(1048577), new ArrayBuffer(8), '{', '"' + '汉'.repeat(400000) + '"']) {

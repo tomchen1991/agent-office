@@ -109,7 +109,7 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
   validateTopology(topology);
   const snapshot = bound?.snapshot ?? state.snapshot;
   const observedAgents = snapshot?.agents ?? [];
-  const visiblePersonas = [...new Set(observedAgents.filter(agent => agent.sourceFreshness === 'fresh').map(agent => residentPersona(agent.id, agent.character, topology)))].sort().join(',');
+  const visiblePersonas = [...new Set(observedAgents.filter(agent => agent.sourceFreshness === 'fresh' || agent.presenceMode === 'on-demand').map(agent => residentPersona(agent.id, agent.character, topology)))].sort().join(',');
   const assetCache = useRef(new Set<string>());
   useEffect(() => {
     let alive = true;
@@ -236,18 +236,18 @@ export function LiveOffice({ adapterFactory, officeConfig, topology: fixedTopolo
       const task = agent?.task?.name?.trim() || null;
       const repository = agent?.repo?.trim() || null;
       return task || repository ? { task, repository, stale: status === 'unknown' } : null;
-    }} statusForSeat={seat => { const target = targets.find(item => item.id === seat.id); const retained = actors.find(item => item.id === seat.id)?.visualOnly; return { status: retained ? 'unknown' : target?.status ?? 'unknown', label: !retained && target?.identityKey ? liveStatusLabels[target.status] : '状态未知 · 未收到数据' }; }} poseForSeat={seat => {
+    }} statusForSeat={seat => { const target = targets.find(item => item.id === seat.id); const retained = actors.find(item => item.id === seat.id)?.visualOnly; return { status: retained ? 'unknown' : target?.status ?? 'unknown', label: !retained && target?.identityKey ? (target.status === 'idle' && observedAgents.find(agent => agent.id === seat.id)?.presenceMode === 'on-demand' ? '待命 · 按需唤醒' : liveStatusLabels[target.status]) : '状态未知 · 未收到数据' }; }} poseForSeat={seat => {
       const actor = actors.find(item => item.id === seat.id);
       return actor ? liveOfficePose(actor, reducedMotion) : null;
     }} worldChildren={<OverflowAgents targets={overflowTargets} characters={characters} paused={paused} reducedMotion={reducedMotion} sourceKey={sourceKey} assetReady={src => assets.loaded.includes(src)} onSelect={setSelected} />} loading={assets.failed.length > 0 && <button className="live-asset-retry" onClick={() => setLoadAttempt(value => value + 1)}>部分素材未载入，点击重试</button>} />
     {selected !== null && <AgentDialog onClose={() => setSelected(null)}>
       <section className="live-inspector" aria-labelledby="live-details-title"><div><h2 id="live-details-title">{currentAgent?.name ?? presentation.get(selectedId)?.name ?? selectedId}</h2></div><dl>
-        <div><dt>当前显示状态</dt><dd data-live-current-status={effectiveStatus}>{liveStatusLabels[effectiveStatus]}</dd></div>
-        <div><dt>来源报告状态</dt><dd>{currentAgent ? liveStatusLabels[currentAgent.status] : '未收到该 Agent 数据'}</dd></div>
+        <div><dt>当前显示状态</dt><dd data-live-current-status={effectiveStatus}>{currentAgent?.presenceMode === 'on-demand' && effectiveStatus === 'idle' ? '待命 · 按需唤醒' : liveStatusLabels[effectiveStatus]}</dd></div>
+        <div><dt>{currentAgent?.presenceMode === 'on-demand' ? '按需服务状态' : '来源报告状态'}</dt><dd>{currentAgent?.presenceMode === 'on-demand' && currentAgent.status === 'idle' ? '待命（配置状态，不代表已验证健康）' : currentAgent ? liveStatusLabels[currentAgent.status] : '未收到该 Agent 数据'}</dd></div>
         <div><dt>数据来源</dt><dd>{currentAgent?.sourceLabel || currentAgent?.source || '未提供'}</dd></div>
         {currentAgent?.collaboration && <div><dt>协作 PI · 组名</dt><dd>{currentAgent.collaboration.group ?? '尚未上报分组'}</dd></div>}
         <div><dt>连接状态</dt><dd>{phaseLabels[state.phase]}</dd></div>
-        <div><dt>状态新鲜度</dt><dd data-live-freshness>{currentAgent ? freshnessLabels[freshness(currentAgent, elapsed)] : '未知'}</dd></div>
+        <div><dt>状态新鲜度</dt><dd data-live-freshness>{currentAgent?.presenceMode === 'on-demand' && currentAgent.status === 'idle' ? '按需运行，不要求待命心跳' : currentAgent ? freshnessLabels[freshness(currentAgent, elapsed)] : '未知'}</dd></div>
         <div><dt>状态观测时间</dt><dd><time dateTime={currentAgent?.observedAt ?? undefined}>{timeLabel(currentAgent?.observedAt)}</time></dd></div>
       </dl><div className="live-request">{task?.name?.trim() && <p>{task.name}</p>}{currentAgent?.repo && <span>仓库：{currentAgent.repo}</span>}{task?.type && <span>任务类型：{task.type}</span>}{task?.detail && <span>阶段／说明：{task.detail}</span>}{task?.startedAt && <span>开始时间：<time dateTime={task.startedAt}>{timeLabel(task.startedAt)}</time></span>}{(currentAgent?.provider || currentAgent?.model) && <span key={[currentAgent.provider ?? '', currentAgent.model ?? ''].join('\u0000')} className="live-model-value" data-live-model={[currentAgent.provider, currentAgent.model].filter(Boolean).join(' / ')} data-live-model-switching={visibleModelSwitches[selectedId] ? 'true' : undefined}>选定模型：{[currentAgent.provider, currentAgent.model].filter(Boolean).join(' / ')}</span>}{effectiveStatus === 'unknown' && task?.name && <span>以上为最后观察信息，不代表当前仍在执行。</span>}</div></section></AgentDialog>}
   </section>;

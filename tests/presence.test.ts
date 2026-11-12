@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { OfficeAgent } from '../src/core.ts';
+import { PRESENCE_MAPPING } from '../src/presenceConfig.ts';
+import { residentSeatReport } from '../src/residentLayout.ts';
+import { residentPersona } from '../src/residentVisuals.ts';
 import { createPresenceSeatAllocator, presenceTopology, providerCharacter, presenceCollaboration, presenceStatus, normalizePresence } from '../src/presence.ts';
 
 test('new arrivals and departures do not move surviving public members', () => {
@@ -30,6 +33,35 @@ test('restarted dedicated agent takes its own desk, not a public seat', () => {
   const expiredPi: OfficeAgent = { ...old, id: 'expired-pi', character: 'chatgpt' };
   const activePi: OfficeAgent = { ...current, id: 'active-pi', character: 'grok' };
   assert.deepEqual(presenceTopology([expiredPi, activePi]).team.memberIds, ['active-pi']);
+});
+
+test('configured get-news source uses the hotspot desk without changing status or model appearance', () => {
+  const row = (instanceId: string, freshness = 'fresh', status = 'idle') => ({
+    sourceId: 'get-news-worker', instanceId, freshness, status, ageMs: freshness === 'fresh' ? 100 : 171000,
+    data: { instance_id: instanceId, member_name: '热点获取 Agent（Worker）', provider: 'openai' },
+  });
+  const frame = (instances: unknown[]) => ({ version: 1, persistence: 'memory', complete: true, processId: 'epoch', staleAfterMs: 45000, instances });
+  const normalize = (instances: unknown[]) => normalizePresence(frame(instances), { sourceKinds: PRESENCE_MAPPING.sourceKinds });
+  const id = JSON.stringify(['get-news-worker', 'current']);
+  const next = normalize([row('current')]);
+  assert.equal(next.topology.hotspotAgentId, id);
+  assert.deepEqual(next.topology.team.memberIds, []);
+  assert.deepEqual(next.topology.team.seatAssignments, {});
+  assert.equal(residentSeatReport(next.topology).assignments[id], 'hotspot-desk');
+  assert.equal(next.snapshot.agents[0].character, 'chatgpt');
+  assert.equal(residentPersona(id, 'chatgpt', next.topology), 'hotspot');
+  const stale = normalize([row('current', 'stale', 'unknown')]);
+  assert.equal(stale.topology.hotspotAgentId, id);
+  assert.equal(stale.snapshot.agents[0].sourceFreshness, 'stale');
+  assert.equal(stale.snapshot.agents[0].status, 'unknown');
+  assert.equal(normalize([row('old', 'stale', 'unknown'), row('current')]).topology.hotspotAgentId, id);
+  assert.equal(normalize([row('old', 'fresh', 'stopping'), row('current')]).topology.hotspotAgentId, id);
+  const ambiguous = normalize([row('other'), row('current')]);
+  assert.equal(ambiguous.topology.hotspotAgentId, undefined);
+  assert.deepEqual(ambiguous.topology.team.memberIds, []);
+  assert.equal(normalize([]).topology.hotspotAgentId, undefined);
+  // Neither a matching display name nor a model provider assigns resident identity.
+  assert.equal(normalizePresence(frame([row('current')])).topology.hotspotAgentId, undefined);
 });
 
 test('presence stopping maps to offline and retains its seat through departure and expiry', async () => {
