@@ -1,10 +1,10 @@
 # Presence WebSocket 消费
 
-## 当前源码：浏览器直接订阅采集服务
+## 当前源码：静态前端经 Nginx 同源订阅
 
-详见 [纯静态直连接入与部署前置条件](presence-direct.md)。每个页面独立连接，数据转换和座位分配在浏览器内计算。不运行 Office Node 服务、不使用 Office HTTP/WS 转发、不共享上游。
+详见 [接入与信任边界](presence-direct.md)。每个页面独立连接，数据转换和座位分配在浏览器内计算。不运行 Office Node 服务、不共享上游。
 
-迁移代码尚未部署；当前线上采集接口拒绝浏览器 Origin，必须先由采集服务提供浏览器可用的只读接入方式。不能把旧 consumer token 放进前端来绕过。
+采集接口已支持匿名只读 WSS，但拒绝 Office 跨域 Origin。Office Nginx 校验精确本站 Origin 后，以不携带 Origin/Cookie/Authorization 的 loopback 机器连接转发单一只读路径。没有机器 token 注入，也不开放其他采集 API。实际部署状态见部署记录。
 
 ## 流协议与生命周期
 

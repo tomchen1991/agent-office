@@ -3,7 +3,7 @@ import { createPresenceSeatAllocator, normalizePresence } from './presence.ts';
 import { PRESENCE_MAPPING, presenceWebSocketURL } from './presenceConfig.ts';
 import type { PresenceMapping } from './presence.ts';
 
-/** Each page owns its direct collector connection and local presentation state. */
+/** Each page owns its collector subscription (via Nginx in production) and presentation state. */
 export function connectPresenceStream(
   publish: (next: AdapterState | ((previous: AdapterState) => AdapterState)) => void,
   setTopology: (topology: OfficeTopology) => void,
@@ -39,7 +39,7 @@ export function connectPresenceStream(
       if (stopped || socket !== current) return;
       cancel();
       authorizationFailed = event?.code === 4403;
-      publish(previous => ({ ...previous, phase: 'disconnected', error: authorizationFailed ? '状态订阅授权失败，请检查采集服务的浏览器访问权限后刷新页面' : '采集服务直连失败，请检查浏览器访问权限或网络，正在自动重连' }));
+      publish(previous => ({ ...previous, phase: 'disconnected', error: authorizationFailed ? '状态订阅授权失败，请检查采集服务的浏览器访问权限后刷新页面' : '状态订阅失败，请检查浏览器访问权限或网络，正在自动重连' }));
       if (!authorizationFailed && !document.hidden) retry = window.setTimeout(connect, Math.max(event?.code === 1013 ? 5000 : 1000, Math.min(30000, 1000 * 2 ** Math.min(failures++, 5))));
     };
     try { current = new WebSocket(url); } catch {

@@ -62,7 +62,7 @@ test('presence WS retains observations, detects silence and safely resumes brows
     await t.test('Strict Mode closes old socket and ignores late frames; no polling timer', async () => {
       assert.equal(Socket.all.length, 2);
       assert.equal(Socket.all[0].closed, true);
-      assert.equal(latest().url.href, 'wss://collect.falsita.cn/api/presence/v1/ws');
+      assert.equal(latest().url.href, 'wss://office.falsita.cn/api/presence/v1/ws');
       await respond(Socket.all[0], { instances: [], total: 0 });
       assert.equal(actor(), null);
       await respond();

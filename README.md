@@ -1,10 +1,10 @@
 # Agent Office
 
-将 Agent 的工作状态变成可视化办公室，使用 **React + TypeScript**。网页部署是纯静态前端：浏览器直接从采集服务订阅数据并完成展示计算，不运行 Office 后端。可选 Electron main 进程适配库单独保留。
+将 Agent 的工作状态变成可视化办公室，使用 **React + TypeScript**。网页部署是纯静态前端：浏览器经同源 Nginx WSS 订阅采集数据并完成展示计算，不运行 Office 后端。可选 Electron main 进程适配库单独保留。
 
 ## 当前阶段
 
-**直连迁移尚未部署**：当前采集接口仍拒绝浏览器 Origin，只接受机器 Bearer 鉴权。必须先提供浏览器可用的只读订阅入口；不能直接发布当前构建替换线上旧架构。见 [直连接入与前置条件](docs/presence-direct.md)。本改动未修改采集服务，也未改线上。
+**静态架构**：采集服务已支持匿名只读 WSS。Office Nginx 严格校验本站 Origin，再经 loopback 转发这一条只读路径；不转发 Cookie/token，不运行 Office Node 服务。见 [接入与信任边界](docs/presence-direct.md)，实际发布状态见 [部署记录](docs/office-deployment.md)。
 
 默认打开 **真实 presence 状态办公室**（WebSocket），采用无工具栏展示；开发环境可用 `?simulate=1` 打开合成状态示例。独立动作演示组件仍保留在源码中，但不是默认入口。这仍是原型，不是完整产品：
 
@@ -20,7 +20,7 @@
 - 主 Agent、Auto-fix、DevOps 与热点追踪四位常驻角色支持夜间空闲趴桌休息、任务唤醒；默认本机 22:00–07:00 可调整。演示页可选择模拟夜间，实际状态仍须连接正常且可靠空闲，不表示 Agent 停机。
 - 真实状态的超量团队 / 子 Agent 不占虚构工位：可靠空闲时沿公共通道游荡，工作时原地使用平板；平板素材待提供，当前用站姿兜底。未知、断连、过期停止动作，可直接点击查看详情。见 `docs/overflow-agents.md`。独立动作演示仍仅安排两个模拟子角色。
 - 安全 main/preload IPC 集成层及真实归一化状态驱动场景已提供；状态控制台是明确合成数据演示。
-- 线上 `https://office.falsita.cn` 仍使用旧版 Node 转发架构；当前源码已移除该后端，直连尚待采集服务接口支持及上线验证。历史部署记录见 `docs/office-deployment.md`，新部署方案见 `docs/presence-direct.md`。未做 Electron 宿主联调，不调用模型。
+- `https://office.falsita.cn` 的静态架构部署与历史记录见 `docs/office-deployment.md`，接入方案见 `docs/presence-direct.md`。未做 Electron 宿主联调，不调用模型。
 - 角色动作图集已生成并接入，仍需精修帧间一致性，不宣称逐像素锁定的生产级精灵。
 
 ## 本地运行
@@ -32,7 +32,7 @@ npm ci
 npm run dev
 ```
 
-Vite 仅监听本机回环地址，只提供前端、不代理采集接口。`VITE_PRESENCE_WS_URL` 设置公开的采集服务 WSS 地址（见 `.env.example`），显式角色映射在 `src/presenceConfig.ts`。不要配置任何 VITE token。采集服务尚未支持浏览器时，默认页面会显示直连失败；本地可用 `?simulate=1` 查看合成状态场景。
+Vite 仅监听本机回环地址，只提供前端、不代理采集接口。`VITE_PRESENCE_WS_URL` 设置公开只读 WSS 地址（见 `.env.example`），显式角色映射在 `src/presenceConfig.ts`。不要配置任何 VITE token。生产 Nginx 不允许 localhost Origin，本地须使用显式测试端点，或 `?simulate=1` 查看合成状态场景。
 
 ```sh
 npm run typecheck

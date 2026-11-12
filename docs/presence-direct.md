@@ -1,54 +1,40 @@
-# 纯静态办公室：浏览器直连采集服务
+# 静态办公室：浏览器计算 + Nginx 同源 WSS
 
-## 状态：代码迁移，尚未部署
+## 链路
 
-链路只有：`浏览器 → 采集服务 WSS`。Office 不再运行 Node 服务，也没有 Office API/Nginx 中转。
+`浏览器 → wss://office.falsita.cn/api/presence/v1/ws → Nginx → ws://127.0.0.1:18788/api/presence/v1/ws`
 
-**当前线上采集接口还不能供浏览器连接。** 已检查同级 collect-service 仓库的 `src/studio/server.ts`、`docs/37-presence-websocket.md`：现有 `/api/presence/v1/ws` 拒绝 Origin、Cookie 和 subprotocol，只接受 Authorization Bearer。原生浏览器 WebSocket 必然发送 Origin，又不能设置 Authorization 请求头。因此不能把本改动直接上线后声称可用；需要采集服务先支持浏览器只读订阅。这次没有改采集服务或线上配置。
+Office 不再运行 Node 服务。Nginx 只转发协议，不转换数据、不共享连接；每个页面独立订阅。`src/presence.ts` 在浏览器完成原始快照转换、角色映射、协作分组及座位分配。页面刷新重新分配，断线重连保留当前页面分配。
 
-## 前端负责全部展示计算
+## 访问边界（用户授权的 Nginx 方案）
 
-- `src/presenceStream.ts`：每个页面独立连接采集服务，校验原始完整快照、连续序号、进程 epoch、消息大小及心跳；不共享连接、不轮询。
-- `src/presence.ts`：原先后端的数据转换、供应商外观映射、显式身份映射、协作分组、稳定座位分配均在浏览器完成。
-- 座位状态只在当前页面内存保留，断线重连继续使用，刷新重新分配；不同浏览器不共享内存状态。
-- `src/presenceConfig.ts`：公开展示映射 `PRESENCE_MAPPING`。不会自动读取旧服务器私有配置。迁移时仅人工确认 sourceKinds/sourceCharacters/instanceCharacters/sourceLabels，绝不复制 token/enabled 等旧配置。
-- 断连保留最后观察但不刷新其新鲜度；隐藏页面关闭连接，恢复重连；Strict Mode、旧连接回调隔离及减少动态效果保留。
-- 浏览器自动回复传输 ping/pong；Office 不发送应用消息或主动 ping。
+采集服务新版本的 WSS 是匿名公开只读：不需要 consumer Bearer，Cookie 不建立会话，但只允许自身浏览器 Origin，或者无 Origin 的机器客户端。已实测 Office Origin 直连返回 403，Collect Origin 返回 101。
 
-## 构建配置
+因此不直接跨域连接，不伪造 Collect Origin。Office Nginx **先严格验证** `Origin: https://office.falsita.cn`，再将可信 loopback 跳作为无 Origin 的机器只读订阅：
 
-`.env.local` 可设置公开地址：
+- 只代理精确 `/api/presence/v1/ws`，仅 GET、WebSocket Upgrade，无查询参数。
+- 缺失、null、其他 Origin 一律 403；Origin 检查通过后才移除上游 Origin。
+- 清除 Authorization、Cookie 及转发身份头，不读取或注入机器 token。
+- 固定上游 loopback、固定 Host；其他 `/api/` 返回 404；不开放管理或上报接口。
+- 每 IP 最多 4 条、Office 总计最多 12 条连接；握手每 IP 每秒 1 次、burst 5；超额 429。采集服务本身仍有独立额度，其他消费者可能导致其提前耗尽。
+- 禁止缓存/buffering，read timeout 75 秒，CSP connect-src 仅 self。
 
-```dotenv
-VITE_PRESENCE_WS_URL=wss://collect.falsita.cn/api/presence/v1/ws
-```
+这是显式的边缘信任边界，不是让采集服务全局接受任意 Origin。Origin 不是用户身份鉴权，非浏览器可以伪造它；本站仍是业主此前要求的公开只读展示，知道地址的人可以读取任务/仓库等公开 presence 数据。若要限制观看者，应额外加真实会话鉴权，不应把 Origin 当密码。
 
-默认就是上述采集服务地址。只允许 WSS，开发允许回环 WS；拒绝 URL 账号密码、query 和 fragment。不提供 token 输入框，不把凭据写入 bundle、URL、localStorage 或 WebSocket subprotocol。若浏览器收到 4403，则停止重试；握手 HTTP 401/403 在浏览器仅表现为通用网络错误，不能伪称已识别具体状态码。
+## 前端配置
 
-如需显式身份，可编辑 `PRESENCE_MAPPING`（合成示例，不是生产映射）：
+默认 `VITE_PRESENCE_WS_URL=wss://office.falsita.cn/api/presence/v1/ws`。不得将 token 放进 VITE 环境变量、bundle、URL、storage 或 subprotocol。地址只允许 WSS，开发允许 loopback WS，拒绝凭证/query/fragment。
 
-```ts
-export const PRESENCE_MAPPING: PresenceMapping = {
-  sourceKinds: { 'example-main': 'self', 'example-review': 'auto-fix' },
-  sourceLabels: { 'example-main': '主 Agent' },
-};
-```
+`src/presenceConfig.ts` 的公开映射只迁移了旧配置中的 sourceCharacters/sourceLabels；未复制 enabled/token。映射不是权限控制。
 
-这些字段完全公开，不是权限控制，来源可见范围必须由采集服务决定。
+本地 Vite 无反代，localhost Origin 不在生产 relay 的允许范围。开发使用显式本地测试端点或 `?simulate=1`，不要放宽生产 Origin 检查。
 
-## 采集服务接入前置条件（尚未实现）
+## 生命周期和验证
 
-由采集服务维护者确定浏览器只读访问策略：公开限定展示范围，或浏览器可用的会话鉴权。需要允许准确的 Office Origin；不能为此暴露机器 consumer token、接受任意 Origin 或复用 producer/admin 权限。若选择会话，还需明确登录入口及 Cookie 跨站约束。这次没有擅自新增其中任何方案。
+`src/presenceStream.ts` 校验完整快照、sequence、process epoch、大小及心跳。断连保留最后观察但不刷新新鲜度；隐藏页面关闭连接，恢复重连；旧连接回调隔离。浏览器自动响应协议 ping/pong，不发送应用消息。HTTP 401/403 在浏览器仅表现为通用错误，不伪称已识别状态码。
 
-数据协议仍是现有 raw PresenceList 加 `type/reason/sequence`：首帧 initial，后续 change/heartbeat，每条完整替换；空集清空。保留现有 15 秒心跳、45 秒失鲜、10 分钟保留、最多 128 个实例的契约。
+上线须验证真实 WSS initial/heartbeat、拒绝错误 Origin/缺失 Origin/查询参数、浏览器连接及旧 API 404，再停止旧 agent-office.service。只改 Office vhost，不改采集服务配置或重启采集服务。保留旧 release、vhost、service enabled 状态及私有配置用于回退。
 
-## 部署与回退边界
+回退：恢复旧 current 符号链接、旧 Office Nginx 配置，nginx -t 后 reload，恢复旧 Office service。不要删除依赖旧 release 的 node_modules 或私有机器凭证。
 
-1. 先完成并测试采集服务浏览器入口，包括 Origin、只读范围及鉴权；不要先停线上旧 Office 服务。
-2. 确认公开身份映射，设置采集 WSS 地址，`npm run check`，候选静态页面用真实浏览器验证直连与任务展示。
-3. 使用 `deploy/office.falsita.cn.conf` 纯静态模板：仅提供 dist，`/api/` 返回 404；CSP connect-src 只增加准确的采集 WSS Origin，无 proxy_pass。如更换采集域名，必须同步更新 CSP。
-4. 经授权切换前端及 Nginx，通过验证后停止/禁用旧 `agent-office.service`。新部署不安装 Node 生产依赖、不安装 systemd Office 服务。
-5. 验证直连成功后再按运维流程处理旧机器凭证。不要误删其他消费者配置或修改采集生产状态。
-6. 回退需要同时恢复旧静态版本、旧 Nginx 代理配置以及旧服务。旧部署的依赖链接仍可能指向之前 release，不能提前删除。
-
-保留的 `server/collect.ts`、`server/electronBridge.ts` 是可选 Electron main 进程适配库，不是 HTTP 服务，不被网页/Vite 导入。旧 Office presence HTTP/WS 服务、Vite 后端插件和 systemd 模板已移除；ws 直接依赖已移除。
+保留的 `server/collect.ts`、`server/electronBridge.ts` 是可选 Electron main 进程适配库，不是 HTTP 服务，不被网页导入。

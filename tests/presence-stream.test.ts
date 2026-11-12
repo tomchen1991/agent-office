@@ -58,7 +58,7 @@ test('each page directly connects to the collector and computes independently; n
   try {
     assert.equal(b.Socket.all.length, 2);
     const [socketA, socketC] = b.Socket.all;
-    assert.equal(socketA.url.href, 'wss://collect.falsita.cn/api/presence/v1/ws');
+    assert.equal(socketA.url.href, 'wss://office.falsita.cn/api/presence/v1/ws');
     socketA.message(collectorFrame());
     socketC.message({ ...collectorFrame(), instances: [], total: 0 });
     assert.equal(a.state().snapshot?.agents.length, 1);
