@@ -1,7 +1,9 @@
-import type { AdapterState, OfficeTopology } from './core';
+import type { AdapterState } from './core';
+import type { ResidentOfficeTopology as OfficeTopology } from './residentLayout';
 import { createPresenceSeatAllocator, normalizePresence } from './presence.ts';
 import { PRESENCE_MAPPING, presenceWebSocketURL } from './presenceConfig.ts';
 import type { PresenceMapping } from './presence.ts';
+import { createOnDemandPresenceTracker } from './onDemandPresence.ts';
 
 /** Each page owns its direct collector connection and local presentation state. */
 export function connectPresenceStream(
@@ -16,6 +18,7 @@ export function connectPresenceStream(
   }
   // Keep allocation through reconnects, but never share it across pages or subscriptions.
   const allocateSeats = createPresenceSeatAllocator();
+  const trackOnDemand = createOnDemandPresenceTracker();
   let stopped = false;
   let socket: WebSocket | null = null;
   let retry: number | undefined;
@@ -63,7 +66,7 @@ export function connectPresenceStream(
           typeof body.processId !== 'string' || !body.processId || (processId !== undefined && body.processId !== processId) ||
           body.heartbeatIntervalMs !== 15000 || body.staleAfterMs !== 45000 || body.expireAfterMs !== 600000 || body.historyLimit !== 10 ||
           !Number.isFinite(Date.parse(body.startedAt)) || !Number.isFinite(Date.parse(body.observedAt)) || !Array.isArray(body.instances) || body.total !== body.instances.length) throw new Error('contract');
-        const next = normalizePresence(body, options.mapping ?? PRESENCE_MAPPING, allocateSeats);
+        const next = normalizePresence(body, options.mapping ?? PRESENCE_MAPPING, allocateSeats, trackOnDemand);
         sequence = body.sequence;
         processId = body.processId;
         setTopology(next.topology);

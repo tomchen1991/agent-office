@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AdapterState, OfficeAdapter, OfficeTopology } from './core';
+import type { AdapterState, OfficeAdapter } from './core';
+import type { ResidentOfficeTopology as OfficeTopology } from './residentLayout';
 import { LiveOffice } from './LiveOffice';
 import { connectPresenceStream } from './presenceStream';
 import './display-only.css';

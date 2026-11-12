@@ -22,6 +22,8 @@ export interface OfficeAgent {
   identity?: AgentIdentity;
   observedAt: string | null;
   sourceFreshness?: 'fresh' | 'stale' | 'unknown';
+  /** Configured event-driven service, not a heartbeat-based process. */
+  presenceMode?: 'on-demand';
   validForMs?: number;
   source: string;
 }
@@ -75,6 +77,11 @@ export function freshness(agent: OfficeAgent, elapsedSinceReceiptMs: number): 'f
 export function displayStatus(agent: OfficeAgent, elapsedSinceReceiptMs: number, phase: AdapterState['phase']): OfficeStatus {
   if (phase !== 'connected') return 'unknown';
   if (agent.status === 'offline') return 'offline';
+  if (agent.presenceMode === 'on-demand') {
+    if (agent.status === 'idle') return 'idle';
+    return Number.isFinite(elapsedSinceReceiptMs) && elapsedSinceReceiptMs >= 0 &&
+      Number.isFinite(agent.validForMs) && elapsedSinceReceiptMs < agent.validForMs! ? agent.status : 'unknown';
+  }
   return freshness(agent, elapsedSinceReceiptMs) === 'fresh' ? agent.status : 'unknown';
 }
 export function validateTopology(topology: OfficeTopology): void {
