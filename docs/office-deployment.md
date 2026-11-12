@@ -2,9 +2,21 @@
 
 ## Deployment ownership
 
-Deployment is handled by DevOps. Coding changes may be committed and pushed when requested; do not deploy, change production configuration, or restart services as part of coding work. The current browser-direct migration has not been deployed and its collector browser-auth prerequisite remains unresolved.
+Production changes require explicit owner authorization; coding changes alone do not authorize deployment. The owner explicitly requested this deployment and the Nginx same-origin solution below. Historical Node-backend records remain for audit and rollback, not as the current architecture.
 
-> Pending source migration (not deployed): the Office Node presence backend and systemd template have been removed from current source. The new static frontend connects directly to the collector and computes mappings/seats locally. Production still uses the old architecture below. Do not deploy the static template or stop the old service before the collector supports browser read-only connections; its current endpoint rejects Origin/Cookie and requires machine Bearer headers. See [direct connection migration](presence-direct.md). No production or collector changes were made for this migration.
+## Deployment 2026-11-12: static Office + Origin-checked Nginx WSS
+
+- User authorized deployment after the collector update and specifically requested Nginx to handle the cross-origin restriction. Source `f7ccb1e` was committed and pushed to `feat/persona-seated-breaks` before activation; PR #3 was **not merged**. This release includes its persona-specific seated animations as well as main's browser-side presence processing.
+- Active release: `/opt/agent-office/releases/20261112T081253Z-static-wss-f7ccb1e`. Build explicitly used `VITE_PRESENCE_WS_URL=wss://office.falsita.cn/api/presence/v1/ws`. No production Node dependencies installed.
+- Only the Office vhost changed. The exact read-only WSS path proxies to `127.0.0.1:18788`, fixed Host `collect.falsita.cn`. Nginx verifies exact Office Origin before clearing upstream Origin, Authorization and Cookie. This uses the collector's existing anonymous machine-reader path; it is **not viewer authentication**. All other API routes remain 404. See [trust boundary and limits](presence-direct.md).
+- Migrated only the existing public sourceCharacters/sourceLabels mappings to the browser. The private presence config and token were not copied, modified or removed; checksum unchanged.
+- `npm run check`: 269 tests passed, asset SHA-256 verification, TypeScript and production build passed. Initial test run caught two stale default-URL assertions; these were updated and the complete check rerun successfully.
+- `nginx -t` passed. Origin HTTPS probe (real hostname/certificate verification) received initial snapshot and 15-second heartbeat; wrong/missing/null Origin returned 403, query parameters 400; homepage 200, old Office HTTP/WS APIs and collector HTTP path 404. Public WSS probes independently confirmed wrong/missing/null Origin 403.
+- Actual headless Chrome loaded the public production page: connected, 8 actors, assets ready, initial/change/heartbeat received, no JS exceptions, failed network loads or alert banners. The pre-existing absent `/favicon.ico` returned 404; no application asset errors. No mobile/Electron acceptance or screenshot-based animation-quality review claimed.
+- Stopped and disabled only `agent-office.service` after protocol checks; port 5188 no longer listening. Collector release `/opt/collect-service/studio-releases/main-3f30560.8DPu6e`, its port 18788 listener/process and all non-Office Nginx file checksums unchanged. Collector was not restarted.
+- First activation probe raced Nginx's asynchronous worker reload and saw old-route 404; the error trap restored the old symlink/vhost and restarted the old Office service. Second activation waited for new workers and passed all checks. First attempt backup remains `/opt/agent-office/deployment-backups/20261112T081253Z-static-wss-f7ccb1e`.
+- Successful activation backup: `/opt/agent-office/deployment-backups/20261112T081253Z-static-wss-f7ccb1e-081400`, including previous-release, old vhost, prior service states, config checksum, non-Office Nginx checksums and collector-listener evidence. Previous release `/opt/agent-office/releases/20261111T032319Z-child-idle` is retained.
+- Rollback: restore the saved vhost and previous current symlink atomically, run `nginx -t` and reload, then `systemctl enable --now agent-office` (or restart if already active). Retain old releases/private config because old service dependencies may still reference them. Do not modify collector or TLS.
 
 ## Latest infrastructure update: public ACME TLS (2026-11-09)
 
