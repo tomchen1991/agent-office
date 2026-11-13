@@ -162,6 +162,25 @@ test('Codex uses dragon artwork without becoming PI or acquiring a resident iden
   assert.equal(normalizePresence(frame, { sourceCharacters: { codex: 'grok' } }).snapshot.agents[0].character, 'grok');
 });
 
+test('registered DeckZ Codex without provider gets dragon artwork without mapping sibling PI or other sources', () => {
+  const normalize = (sourceId = 'pi-mac-zijianchen-deckz', member_name = 'DeckZ Codex', provider: string | null = null) => {
+    const row = { sourceId, instanceId: 'restarted-instance', status: 'idle', freshness: 'fresh', ageMs: 100,
+      data: { instance_id: 'restarted-instance', member_name, provider, model: null } };
+    const frame = { version: 1, persistence: 'memory', complete: true, processId: 'epoch', staleAfterMs: 45000, instances: [row] };
+    return normalizePresence(frame, PRESENCE_MAPPING).snapshot.agents[0];
+  };
+  const codex = normalize();
+  assert.equal(codex.character, 'chatgpt');
+  assert.equal(codex.provider, null);
+  assert.equal(codex.model, null);
+  assert.equal(codex.collaboration, undefined);
+  assert.equal(normalize(undefined, 'DeckZ PI').character, 'unknown');
+  assert.equal(normalize('unregistered-source').character, 'unknown');
+  assert.equal(normalize(undefined, 'Fake DeckZ Codex').character, 'unknown');
+  assert.equal(normalize(undefined, undefined, 'deepseek').character, 'deepseek');
+  assert.equal(normalize(undefined, undefined, 'unknown-provider').character, 'unknown');
+});
+
 test('raw collector snapshots are normalized locally, honoring explicit public mappings', () => {
   const row = { sourceId: 'main', instanceId: 'one', status: 'idle', freshness: 'fresh', ageMs: 100,
     receivedAt: '2026-01-01T00:00:00Z', data: { instance_id: 'one', member_name: 'Main', provider: 'openai', private_field: 'ignored' } };

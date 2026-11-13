@@ -3,6 +3,9 @@ import type { PresenceMapping } from './presence.ts';
 /** Public source/persona labels only. These values are delivered to every viewer. */
 export const PRESENCE_MAPPING: PresenceMapping = {
   sourceKinds: { 'get-news-worker': 'hotspot' },
+  sourceMemberCharacters: {
+    '["pi-mac-zijianchen-deckz","DeckZ Codex"]': 'chatgpt',
+  },
   onDemandSources: {
     'get-news-worker': { name: '热点获取 Agent（Worker）', taskTimeoutMs: 60000 },
   },
