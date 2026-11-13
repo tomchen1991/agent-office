@@ -134,6 +134,8 @@ test('two reported groups get separate stable tables; ordinary PI keeps its desk
 });
 
 test('provider selects appearance without guessing unknown vendors', () => {
+  assert.equal(providerCharacter('codex'), 'chatgpt');
+  assert.equal(providerCharacter(' Codex '), 'chatgpt');
   assert.equal(providerCharacter('openai-codex'), 'chatgpt');
   assert.equal(providerCharacter(' OpenAI '), 'chatgpt');
   assert.equal(providerCharacter('deepseek'), 'deepseek');
@@ -141,6 +143,23 @@ test('provider selects appearance without guessing unknown vendors', () => {
   assert.equal(providerCharacter('anthropic'), undefined);
   assert.equal(providerCharacter(null), undefined);
   assert.equal(providerCharacter('proxy-openai-unknown'), undefined);
+});
+
+test('Codex uses dragon artwork without becoming PI or acquiring a resident identity', () => {
+  const row = { sourceId: 'codex', instanceId: 'one', status: 'working', freshness: 'fresh', ageMs: 100,
+    data: { instance_id: 'one', member_name: 'Codex', provider: 'codex', model: 'gpt-6' } };
+  const frame = { version: 1, persistence: 'memory', complete: true, processId: 'epoch', staleAfterMs: 45000, instances: [row] };
+  const { snapshot, topology } = normalizePresence(frame);
+  const agent = snapshot.agents[0];
+  assert.equal(agent.character, 'chatgpt');
+  assert.equal(residentPersona(agent.id, agent.character, topology), 'chatgpt');
+  assert.equal(agent.source, 'codex');
+  assert.equal(agent.provider, 'codex');
+  assert.equal(agent.name, 'Codex');
+  assert.equal(agent.collaboration, undefined);
+  assert.deepEqual(topology.team.memberIds, [agent.id]);
+  assert.equal(topology.selfAgentId, '__unbound_owner__');
+  assert.equal(normalizePresence(frame, { sourceCharacters: { codex: 'grok' } }).snapshot.agents[0].character, 'grok');
 });
 
 test('raw collector snapshots are normalized locally, honoring explicit public mappings', () => {
