@@ -10,6 +10,8 @@ export interface PresenceMapping {
   onDemandSources?: Record<string, OnDemandSource>;
   sourceCharacters?: Record<string, CharacterId>;
   instanceCharacters?: Record<string, CharacterId>;
+  /** Explicit [sourceId, member_name] appearance fallback when provider is absent. */
+  sourceMemberCharacters?: Record<string, CharacterId>;
   sourceLabels?: Record<string, string>;
 }
 
@@ -128,7 +130,8 @@ export function normalizePresence(input: unknown, config: PresenceMapping = {}, 
     if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0) throw new Error('contract');
     const kind = own(config.sourceKinds, row.sourceId);
     const mapped = own(config.instanceCharacters, JSON.stringify([row.sourceId, row.instanceId])) ?? own(config.sourceCharacters, row.sourceId) ??
-      (kind === 'auto-fix' ? 'github' : kind === 'self' ? 'self' : undefined) ?? providerCharacter(d.provider);
+      (kind === 'auto-fix' ? 'github' : kind === 'self' ? 'self' : undefined) ?? providerCharacter(d.provider) ??
+      (d.provider == null ? own(config.sourceMemberCharacters, JSON.stringify([row.sourceId, d.member_name])) : undefined);
     const character: CharacterId = mapped && ['self', 'github', 'deepseek', 'chatgpt', 'grok'].includes(mapped) ? mapped : 'unknown';
     return {
       id: JSON.stringify([row.sourceId, row.instanceId]), identity: { sourceId: row.sourceId, instanceId: row.instanceId, collectorEpoch: processId },
