@@ -17,7 +17,7 @@ export interface PresenceMapping {
 export function providerCharacter(provider: unknown): CharacterId | undefined {
   if (typeof provider !== 'string') return undefined;
   const key = provider.trim().toLowerCase();
-  if (['openai', 'openai-codex', 'azure-openai', 'azure-openai-responses'].includes(key)) return 'chatgpt';
+  if (['openai', 'codex', 'openai-codex', 'azure-openai', 'azure-openai-responses'].includes(key)) return 'chatgpt';
   if (key === 'deepseek') return 'deepseek';
   if (['xai', 'x-ai', 'grok'].includes(key)) return 'grok';
   return undefined;
