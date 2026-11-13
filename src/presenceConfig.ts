@@ -2,7 +2,7 @@ import type { PresenceMapping } from './presence.ts';
 
 /** Public source/persona labels only. These values are delivered to every viewer. */
 export const PRESENCE_MAPPING: PresenceMapping = {
-  sourceKinds: { 'get-news-worker': 'hotspot' },
+  sourceKinds: { 'get-news-worker': 'hotspot', 'auto-fix-main': 'auto-fix', 'cocoon-main': 'self' },
   sourceMemberCharacters: {
     '["pi-mac-zijianchen-deckz","DeckZ Codex"]': 'chatgpt',
   },
