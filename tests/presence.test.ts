@@ -35,6 +35,29 @@ test('restarted dedicated agent takes its own desk, not a public seat', () => {
   assert.deepEqual(presenceTopology([expiredPi, activePi]).team.memberIds, ['active-pi']);
 });
 
+test('configured self and auto-fix sources use their own artwork and dedicated desks without provider', () => {
+  const instances = [
+    { sourceId: 'cocoon-main', name: 'Backend Agent' },
+    { sourceId: 'auto-fix-main', name: '自动修复 Agent' },
+  ].map(({ sourceId, name }) => ({ sourceId, instanceId: 'current', status: 'idle', freshness: 'fresh', ageMs: 100,
+    data: { instance_id: 'current', member_name: name, provider: null, model: null } }));
+  const { snapshot, topology } = normalizePresence({ version: 1, persistence: 'memory', complete: true,
+    processId: 'epoch', staleAfterMs: 45000, instances }, PRESENCE_MAPPING);
+  const [self, autoFix] = snapshot.agents;
+  assert.equal(self.character, 'self');
+  assert.equal(autoFix.character, 'github');
+  assert.equal(topology.selfAgentId, self.id);
+  assert.equal(topology.githubAgentId, autoFix.id);
+  assert.equal(residentSeatReport(topology).assignments[self.id], 'self');
+  assert.equal(residentSeatReport(topology).assignments[autoFix.id], 'github-desk');
+  assert.deepEqual(topology.team.memberIds, []);
+  assert.deepEqual(topology.team.seatAssignments, {});
+  for (const agent of [self, autoFix]) {
+    assert.equal(agent.provider, null);
+    assert.equal(agent.model, null);
+  }
+});
+
 test('configured get-news source uses the hotspot desk without changing status or model appearance', () => {
   const row = (instanceId: string, freshness = 'fresh', status = 'idle') => ({
     sourceId: 'get-news-worker', instanceId, freshness, status, ageMs: freshness === 'fresh' ? 100 : 171000,
