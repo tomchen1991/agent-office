@@ -18,5 +18,5 @@
 - `tests/devops-presence-mounted.test.ts` 将合成 collector 行经真实归一化逻辑送进 React 场景，检查 DevOps 人物素材、工位、任务详情和状态切换。它是 JSDOM 挂载证据，不是生产截图或真实浏览器端到端证据。
 - 2026-11-16 公开只读 HTTP 快照尚未观察到 sourceId 包含 devops 的实例。来源方现已确认 sourceId 约定；生产 producer 是否启用、当前实际 scope 是否有效仍未核验，本 PR 不修改其配置或凭证。
 - 同日带 `Origin: https://office.falsita.cn` 的公开 WS Upgrade 返回 403；Office 线上 CSP 仍为 `connect-src 'self'`。当前源码的纯静态跨源直连不能因此宣称已在线贯通。采集服务需要明确允许 Office Origin，发布时还需同步已有静态部署模板的 CSP。见 [直连前置条件](presence-direct.md)。
-- 服务侧正在独立分支 `feat/office-presence-ws-origin` 开发 `presenceWsAllowedOrigins` 精确 Origin 配置，默认 `[]`；候选配置仅为只读 Presence WS 放行 `https://office.falsita.cn`，不改变 HTTP、producer 或 admin 权限。该配置尚未部署，不能当作已可用入口；部署后仍需真实浏览器验证。
+- 服务侧候选为 [collect-service PR #16](https://github.com/tomchen1991/collect-service/pull/16)，交接提交 `548d137`，独立分支 `feat/office-presence-ws-origin`。其 `presenceWsAllowedOrigins` 精确 Origin 配置默认 `[]`；候选配置仅为只读 Presence WS 放行 `https://office.falsita.cn`，不改变 HTTP、producer 或 admin 权限。该配置尚未部署，不能当作已可用入口；部署后仍需真实浏览器验证。
 - 本次不合并、不部署，不恢复旧 Node 代理，不清除/改写 Origin 绕过同源检查，不发送合成人物到生产采集服务。
