@@ -4,7 +4,7 @@
 
 链路只有：`浏览器 → 采集服务 WSS`。Office 不再运行 Node 服务，也没有 Office API/Nginx 中转。
 
-**当前线上采集接口还不能供浏览器连接。** 已检查同级 collect-service 仓库的 `src/studio/server.ts`、`docs/37-presence-websocket.md`：现有 `/api/presence/v1/ws` 拒绝 Origin、Cookie 和 subprotocol，只接受 Authorization Bearer。原生浏览器 WebSocket 必然发送 Origin，又不能设置 Authorization 请求头。因此不能把本改动直接上线后声称可用；需要采集服务先支持浏览器只读订阅。这次没有改采集服务或线上配置。
+**当前线上采集接口还不能供 Office 跨源浏览器直连。** 最新 collect-service `docs/37-presence-websocket.md` 规定 `/api/presence/v1/ws` 已是免 consumer 凭证的公开只读入口，但浏览器 Origin 必须与采集服务同源；不同子域仍是跨源。2026-11-16 使用 `Origin: https://office.falsita.cn` 的公开 Upgrade 请求返回 HTTP 403。Office 当前源码是纯静态页面，没有同源后端代理，因此 producer 上报成功不等于浏览器链路已打通。需要服务侧明确支持 Office Origin；不能通过清除/改写 Origin 绕过检查。这次没有改采集服务或线上配置。
 
 ## 前端负责全部展示计算
 
@@ -38,7 +38,7 @@ export const PRESENCE_MAPPING: PresenceMapping = {
 
 ## 采集服务接入前置条件（尚未实现）
 
-由采集服务维护者确定浏览器只读访问策略：公开限定展示范围，或浏览器可用的会话鉴权。需要允许准确的 Office Origin；不能为此暴露机器 consumer token、接受任意 Origin 或复用 producer/admin 权限。若选择会话，还需明确登录入口及 Cookie 跨站约束。这次没有擅自新增其中任何方案。
+现有公开只读策略无需 consumer token，但尚未允许准确的 Office 跨源 Origin。由采集服务维护者确认并实现该入口策略；不能为此接受任意 Origin 或复用 producer/admin 权限。旧版 Office 同源后端代理不是当前纯静态源码的一部分，恢复代理属于架构变更，不能作为已完成的直连验证。
 
 数据协议仍是现有 raw PresenceList 加 `type/reason/sequence`：首帧 initial，后续 change/heartbeat，每条完整替换；空集清空。保留现有 15 秒心跳、45 秒失鲜、10 分钟保留、最多 128 个实例的契约。
 
