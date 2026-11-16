@@ -32,19 +32,23 @@ export function presenceStatus(status: OfficeAgent['status']): OfficeAgent['stat
 export function presenceTopology(agents: readonly OfficeAgent[], config: PresenceMapping = {}): OfficeTopology {
   // Resident identity is explicit source configuration, independent of model appearance.
   const isHotspot = (agent: OfficeAgent) => own(config.sourceKinds, agent.source) === 'hotspot';
+  const isDevops = (agent: OfficeAgent) => own(config.sourceKinds, agent.source) === 'devops';
+  const isDedicated = (agent: OfficeAgent) => isHotspot(agent) || isDevops(agent);
   const uniqueFresh = (matches: (agent: OfficeAgent) => boolean) => {
     const candidates = agents.filter(a => matches(a) && a.sourceFreshness === 'fresh' && a.status !== 'offline');
     if (candidates.length === 1) return candidates[0].id;
     const retained = agents.filter(matches);
     return candidates.length === 0 && retained.length === 1 ? retained[0].id : undefined;
   };
-  const github = uniqueFresh(a => !isHotspot(a) && a.character === 'github');
+  const github = uniqueFresh(a => !isDedicated(a) && a.character === 'github');
   const hotspot = uniqueFresh(isHotspot);
+  const devops = uniqueFresh(isDevops);
   return {
-    selfAgentId: uniqueFresh(a => !isHotspot(a) && a.character === 'self') ?? '__unbound_owner__', childAgentIds: [],
+    selfAgentId: uniqueFresh(a => !isDedicated(a) && a.character === 'self') ?? '__unbound_owner__', childAgentIds: [],
     ...(github ? { githubAgentId: github } : {}),
+    ...(devops ? { devopsAgentId: devops } : {}),
     ...(hotspot ? { hotspotAgentId: hotspot } : {}),
-    team: { layout: 'independent-desks', memberIds: agents.filter(a => !isHotspot(a) && a.character !== 'self' && a.character !== 'github' && (a.sourceFreshness === 'fresh' || a.status === 'offline')).map(a => a.id).sort() },
+    team: { layout: 'independent-desks', memberIds: agents.filter(a => !isDedicated(a) && a.character !== 'self' && a.character !== 'github' && (a.sourceFreshness === 'fresh' || a.status === 'offline')).map(a => a.id).sort() },
   };
 }
 

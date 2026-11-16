@@ -87,6 +87,51 @@ test('configured get-news source uses the hotspot desk without changing status o
   assert.equal(normalizePresence(frame([row('current')])).topology.hotspotAgentId, undefined);
 });
 
+test('explicit DevOps identity owns its desk independently of model and never consumes a public seat', () => {
+  const row = (instanceId: string, freshness = 'fresh', status = 'working', provider: string | null = 'openai') => ({
+    sourceId: 'devops-agent', instanceId, freshness, status, ageMs: freshness === 'fresh' ? 100 : 46000,
+    data: { instance_id: instanceId, member_name: 'DevOps Agent', provider, task_name: 'Inspect deployment' },
+  });
+  const frame = (instances: unknown[]) => ({ version: 1, persistence: 'memory', complete: true, processId: 'epoch', staleAfterMs: 45000, instances });
+  const mapping = PRESENCE_MAPPING;
+  const normalize = (instances: unknown[]) => normalizePresence(frame(instances), mapping);
+  const id = JSON.stringify(['devops-agent', 'current']);
+  for (const provider of ['openai', 'deepseek', 'xai', null]) {
+    const next = normalize([row('current', 'fresh', 'working', provider)]);
+    assert.equal(next.topology.devopsAgentId, id);
+    assert.equal(residentSeatReport(next.topology).assignments[id], 'devops-desk');
+    assert.equal(residentPersona(id, next.snapshot.agents[0].character, next.topology), 'devops');
+    assert.equal(next.snapshot.agents[0].status, 'working');
+    assert.equal(next.snapshot.agents[0].provider, provider);
+    assert.deepEqual(next.topology.team.memberIds, []);
+    assert.deepEqual(next.topology.team.seatAssignments, {});
+  }
+  for (const status of ['idle', 'waiting', 'stopping', 'unknown']) {
+    const next = normalize([row('current', 'fresh', status)]);
+    assert.equal(next.topology.devopsAgentId, id);
+    assert.equal(next.snapshot.agents[0].status, status === 'stopping' ? 'offline' : status);
+  }
+  const stale = normalize([row('current', 'stale', 'unknown')]);
+  assert.equal(stale.topology.devopsAgentId, id);
+  assert.equal(stale.snapshot.agents[0].sourceFreshness, 'stale');
+  assert.equal(normalize([row('old', 'stale', 'unknown'), row('current')]).topology.devopsAgentId, id);
+  assert.equal(normalize([row('old', 'fresh', 'stopping'), row('current')]).topology.devopsAgentId, id);
+  const ambiguous = normalize([row('other'), row('current')]);
+  assert.equal(ambiguous.topology.devopsAgentId, undefined);
+  assert.deepEqual(ambiguous.topology.team.memberIds, []);
+  assert.equal(normalize([]).topology.devopsAgentId, undefined);
+  const unconfigured = normalizePresence(frame([row('current')]));
+  assert.equal(unconfigured.topology.devopsAgentId, undefined);
+  assert.deepEqual(unconfigured.topology.team.memberIds, [id]);
+  // Even an explicit model appearance must not steal another resident's identity.
+  for (const character of ['self', 'github'] as const) {
+    const next = normalizePresence(frame([row('current')]), { ...mapping, sourceCharacters: { 'devops-agent': character } });
+    assert.equal(next.topology.selfAgentId, '__unbound_owner__');
+    assert.equal(next.topology.githubAgentId, undefined);
+    assert.equal(next.topology.devopsAgentId, id);
+  }
+});
+
 test('presence stopping maps to offline and retains its seat through departure and expiry', async () => {
   const { advanceLiveOffice, reconcileLiveOffice } = await import('../src/liveOfficeMotion.ts');
   const { displayStatus } = await import('../src/core.ts');
