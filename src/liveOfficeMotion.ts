@@ -14,6 +14,8 @@ export interface LiveOfficeTarget {
   identityKey: string | null;
   seatKey: string;
   status: OfficeStatus;
+  /** A fresh report explicitly says unknown, rather than missing/stale/disconnected data. */
+  reportedUnknown?: boolean;
   personalRole?: PersonalRole;
   /** Renderer-only, loaded persona art. Never inferred from waiting/unknown status. */
   seatedBreakRole?: SeatedBreakRole;
@@ -59,8 +61,9 @@ export function reconcileLiveOffice(previous: LiveOfficeMotionState, targets: re
     }
     if (actor && target.identityKey && actor.identityKey !== target.identityKey) actor = undefined;
     if (!actor) {
-      return target.identityKey && active(target.status)
-        ? [{ ...target, identityKey: target.identityKey, phase: reducedMotion ? 'seated' as const : 'arrival' as const, elapsedMs: 0 }]
+      const reportedUnknown = target.status === 'unknown' && target.reportedUnknown;
+      return target.identityKey && (active(target.status) || reportedUnknown)
+        ? [{ ...target, identityKey: target.identityKey, phase: reducedMotion || reportedUnknown ? 'seated' as const : 'arrival' as const, elapsedMs: 0 }]
         : [];
     }
     const next: LiveOfficeActor = { ...actor, ...target, personalRole: target.personalRole, seatedBreakRole: target.seatedBreakRole, seatedBreakArtKey: target.seatedBreakArtKey, identityKey: target.identityKey ?? actor.identityKey };
