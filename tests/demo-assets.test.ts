@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {demoCharacters} from '../src/demoAssets.ts';
-test('all seven characters have independent complete 4x2 RGBA action sheets at declared dimensions',()=>{
- assert.deepEqual(demoCharacters.map(c=>c.id),['self','deepseek','chatgpt','grok','github','devops','hotspot']);
+test('all eight characters have independent complete 4x2 RGBA action sheets at declared dimensions',()=>{
+ assert.deepEqual(demoCharacters.map(c=>c.id),['self','deepseek','chatgpt','grok','github','devops','hotspot','gemini']);
  const paths=new Set<string>();
  for(const character of demoCharacters){
   assert.equal(character.ready,true);
@@ -16,5 +16,5 @@ test('all seven characters have independent complete 4x2 RGBA action sheets at d
    assert.ok(atlas.anchor.x>=0&&atlas.anchor.x<=1&&atlas.anchor.y>=0&&atlas.anchor.y<=1);
   }
  }
- assert.equal(paths.size,14);
+ assert.equal(paths.size,16);
 });

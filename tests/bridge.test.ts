@@ -138,11 +138,12 @@ test('renderer adapter cached replay also ages TTL and retains original receipt 
 });
 
 
-test('GitHub display persona crosses the same narrow IPC contract without new data privileges',()=>{
+test('GitHub and Gemini display personas cross the same narrow IPC contract without new data privileges',()=>{
  const agent={id:'repair',name:'GitHub Agent',character:'github',status:'waiting',latestUserRequest:null,observedAt:null,source:'synthetic-test',token:'DO NOT TRANSFER'};
  const state={...connected(),snapshot:{...connected().snapshot!,agents:[agent]}};
  const sanitized=sanitizeBridgeState(state);
  assert.equal(sanitized.snapshot?.agents[0].character,'github');
+ assert.equal(sanitizeBridgeState({...state,snapshot:{...state.snapshot,agents:[{...agent,character:'gemini'}]}}).snapshot?.agents[0].character,'gemini');
  assert.equal(sanitized.snapshot?.agents[0].status,'waiting');
  assert.equal(JSON.stringify(sanitized).includes('DO NOT TRANSFER'),false);
  assert.equal(sanitizeBridgeState({...state,snapshot:{...state.snapshot,agents:[{...agent,character:'unapproved-persona'}]}}).phase,'disconnected');

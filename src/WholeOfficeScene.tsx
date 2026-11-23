@@ -54,7 +54,7 @@ const furniturePosition = (seat: OfficeSeat, x: number, y: number, width: number
 };
 
 const modelSwitchAccent: Record<OfficePersona, string> = {
-  self: '#d9b8ff', deepseek: '#8fd3ff', chatgpt: '#8ff0c3', grok: '#ffd28f', github: '#aebdff', devops: '#8cd8e8', hotspot: '#f2bb77', unknown: '#c9ced8',
+  self: '#d9b8ff', deepseek: '#8fd3ff', chatgpt: '#8ff0c3', grok: '#ffd28f', gemini: '#b8adff', github: '#aebdff', devops: '#8cd8e8', hotspot: '#f2bb77', unknown: '#c9ced8',
 };
 
 const COMFORTABLE_ZOOM = .65;
