@@ -45,7 +45,7 @@ function seat(value: unknown): SeatConfig {
   if (epoch.policy === 'exact') policy = { policy: 'exact', value: string(epoch.value) };
   else if (epoch.policy === 'follow-unique' && !Object.hasOwn(epoch, 'value')) policy = { policy: 'follow-unique' };
   else throw new Error('Invalid epoch selection policy');
-  if (typeof data.character !== 'string' || !['self', 'deepseek', 'chatgpt', 'grok', 'github', 'unknown'].includes(data.character)) throw new Error('Invalid character');
+  if (typeof data.character !== 'string' || !['self', 'deepseek', 'chatgpt', 'grok', 'gemini', 'github', 'unknown'].includes(data.character)) throw new Error('Invalid character');
   return { id: string(data.id), name: string(data.name, 100), character: data.character as CharacterId,
     selector: {sourceId: string(selector.sourceId), instanceId: string(selector.instanceId), epoch: policy} };
 }

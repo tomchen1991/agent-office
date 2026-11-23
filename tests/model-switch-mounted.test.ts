@@ -50,11 +50,11 @@ test('mounted model switch cross-fades the displayed persona and respects reduce
     assert.equal(actor()?.getAttribute('data-office-persona'), 'chatgpt');
     assert.equal(swap(), null);
 
-    await emit(agent({ character: 'deepseek', provider: 'deepseek', model: 'deepseek-flash' }));
-    assert.equal(actor()?.getAttribute('data-office-persona'), 'deepseek');
+    await emit(agent({ character: 'gemini', provider: 'agy', model: 'gemini-3-pro' }));
+    assert.equal(actor()?.getAttribute('data-office-persona'), 'gemini');
     assert.equal(swap()?.getAttribute('data-office-model-from'), 'chatgpt');
-    assert.equal(swap()?.getAttribute('data-office-model-to'), 'deepseek');
-    assert.match(actor()?.querySelector('[data-office-sprite="current"]')?.getAttribute('style') ?? '', /deepseek\/seated/);
+    assert.equal(swap()?.getAttribute('data-office-model-to'), 'gemini');
+    assert.match(actor()?.querySelector('[data-office-sprite="current"]')?.getAttribute('style') ?? '', /gemini\/seated/);
     assert.match(actor()?.querySelector('[data-office-sprite="previous"]')?.getAttribute('style') ?? '', /chatgpt\/seated/);
 
     now += 2_000;

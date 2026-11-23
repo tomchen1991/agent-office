@@ -35,6 +35,32 @@
   },
   "assets": [
     {
+      "path": "assets/demo/gemini/locomotion.png",
+      "character": "gemini",
+      "sheet": "locomotion",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "cefff40ecce2c05c7f9adeacf3804e1733a1b7f508299a9e060c633862ac52de",
+      "provenance": "Copied byte-for-byte from assets/gemini-agy-sprites (0bb0402)."
+    },
+    {
+      "path": "assets/demo/gemini/seated.png",
+      "character": "gemini",
+      "sheet": "seated",
+      "width": 2048,
+      "height": 1024,
+      "cellWidth": 512,
+      "cellHeight": 512,
+      "columns": 4,
+      "rows": 2,
+      "sha256": "202f994a054b3d5c05f672a7bbb67f5a46d6903d4cdff3dee1dddf629433e8bd",
+      "provenance": "Copied byte-for-byte from assets/gemini-agy-sprites (0bb0402)."
+    },
+    {
       "path": "assets/demo/self/locomotion.png",
       "character": "self",
       "sheet": "locomotion",

@@ -208,6 +208,10 @@ test('provider selects appearance without guessing unknown vendors', () => {
   assert.equal(providerCharacter(' OpenAI '), 'chatgpt');
   assert.equal(providerCharacter('deepseek'), 'deepseek');
   assert.equal(providerCharacter('xai'), 'grok');
+  for (const provider of [' Google ', 'Gemini', 'google-gemini-cli', 'google-antigravity', 'antigravity', 'AGY']) {
+    assert.equal(providerCharacter(provider), 'gemini');
+  }
+  assert.equal(providerCharacter('proxy-gemini'), undefined);
   assert.equal(providerCharacter('anthropic'), undefined);
   assert.equal(providerCharacter(null), undefined);
   assert.equal(providerCharacter('proxy-openai-unknown'), undefined);
@@ -228,6 +232,24 @@ test('Codex uses dragon artwork without becoming PI or acquiring a resident iden
   assert.deepEqual(topology.team.memberIds, [agent.id]);
   assert.equal(topology.selfAgentId, '__unbound_owner__');
   assert.equal(normalizePresence(frame, { sourceCharacters: { codex: 'grok' } }).snapshot.agents[0].character, 'grok');
+});
+
+test('switching to a Gemini provider changes appearance without changing instance identity or seat', () => {
+  const row = { sourceId: 'general-agent', instanceId: 'one', status: 'working', freshness: 'fresh', ageMs: 100,
+    data: { instance_id: 'one', member_name: 'General Agent', provider: 'openai-codex', model: 'gpt-6' } };
+  const snapshotWith = (provider: string, model: string) => ({ version: 1, persistence: 'memory', complete: true,
+    processId: 'epoch', staleAfterMs: 45_000, instances: [{ ...row, data: { ...row.data, provider, model } }] });
+  const allocate = createPresenceSeatAllocator();
+  const before = normalizePresence(snapshotWith('openai-codex', 'gpt-6'), {}, allocate);
+  const gemini = snapshotWith('agy', 'gemini-3-pro');
+  const after = normalizePresence(gemini, {}, allocate);
+  const [agent] = after.snapshot.agents;
+  assert.equal(agent.character, 'gemini');
+  assert.equal(agent.provider, 'agy');
+  assert.equal(agent.model, 'gemini-3-pro');
+  assert.deepEqual(agent.identity, before.snapshot.agents[0].identity);
+  assert.deepEqual(after.topology, before.topology);
+  assert.equal(normalizePresence(gemini, { sourceCharacters: { 'general-agent': 'chatgpt' } }).snapshot.agents[0].character, 'chatgpt');
 });
 
 test('registered DeckZ Codex without provider gets dragon artwork without mapping sibling PI or other sources', () => {

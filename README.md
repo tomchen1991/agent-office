@@ -11,6 +11,7 @@
 - 已确认的自研 Agent 站姿、华丽镰刀 V2、待机 GIF 和透明四帧图集已保存。
 - DOM / CSS 固定办公室：左侧上方主办公室 1 个大工位，下方 DevOps 办公室安置 Auto-fix 和 DevOps；公共区域 2 张三人协作桌 + 10 个普通独立工位 + 右上方热点追踪专属桌，共 20 个实体席位；子 Agent 使用公共空席，空位不生成 Agent。
 - 主 Agent、Auto-fix、DevOps、热点追踪四种常驻身份使用独立桌面配色与 SVG 装饰；身份与模型外观分离，不按供应商或名字猜身份。
+- 通用 Agent 上报 Gemini / Google / Antigravity（AGY）provider 时显示独立 Gemini 角色，不改变席位分配规则或常驻身份；可在「角色生命周期」演示中预览。
 - DevOps 房间大屏为纯视觉占位，始终明确未连接；没有新增监控 API、轮询或协议，不使用人物 presence 冒充服务健康。详情见 `docs/resident-offices.md` 与 `docs/devops-monitor.md`。
 - 基于 2250×1050 布局的场地铺满视口，不居中留白；只调整房间与工位间距，人物和家具保持比例。默认无工具栏，窄屏保留区域定位与滚动。点击角色查看任务、状态来源与新鲜度；播放 / 暂停、缩放等控制保留在非展示模式。
 - 解耦展示 DTO 与订阅接口；默认 presence WebSocket，Node-only collect 状态轮询适配器单独提供，支持完整顺序分页与非原子覆盖标注。

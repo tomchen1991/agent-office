@@ -5,7 +5,8 @@ import type { OfficeConfig, SeatConfig } from '../src/config.ts';
 const seat = (id: string, sourceId = 'synthetic-source'): SeatConfig => ({id,name:id,character:'unknown',selector:{sourceId,instanceId:id,epoch:{policy:'follow-unique'}}});
 const config = (): OfficeConfig => ({version:1,seats:[seat('own'),seat('child'),seat('lead')],office:{selfSeatId:'own',childSeatIds:['child'],team:{layout:'leader-desks',memberSeatIds:['lead'],leaderSeatId:'lead'}}});
 test('strict config roundtrips into independent normalized data', () => {
-  const input = config(), result = importOfficeConfig(exportOfficeConfig(input));
+  const input = config(); input.seats[2].character = 'gemini';
+  const result = importOfficeConfig(exportOfficeConfig(input));
   assert.deepEqual(result,input); assert.notEqual(result.seats,input.seats);
   assert.equal(exportOfficeConfig(result),exportOfficeConfig(input));
 });

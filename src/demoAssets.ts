@@ -3,7 +3,7 @@ export interface DemoAtlas {
   anchor: {x:number;y:number};
 }
 export interface DemoCharacter {
-  id: 'self'|'deepseek'|'chatgpt'|'grok'|'github'|'devops'|'hotspot'; label:string; ready:boolean;
+  id: 'self'|'deepseek'|'chatgpt'|'grok'|'gemini'|'github'|'devops'|'hotspot'; label:string; ready:boolean;
   locomotion:DemoAtlas; seated:DemoAtlas; extra?:DemoAtlas; pickup?:DemoAtlas; parkedScythe?:DemoAtlas; sleep?:DemoAtlas; tablet?:DemoAtlas; seatedBreak?:DemoAtlas;
 }
 /** Each identity receives its own inspected action frames; never substitute another character. */
@@ -15,5 +15,6 @@ export const demoCharacters:readonly DemoCharacter[]=[
   {extra:{src:'assets/demo/github/extra.png',columns:4,rows:1,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}},sleep:{src:'assets/demo/github/sleep.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}},id:'github',label:'GitHub Agent',ready:true,locomotion:{src:'assets/demo/github/locomotion.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:300/512,y:470/512}},seated:{src:'assets/demo/github/seated.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}}},
   {id:'devops',label:'DevOps',ready:true,locomotion:{src:'assets/demo/devops/locomotion.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:300/512,y:470/512}},seated:{src:'assets/demo/devops/seated.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}},sleep:{src:'assets/demo/devops/sleep.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}}},
   {id:'hotspot',label:'热点追踪',ready:true,locomotion:{src:'assets/demo/hotspot/locomotion.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:300/512,y:470/512}},seated:{src:'assets/demo/hotspot/seated.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}},sleep:{src:'assets/demo/hotspot/sleep.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}}},
+  {id:'gemini',label:'Gemini',ready:true,locomotion:{src:'assets/demo/gemini/locomotion.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:300/512,y:470/512}},seated:{src:'assets/demo/gemini/seated.png',columns:4,rows:2,cellWidth:512,cellHeight:512,anchor:{x:250/512,y:355/512}}},
 ];
 export const demoSprites=demoCharacters[0];

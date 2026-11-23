@@ -22,6 +22,7 @@ export function providerCharacter(provider: unknown): CharacterId | undefined {
   if (['openai', 'codex', 'openai-codex', 'azure-openai', 'azure-openai-responses'].includes(key)) return 'chatgpt';
   if (key === 'deepseek') return 'deepseek';
   if (['xai', 'x-ai', 'grok'].includes(key)) return 'grok';
+  if (['google', 'gemini', 'google-gemini-cli', 'google-antigravity', 'antigravity', 'agy'].includes(key)) return 'gemini';
   return undefined;
 }
 
@@ -136,7 +137,7 @@ export function normalizePresence(input: unknown, config: PresenceMapping = {}, 
     const mapped = own(config.instanceCharacters, JSON.stringify([row.sourceId, row.instanceId])) ?? own(config.sourceCharacters, row.sourceId) ??
       (kind === 'auto-fix' ? 'github' : kind === 'self' ? 'self' : undefined) ?? providerCharacter(d.provider) ??
       (d.provider == null ? own(config.sourceMemberCharacters, JSON.stringify([row.sourceId, d.member_name])) : undefined);
-    const character: CharacterId = mapped && ['self', 'github', 'deepseek', 'chatgpt', 'grok'].includes(mapped) ? mapped : 'unknown';
+    const character: CharacterId = mapped && ['self', 'github', 'deepseek', 'chatgpt', 'grok', 'gemini'].includes(mapped) ? mapped : 'unknown';
     return {
       id: JSON.stringify([row.sourceId, row.instanceId]), identity: { sourceId: row.sourceId, instanceId: row.instanceId, collectorEpoch: processId },
       name: d.member_name, character,

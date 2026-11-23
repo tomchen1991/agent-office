@@ -1,7 +1,7 @@
 /** Physical child capacity; configured identities beyond this remain inspectable overflow. */
 export const MAX_VISIBLE_CHILD_AGENTS = 2;
 /** Public display contract. Never include credentials or raw collector payloads here. */
-export type CharacterId = 'self' | 'deepseek' | 'chatgpt' | 'grok' | 'github' | 'unknown';
+export type CharacterId = 'self' | 'deepseek' | 'chatgpt' | 'grok' | 'gemini' | 'github' | 'unknown';
 export type OfficeStatus = 'idle' | 'working' | 'waiting' | 'stopping' | 'offline' | 'unknown';
 export interface AgentIdentity { sourceId: string; instanceId: string; collectorEpoch: string }
 export interface UserRequestSummary { summary: string; receivedAt: string; source?: string }
