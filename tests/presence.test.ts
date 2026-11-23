@@ -271,6 +271,23 @@ test('registered DeckZ Codex without provider gets dragon artwork without mappin
   assert.equal(normalize(undefined, undefined, 'unknown-provider').character, 'unknown');
 });
 
+test('DeckZ Agy process reports without provider use Gemini only on the registered DeckZ source', () => {
+  const sourceId = 'pi-mac-zijianchen-deckz';
+  const row = (instanceId: string, member_name: string, source = sourceId) => ({
+    sourceId: source, instanceId, status: 'unknown', freshness: 'fresh', ageMs: 100,
+    data: { instance_id: instanceId, member_name, status: 'unknown', task_name: null, task_type: null, state_seq: 1 },
+  });
+  const frame = { version: 1, persistence: 'memory', complete: true, processId: 'epoch', staleAfterMs: 45000,
+    instances: [row('agy', 'DeckZ Agy'), row('codex', 'DeckZ Codex'), row('pi', 'DeckZ PI'),
+      row('other-agy', 'DeckZ Agy', 'unregistered-source')] };
+  const { snapshot } = normalizePresence(frame, PRESENCE_MAPPING);
+  const characters = new Map(snapshot.agents.map(agent => [agent.identity?.instanceId, agent.character]));
+  assert.equal(characters.get('agy'), 'gemini');
+  assert.equal(characters.get('codex'), 'chatgpt');
+  assert.equal(characters.get('pi'), 'unknown');
+  assert.equal(characters.get('other-agy'), 'unknown');
+});
+
 test('raw collector snapshots are normalized locally, honoring explicit public mappings', () => {
   const row = { sourceId: 'main', instanceId: 'one', status: 'idle', freshness: 'fresh', ageMs: 100,
     receivedAt: '2026-01-01T00:00:00Z', data: { instance_id: 'one', member_name: 'Main', provider: 'openai', private_field: 'ignored' } };

@@ -5,6 +5,7 @@ export const PRESENCE_MAPPING: PresenceMapping = {
   sourceKinds: { 'get-news-worker': 'hotspot', 'auto-fix-main': 'auto-fix', 'cocoon-main': 'self', 'devops-agent': 'devops' },
   sourceMemberCharacters: {
     '["pi-mac-zijianchen-deckz","DeckZ Codex"]': 'chatgpt',
+    '["pi-mac-zijianchen-deckz","DeckZ Agy"]': 'gemini',
   },
   onDemandSources: {
     'get-news-worker': { name: '热点获取 Agent（Worker）', taskTimeoutMs: 60000 },
