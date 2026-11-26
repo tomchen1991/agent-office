@@ -1,27 +1,26 @@
 # Agent Office
 
-将 Agent 的工作状态变成可视化办公室，使用 **React + TypeScript**。网页部署是纯静态前端：浏览器直接从采集服务订阅数据并完成展示计算，不运行 Office 后端。可选 Electron main 进程适配库单独保留。
+将 Agent 的工作状态变成可视化办公室，使用 **React + TypeScript**。网页由静态前端提供：浏览器通过 Presence WebSocket 订阅数据并完成展示计算，当前源码不含 Office Node 网页后端。可选 Electron main 进程适配库单独保留。
 
 ## 当前阶段
 
-**直连迁移尚未部署**：当前采集接口已免消费凭证，但只接受采集服务同源浏览器 Origin，拒绝 Office 跨源直连。必须先提供浏览器可用的只读订阅入口；不能直接发布当前构建替换线上旧架构。见 [直连接入与前置条件](docs/presence-direct.md)。本改动未修改采集服务，也未改线上。
+**源码默认值与线上不同。** 当前源码默认直连 collector WSS，仓库 Nginx 模板不带中继；2026-11-26 公开站点的 bundle 指向 Office **同源 WSS**。2026-11-12 的部署记录显示，当时该路径由 Nginx 中继，旧 Office Node 服务已停用。不要把仓库模板直接覆盖线上配置。见 [部署证据与源码差异](docs/office-deployment.md#production-evidence-and-source-differences) 和 [直连前置条件](docs/presence-direct.md)。
 
 默认打开 **真实 presence 状态办公室**（WebSocket），采用无工具栏展示；开发环境可用 `?simulate=1` 打开合成状态示例。独立动作演示组件仍保留在源码中，但不是默认入口。这仍是原型，不是完整产品：
 
 - 已确认的自研 Agent 站姿、华丽镰刀 V2、待机 GIF 和透明四帧图集已保存。
 - DOM / CSS 固定办公室：左侧上方主办公室 1 个大工位，下方 DevOps 办公室安置 Auto-fix 和 DevOps；公共区域 2 张三人协作桌 + 10 个普通独立工位 + 右上方热点追踪专属桌，共 20 个实体席位；子 Agent 使用公共空席，空位不生成 Agent。
 - 主 Agent、Auto-fix、DevOps、热点追踪四种常驻身份使用独立桌面配色与 SVG 装饰；身份与模型外观分离，不按供应商或名字猜身份。
-- 通用 Agent 上报 Gemini / Google / Antigravity（AGY）provider 时显示独立 Gemini 角色，不改变席位分配规则或常驻身份；可在「角色生命周期」演示中预览。
+- 通用 Agent 上报 Gemini / Google / Antigravity（AGY）provider 时显示 Gemini 外观，不改变席位或常驻身份。缺少 provider 时，只有显式登记的来源与成员组合才使用对应外观回退，例如 DeckZ Agy → Gemini、DeckZ Codex → 龙角色。
 - DevOps 房间大屏为纯视觉占位，始终明确未连接；没有新增监控 API、轮询或协议，不使用人物 presence 冒充服务健康。详情见 `docs/resident-offices.md` 与 `docs/devops-monitor.md`。
 - 基于 2250×1050 布局的场地铺满视口，不居中留白；只调整房间与工位间距，人物和家具保持比例。默认无工具栏，窄屏保留区域定位与滚动。点击角色查看任务、状态来源与新鲜度；播放 / 暂停、缩放等控制保留在非展示模式。
 - 解耦展示 DTO 与订阅接口；默认 presence WebSocket，Node-only collect 状态轮询适配器单独提供，支持完整顺序分页与非原子覆盖标注。
 - 版本化 JSON 配置导入 / 导出 API、显式席位与实例绑定、可信宿主请求增强接口；歧义保持空位，不自动猜角色。
-- 自研 Agent、DeepSeek、ChatGPT、Grok、GitHub Agent、DevOps、热点追踪各自拥有独立动作图集，按 32.5 秒演示进场 → 坐下 → 工作 → 摸鱼 → Error → 起身 → 退场；支持暂停、重播和阶段选择。
-- 整体演示在独立办公室、普通工位 / 共享桌及 GitHub 专属桌播放角色动作；真实状态办公室复用相同空间（新增角色未绑定时只显示家具），不把演示剧情当作真实状态。
+- 单角色生命周期组件支持八套动作图集（含 Gemini），按 32.5 秒演示进场 → 坐下 → 工作 → 摸鱼 → Error → 起身 → 退场。整体演示复用当前办公室布局；两种演示均不把合成剧情当作真实状态。
 - 主 Agent、Auto-fix、DevOps 与热点追踪四位常驻角色支持夜间空闲趴桌休息、任务唤醒；默认本机 22:00–07:00 可调整。演示页可选择模拟夜间，实际状态仍须连接正常且可靠空闲，不表示 Agent 停机。
 - 真实状态的超量团队 / 子 Agent 不占虚构工位：可靠空闲时沿公共通道游荡，工作时原地使用平板；平板素材待提供，当前用站姿兜底。未知、断连、过期停止动作，可直接点击查看详情。见 `docs/overflow-agents.md`。独立动作演示仍仅安排两个模拟子角色。
 - 安全 main/preload IPC 集成层及真实归一化状态驱动场景已提供；状态控制台是明确合成数据演示。
-- 线上 `https://office.falsita.cn` 仍使用旧版 Node 转发架构；当前源码已移除该后端，直连尚待采集服务接口支持及上线验证。历史部署记录见 `docs/office-deployment.md`，新部署方案见 `docs/presence-direct.md`。未做 Electron 宿主联调，不调用模型。
+- 旧 Office 网页 Node 后端不在当前源码中；`server/` 仅保留可选 Electron main 适配库。未做 Electron 宿主联调，不调用模型。
 - 角色动作图集已生成并接入，仍需精修帧间一致性，不宣称逐像素锁定的生产级精灵。
 
 ## 本地运行
@@ -33,7 +32,7 @@ npm ci
 npm run dev
 ```
 
-Vite 仅监听本机回环地址，只提供前端、不代理采集接口。`VITE_PRESENCE_WS_URL` 设置公开的采集服务 WSS 地址（见 `.env.example`），显式角色映射在 `src/presenceConfig.ts`。不要配置任何 VITE token。采集服务尚未支持浏览器时，默认页面会显示直连失败；本地可用 `?simulate=1` 查看合成状态场景。
+Vite 仅监听本机回环地址，只提供前端、不代理采集接口。`VITE_PRESENCE_WS_URL` 设置公开的采集服务 WSS 地址（见 `.env.example`），显式角色映射在 `src/presenceConfig.ts`。不要配置任何 VITE token。如果采集服务不接受当前开发页的 Origin，默认页面会提示连接失败；本地可用 `?simulate=1` 查看合成状态场景。
 
 ```sh
 npm run typecheck

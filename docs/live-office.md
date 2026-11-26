@@ -1,6 +1,6 @@
 # Status-driven whole office
 
-`LiveOffice` consumes an injected `OfficeAdapter` and renders the same calibrated room, private-office boundary, child desks, team desks, shared table, travel routes, and eight approved action atlases as `WholeOfficeDemo`. The original 26-second standalone demo remains a separate view and still plays only once.
+`LiveOffice` consumes an injected `OfficeAdapter` and shares the current 20-seat scene with `WholeOfficeDemo`. The separate synthetic demos use a 32.5-second timeline. The default web entry is `PresenceOffice`, which supplies a browser WebSocket adapter and topology; this page also describes how an optional Electron host can supply its own adapter.
 
 ## Renderer entry point
 
@@ -40,7 +40,8 @@ Supply **exactly one** of:
 | Fresh `working` after seating | Approved seated work frames 0/1 and active monitor/keyboard. |
 | Fresh `idle` or `waiting` | 默认坐姿待机帧 6/7；DeepSeek、ChatGPT、Grok 在白天连续 `idle` 5 秒后循环各自坐姿摸鱼帧 2/3。`waiting` 不触发；工作恢复、状态未知、身份变化、夜间或减少动态时取消。 |
 | Fresh `stopping` | Neutral seated frame 6 and explicit stopping label. No error frames. |
-| Unknown, stale, connecting, or disconnected | No phantom working animation. An existing observed actor is neutral, or an unbound/unobserved seat remains empty. |
+| Fresh, explicitly reported `unknown` | A bound identity can render directly in a neutral seated pose without playing arrival or work. |
+| `unknown` caused by uncertainty (such as stale or disconnected data) | Does not spawn a new actor. Existing observations can remain neutral; no working animation. |
 | Missing snapshot entry, including partial coverage | Uncertainty, never an asserted exit. An already-bound ID can retain a neutral presentation; an unresolved configuration binding remains empty. |
 | Explicit `offline` | An already-seated actor stands and exits once. Initial offline data remains an empty seat with an offline label. An interrupted arrival is canceled. |
 | Unsupported/unknown persona | Neutral `?` placeholder. Never substitute the purple self persona. |
@@ -63,18 +64,17 @@ The consumer treats a provider/model change as display metadata on the **same id
 ## Topology and inspection
 
 - Self-office privilege and team leadership are separate explicit concepts.
-- The physical floor is fixed: one owner desk and two independent private child desks; two three-seat public tables plus ten independent public desks and one dedicated GitHub desk. All 20 seats exist simultaneously.
-- At most two child seats are expanded, with an explicit `+N` badge.
-- Common-team capacity is 16; the separate GitHub role adds one dedicated seat. Explicit `team.seatAssignments` maps configured IDs to public physical seat IDs; remaining members are assigned deterministically without changing identities. Additional members remain in the inspector and an overflow notice. Unassigned seats contain furniture only, never synthetic agents or working/error displays.
+- The fixed floor has one owner desk, Auto-fix and DevOps desks in the operations room, a hotspot desk in the public area, two three-seat public tables, and ten independent public desks: 20 physical seats.
+- Child and team members share 16 ordinary public seats. Explicit `team.seatAssignments` reserves configured team positions before fallback allocation. Overflow roles do not create furniture and remain inspectable. Unassigned seats do not invent instances or states; the configured hotspot standby display is not an observed live instance.
 - Status labels are independent of whether an actor is present, so an initial offline/unknown/stale observation is not mislabeled as missing data.
 - The inspector separates effective status, source-reported status, source, connection, freshness, and observed time.
 - Latest user request text, request time, and request source come only from `latestUserRequest`. Null stays explicitly unavailable. Replies, activities, model names, and former-epoch requests never become synthesized user requests.
 
 ## Browser example and verification
 
-The “状态驱动办公室” tab runs `LiveOfficeExample`, which publishes explicitly labeled synthetic normalized DTOs through an `OfficeAdapter`. Manual controls demonstrate status changes, missing/partial coverage, stale state, epoch replacement, and all three topology modes. It has no network calls, real credentials, host connection, random status loop, or automatic narrative cycle. The page clearly says that no actual host is connected.
+In the Vite development build, `?simulate=1` runs `LiveOfficeExample`, which publishes explicitly labeled synthetic normalized DTOs through an `OfficeAdapter`. Manual controls cover status changes, missing/partial coverage, stale state, epoch replacement, and simulated day/night. It has no network calls, real credentials, host connection, random status loop, or automatic narrative cycle. The page clearly says that no actual host is connected.
 
-`tests/live-office-motion.test.ts` covers semantic transitions, missing data, reduced motion, epoch replacement, canceled departures, persona safety, child bounds, leadership, and geometry mapping. `tests/live-office-mounted.test.ts` mounts the actual React component under Strict Mode with an injected adapter and controlled scheduler. It covers the shared scene, latest-request truthfulness, mid-arrival/mid-sit pause, rapid status changes, monotonic expiry while paused, disconnect, offline exit, config rebinding, partial coverage, unknown persona, late callbacks, and complete teardown. Existing whole-office tests verify the shared presentation still preserves the 26-second demo and its geometry.
+`tests/live-office-motion.test.ts` covers semantic transitions, missing data, reduced motion, epoch replacement, canceled departures, persona safety, child bounds, leadership, and geometry mapping. `tests/live-office-mounted.test.ts` mounts the actual React component under Strict Mode with an injected adapter and controlled scheduler. It covers the shared scene, latest-request truthfulness, mid-arrival/mid-sit pause, rapid status changes, monotonic expiry while paused, disconnect, offline exit, config rebinding, partial coverage, unknown persona, late callbacks, and complete teardown. Whole-office tests cover the shared scene geometry and current synthetic timeline.
 
 These are mounted DOM and deterministic contract tests, not an actual Electron installation or real-host end-to-end test. See [electron-integration.md](electron-integration.md) for that remaining host integration boundary.
 
@@ -94,13 +94,13 @@ In version-1 configuration, `office.team.seatAssignments` maps logical member ID
 
 Allowed destinations are `public-desk-1` through `public-desk-10`, and `public-table-1-seat-1` through `public-table-2-seat-3`. The key must identify a configured public member. Duplicate destinations, private-room destinations, unknown fields and accessors are rejected. `bindOffice` remaps logical keys to actual epoch-bound IDs; hosts supplying `topology` directly use current agent IDs as keys.
 
-`liveOfficeSeatReport(topology)` returns physical assignments plus child/public overflow IDs. A configured but temporarily missing agent keeps its reserved slot, while source freshness governs its neutral/absent visual state. Unconfigured physical slots stay empty and cannot emit statuses, request summaries or animation targets. Overflow members remain inspectable; they do not silently replace seated members. The self office always reserves one owner seat and at most two child seats.
+`liveOfficeSeatReport(topology)` returns physical assignments plus child/public overflow IDs. A configured but temporarily missing agent keeps its reserved slot, while source freshness governs its neutral/absent visual state. Unconfigured physical slots stay empty and cannot emit statuses, request summaries or animation targets. Overflow members remain inspectable; they do not silently replace seated members. The self office reserves only the owner seat; child roles use public capacity.
 
-## Dedicated GitHub desk
+## Dedicated Auto-fix desk and compatibility names
 
-Optional version-1 `office.githubSeatId` references one explicitly configured logical seat. Direct topology uses optional `githubAgentId`. These identities must be distinct from owner, children, and common-team members; the dedicated desk is not a team-leader designation. Existing four-role configs remain valid and leave it empty. Selectors and freshness rules remain unchanged. The `github` character has its own approved atlases, not a borrowed persona.
+The version-1 `office.githubSeatId`, topology `githubAgentId`, and geometry `github-desk` identifiers still refer to the dedicated position now used by Auto-fix in the operations room. They are not a team-leader designation or a public GitHub desk. The `github` character remains available as a separate persona. For the optional DevOps and hotspot display bindings see [resident offices](resident-offices.md).
 
-The removed `public-table-3-seat-1` through `public-table-3-seat-3` IDs are rejected with a migration error. Explicitly choose a remaining public table or desk for affected members. They are never automatically moved to `github-desk`.
+The removed `public-table-3-seat-1` through `public-table-3-seat-3` IDs are rejected with a migration error. Explicitly choose a remaining public table or desk for affected members. They are never automatically moved to the dedicated Auto-fix desk.
 
 ### Personal prop continuity
 
