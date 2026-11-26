@@ -2,11 +2,19 @@
 
 ## Deployment ownership
 
-Deployment is handled by DevOps. Coding changes may be committed and pushed when requested; do not deploy, change production configuration, or restart services as part of coding work. The current browser-direct migration has not been deployed and its collector browser-auth prerequisite remains unresolved.
+Deployment is handled by DevOps and requires explicit owner authorization. Coding changes alone do not authorize deployment, production configuration changes, or restarts.
 
-> Pending source migration (not deployed): the Office Node presence backend and systemd template have been removed from current source. The new static frontend connects directly to the collector and computes mappings/seats locally. Production still uses the old architecture below. Do not deploy the static template or stop the old service before the collector supports browser read-only connections; its current endpoint rejects Origin/Cookie and requires machine Bearer headers. See [direct connection migration](presence-direct.md). No production or collector changes were made for this migration.
+## Production evidence and source differences
 
-## Latest infrastructure update: public ACME TLS (2026-11-09)
+- **2026-11-26 public read-only check:** the homepage and its JS bundle returned HTTP 200. The bundle contained `wss://office.falsita.cn/api/presence/v1/ws`; the page CSP used `connect-src 'self'`. This confirms the published frontend's same-origin endpoint, not the exact live release, current Nginx internals, or a successful WebSocket handshake.
+- **2026-11-12 recorded deployment:** release `f7ccb1e` deployed a static frontend with an exact same-origin, read-only WSS relay in the Office Nginx vhost; no Office Node runtime was installed for that release. The recorded verification included real Chrome initial/change/heartbeat frames, and the old `agent-office.service` was stopped and disabled after checks. The deployment evidence and rollback details are in `17b8bd8:docs/office-deployment.md` on `feat/persona-seated-breaks`; those deployment commits are not part of the source history audited on 2026-11-26.
+- **Source default:** `src/presenceConfig.ts` defaults to the collector's cross-origin WSS. The checked-in `deploy/office.falsita.cn.conf` is for browser-direct deployments and has no relay. Neither is a copy of the observed production configuration. Do not use the template as a drop-in production replacement or assume the old Node process needs a restart. See [browser-direct deployment prerequisites](presence-direct.md).
+
+## Historical releases and infrastructure
+
+The records below are dated evidence. Their checks, paths, and rollback steps apply to the named releases only; they are not instructions for operating the current site.
+
+### Public ACME TLS (2026-11-09)
 
 - User authorized office TLS maintenance via acme.sh, explicitly after collect TLS migration completed. Waited for the collector owner to confirm no remaining ACME/Nginx work before changing office.
 - Replaced office's shared Cloudflare Origin CA certificate with an independent Let's Encrypt ECC ec-256 certificate for `office.falsita.cn`, using existing root `/root/.acme.sh/acme.sh` v3.1.5 and `dns_cf` DNS-01. Existing private account configuration reused in place, never printed/copied; no DNS proxy mode, account credentials, HTTP redirects or application settings changed.
@@ -18,7 +26,7 @@ Deployment is handled by DevOps. Coding changes may be committed and pushed when
 - Backup/audit: `/srv/backups/agent-office-tls.NnkBTA` holds original office vhost, pre-change vhost checksums, application PID evidence and private ACME logs. Original shared Origin CA files and other domains' certificates retained.
 - Rollback: restore that office vhost, `nginx -t`, reload Nginx only. Do not remove shared Origin CA files or change collect/other vhosts; if permanently reverting, separately adjust office's acme install hook to match intended operations. The failed first attempt exercised configuration restoration, not future certificate-renewal failure handling.
 
-## Latest application release: child idle leisure (2026-11-11)
+### Legacy Node release: child idle leisure (2026-11-11)
 
 - Source `5c18fe2` committed and pushed to main before activation. DeepSeek / ChatGPT / Grok use their own seated leisure frames after five seconds of continuous fresh daytime idle; work, waiting, uncertainty, night and reduced motion cancel the action.
 - Release: `/opt/agent-office/releases/20261111T032319Z-child-idle`; rollback: `/opt/agent-office/releases/20261110-78ec6f8-viewport-fill`. Archive SHA256: `96c4879e99c558d7e34eabc120bbd7f1a62a144da958e9411ee2bc7d04fa9694`.
@@ -68,7 +76,7 @@ Deployment is handled by DevOps. Coding changes may be committed and pushed when
 - Release: `/opt/agent-office/releases/20261109T084727Z-ws`; rollback: `/opt/agent-office/releases/20261107T095532Z`.
 - Archive SHA256: `cf61f2ce00548051f57bbe4cb7d3b62f8da9f48641246a70fb7fab2b9e9db121` (committed source plus locally built dist, no credentials/node_modules).
 - User authorized commit/push to main, then real integration after collector deployment, then office deployment only on success. Collector was confirmed at `/opt/collect-service/studio-releases/presence-ws-reviewed.89UuOD` before and after this office deployment; this task did not restart or modify it.
-- Replaced browser 5-second HTTP polling with same-origin WS; one authorized upstream shared by viewers, full snapshots on change/15-second heartbeat, 35-second application watchdog. See [presence-websocket.md](presence-websocket.md).
+- In this legacy Node release, same-origin WS replaced browser 5-second HTTP polling: one authorized upstream was shared by viewers, with full snapshots on change/15-second heartbeat and a 35-second application watchdog. [The current client contract](presence-websocket.md) no longer assumes a shared Office Node upstream.
 
 ### Tests before activation
 
@@ -124,7 +132,7 @@ Owner explicitly requested removing viewer authentication. That release `/opt/ag
 - Production backend uses fixed authenticated loopback `127.0.0.1:18788`, Host `collect.falsita.cn`, avoiding a VPS→Cloudflare→same-VPS hop. Local development continues to use HTTPS. Token never enters browser, URL or logs.
 - Checks: build/typecheck passed; 10 existing targeted tests plus new hydration test passed. Anonymous public API observed at ~399ms from developer machine in one request (not a performance guarantee); same-VPS authenticated upstream read ~10ms. No claim of measured full browser first paint.
 
-## Deployment 2026-11-04
+## Legacy Node deployment (2026-11-04 only)
 
 - URL: https://office.falsita.cn
 - SSH host: root@124.220.74.235 (VM-0-10-ubuntu)
@@ -136,7 +144,7 @@ Owner explicitly requested removing viewer authentication. That release `/opt/ag
 - Static `dist` is served by Nginx. No Vite development server or public source/config files.
 - Only `/api/office/presence` is proxied to the Node backend. Backend reads the fixed collect-service instances endpoint with a private consumer token; browser Basic credentials are stripped by Nginx and are never forwarded upstream.
 
-## Private configuration (never commit contents)
+### Historical private configuration (never commit contents)
 
 - Server consumer config: `/etc/agent-office/presence.json`, root:agent-office 0640.
 - Server viewer password hashes: `/etc/agent-office/viewers.htpasswd`, root:www-data 0640.
@@ -144,7 +152,7 @@ Owner explicitly requested removing viewer authentication. That release `/opt/ag
 - Local viewer access details: `~/.config/agent-office/office-viewer.json`, 0600; independent from consumer token.
 - Entire website and API require viewer Basic authentication over HTTPS. No API bypass under static routes. Access/error logs disabled for this vhost.
 
-## Verification
+### Historical verification
 
 - Local production build/typecheck passed; 10 targeted tests passed (presence authorization boundary/provider mapping/seating/restarts/staleness, live motion, seated leisure).
 - `nginx -t` passed; existing Nginx reloaded, no other vhost modified.
@@ -153,7 +161,9 @@ Owner explicitly requested removing viewer authentication. That release `/opt/ag
 - Public Cloudflare HTTPS authenticated page and API both 200; API returned 3 instances at verification time. Counts are observations, not expected inventory.
 - No browser visual acceptance or complete historical test suite claimed for this deployment.
 
-## Operations
+### Historical operations (legacy Node release only)
+
+These notes describe the 2026-11-04 release and do not authorize restarting or restoring the retired backend.
 
 - `systemctl status agent-office` / `systemctl restart agent-office`
 - Runtime private config is reread on each request; no frontend build required for source/persona mapping.

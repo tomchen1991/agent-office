@@ -2,9 +2,7 @@
 
 ## 当前源码：浏览器直接订阅采集服务
 
-详见 [纯静态直连接入与部署前置条件](presence-direct.md)。每个页面独立连接，数据转换和座位分配在浏览器内计算。不运行 Office Node 服务、不使用 Office HTTP/WS 转发、不共享上游。
-
-迁移代码尚未部署；当前线上采集接口拒绝浏览器 Origin，必须先由采集服务提供浏览器可用的只读接入方式。不能把旧 consumer token 放进前端来绕过。
+详见 [浏览器直连与部署前置条件](presence-direct.md)。当前源码默认直连 collector；每个页面独立连接，数据转换和座位分配在浏览器内计算，不运行 Office Node 服务。构建时可指定公开的 WSS 地址，线上观测为 Office 同源地址，见 [部署证据](office-deployment.md#production-evidence-and-source-differences)。不要把 consumer token 放入前端。
 
 ## 流协议与生命周期
 

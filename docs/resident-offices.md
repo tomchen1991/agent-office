@@ -21,19 +21,17 @@
 
 ## 前端身份与布局
 
-`src/residentLayout.ts` 定义仅供渲染使用的 `ResidentOfficeTopology` / `ResidentOfficeConfig`。LiveOffice 可接收明确的 `devopsAgentId`、`hotspotAgentId`，或前端席位配置中的 `devopsSeatId`、`hotspotSeatId`。两个新增角色的选择仍复用既有实例绑定器，在前端将绑定结果放到专属桌。四类常驻身份按单实例设计，本轮不扩展重复实例处理；缺失绑定保持空位，不补造 Agent。
+`src/residentLayout.ts` 定义仅供渲染使用的 `ResidentOfficeTopology` / `ResidentOfficeConfig`。LiveOffice 可接收明确的 `devopsAgentId`、`hotspotAgentId`，或前端席位配置中的 `devopsSeatId`、`hotspotSeatId`。两个新增角色的选择仍复用既有实例绑定器，在前端将绑定结果放到专属桌。每张专席只展示一个逻辑身份；普通缺失绑定保持空位。热点按需 Worker 是例外：已配置的逻辑席位可显示待命，不表示发现了在线实例。
 
-这些字段不是新服务端契约。`OfficeAgent`、`OfficeTopology`、原配置导入导出 API、bridge、presence 服务端和生产入口均保持 main 原样，没有新增 residentRole 传输元数据或后端角色映射。既有 collect-service → Node → presence WebSocket 链路不变。现有生产连接不会凭名字猜出新增角色；宿主后续可自行把已知实例绑定到前端专属工位。
-
-没有创建后台执行器、凭据或服务器配置，也没有访问实际 DevOps 中台。
+这些字段不是新服务端契约。网页在浏览器内用 `src/presenceConfig.ts` 的显式来源映射绑定主 Agent、Auto-fix、DevOps 和热点追踪，不从名字或 provider 猜身份。见 [DevOps 接线](devops-presence.md)、[按需 presence](on-demand-presence.md) 和 [部署证据](office-deployment.md#production-evidence-and-source-differences)。配置绑定不等于生产 publisher 已启用，也不代表已接入 DevOps 服务监控。
 
 ## 大屏边界
 
 大屏只提供外形和可访问的详情占位，始终显示“未连接服务数据源”。没有请求、轮询、路由、服务端实现、监控 DTO 或配置项；不会把人物 presence 显示成服务健康。API 和真实数据接入由用户自行处理。详见 [大屏视觉说明](devops-monitor.md)。
 
-## 本地验证
+## 验证边界
 
-本轮按 20 席与上下两间办公室更新几何断言；262 项自动化测试、素材校验和构建通过。用户确认后已提交、推送并部署，公网静态资产与 presence WebSocket 首帧、变化及心跳验证正常，见 [部署记录](office-deployment.md)。状态动作测试仍为合成数据，不能替代实际浏览器的透明边界、遮挡和通道验收。
+20 席布局在 2026-11-10 发布时通过了当时的自动化检查，公网静态资产和 WS 验证见 [对应历史部署](office-deployment.md)。状态动作测试仍为合成数据，不能替代实际浏览器的透明边界、遮挡和通道验收。
 
 子 Agent 与团队超量成员现在复用无工位显示层，可靠空闲时游荡、工作时原地使用平板（素材未到时站姿兜底），均可点击查看详情，见 [超量角色与素材契约](overflow-agents.md)。默认展示页不增加工具栏或成员名单。
 

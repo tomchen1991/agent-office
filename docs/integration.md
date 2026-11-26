@@ -3,15 +3,15 @@
 ## 分层
 
 - `src/core.ts`：无 React、无传输依赖的展示 DTO、拓扑和订阅生命周期。
-- `src/mock.ts`：可注入时钟、确定性模拟数据。页面默认只连接它。
+- `src/main.tsx` 默认挂载 `PresenceOffice`，由浏览器消费 presence WSS；开发环境 `?simulate=1` 挂载 `LiveOfficeExample`。`src/mock.ts` 是另一个供旧原型与测试复用的模拟数据源，不是默认页面的数据源。
 - `server/collect.ts`：Node/Electron main 侧消费状态接口；**不得由 renderer 引入**。
 - `App` / 办公室场景：只读归一化 DTO，人物与团队布局来自显式配置，不由进程 role/host 推断。
 
 `OfficeAdapter.subscribe` 立即发送当前状态，返回独立取消订阅函数；`connect` 幂等，`dispose` 取消工作，之后允许重新连接，兼容 React Strict Mode。宿主应在退出时同时取消订阅和 dispose。渲染层通过固定、窄 IPC 通道接收 `AdapterState`；禁止暴露任意 URL 请求、文件访问、token 或原始采集事件。此仓库提供可注入 Electron 接口的安全 main/preload IPC 层与 renderer adapter；**未安装 Electron，也未在实际宿主中运行**。详见 [Electron 集成](electron-integration.md)。
 
-## collect-service 消费接口
+## 可选 Electron main：collect 状态接口
 
-本阶段只实现 `/v1/status` 状态轮询，不实现事件历史重放。服务使用 consumer-role Bearer token，拒绝带 Origin 的请求，因此不能 renderer fetch；Node/main 持有 token supplier。`.env.example` 仅说明宿主变量，不会自动加载。不得把 token 放进 Vite 环境、URL、页面存储或提交版本控制。
+`server/collect.ts` 适配 `/v1/status` 轮询，不做事件历史重放，也不是网页使用的 [Presence WebSocket](presence-websocket.md)。该适配器由 Node/main 注入 token supplier；这是适配器的宿主契约，不应据此推断当前 collector 的公开读策略。`.env.example` 中的宿主变量不会由适配器自动加载。不要把 token 放进 Vite 环境、URL、页面存储或版本控制。
 
 状态接口不提供用户请求摘要、父子关系、办公室拓扑或模型身份。缺失请求统一 `null`；默认未知身份占位。不能将 request.started 的模型调用当作用户请求，不能把生成的回复当作用户摘要。只有后续可靠的用户消息来源才可补充此字段。
 
@@ -71,6 +71,6 @@ const jsonForUserExport = exportOfficeConfig(config);
 
 React 宿主可从 `src/react.ts` 引入 `LiveOffice`，注入稳定的 `adapterFactory` 与显式 `officeConfig`，配置绑定随每次快照重新计算；也可传已绑定 `topology`。纯配置 / DTO / bridge API 仍从 `src/index.ts` 引入，不强迫 Node 配置消费者加载 TSX 或 CSS。
 
-LiveOffice 与固定 26 秒剧情分离：fresh working 使用工作帧，idle 使用待机帧，stopping 保持停止中，缺失 / stale / 断连明确未知；不会把 idle 推断为喝饮料摸鱼，或把连接错误演成 Agent 任务 Error。显式 offline 才触发离场。详情只显示真实 DTO 中的用户请求，缺失不编造。
+`LiveOffice` 与 32.5 秒模拟剧情分离：新鲜的 working 使用工作帧，可靠 idle 可触发纯视觉闲暇动作，缺失 / stale / 断连为未知，不把连接错误演成任务 Error。显式 offline 才触发离场；网页 presence 通常把 stopping 归一化为 offline，按需 Worker 则回到待命。详情只显示 DTO 中的用户请求，缺失不编造。
 
 页面中提供的状态驱动控制台使用合成契约快照，方便检查实际状态切换逻辑，**不是已连接真实 collect-service 的证明**。当前完成的是库级接入路径与合成跨层测试；真实部署地址、凭据、目标 Electron 宿主及设备运行验收仍由实际接入环境提供。
