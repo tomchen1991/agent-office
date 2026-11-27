@@ -57,8 +57,8 @@
       "cellHeight": 512,
       "columns": 4,
       "rows": 2,
-      "sha256": "202f994a054b3d5c05f672a7bbb67f5a46d6903d4cdff3dee1dddf629433e8bd",
-      "provenance": "Copied byte-for-byte from assets/gemini-agy-sprites (0bb0402)."
+      "sha256": "2c35554e70e0bea2878ecb622388e6dc88d878ea051667de6c31c6aaf0981cc2",
+      "provenance": "Original Gemini atlas with only idle-b (frame 7) adjusted to share the idle loop while adding a subtle upper-body breath."
     },
     {
       "path": "assets/demo/self/locomotion.png",
